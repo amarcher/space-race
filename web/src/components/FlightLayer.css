@@ -1,0 +1,27 @@
+/* Cards in transit between the deck/discard and a hand. Sits above the table
+   but below the dragged card and the hero (Slingshot) overlay. */
+.flightlayer {
+  position: fixed;
+  inset: 0;
+  z-index: 56;
+  pointer-events: none;
+}
+
+.flight {
+  position: fixed;
+  transform-origin: top left;
+  transition: transform 460ms cubic-bezier(0.36, 0.78, 0.28, 1);
+  will-change: transform;
+  filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.55));
+}
+.flight .card {
+  width: 100% !important;
+}
+
+/* Motion is the whole point of this layer — if the user opts out, never show it
+   (callers also skip the tween and commit instantly). */
+@media (prefers-reduced-motion: reduce) {
+  .flightlayer {
+    display: none;
+  }
+}

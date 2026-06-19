@@ -24,9 +24,16 @@ Responsive: desktop fan + mobile snap-scroll hand; gallery 2-up on phones (verif
 - **Distance-card trail** on each board (overlapping mini warp cards) + animated meter.
 - **Animations**: deal-in (hand), trail-in (distance), reveal-pop (safety/hazard),
   discard-pop, event toasts — all gated behind `prefers-reduced-motion`.
+- **Crane drag** (`DragLayer` + `useCardDrag`): a hand card lifts off the fan and
+  floats beneath the cursor with velocity-driven sway (MTG Arena feel). Pointer-based,
+  replaces native DnD; tap-to-select stays as the accessible fallback. `touch-action:
+  pan-x` keeps the mobile hand horizontally scrollable.
+- **Pile flights** (`FlightLayer` + `useFlights`): draws (deck/discard→hand) and
+  discards (hand→discard) tween between piles for both the human and the AI. The state
+  commit is *deferred until the card lands* (`animateAndCommit` in `Table.tsx`), so a
+  card is never in two places. Skipped under `prefers-reduced-motion` (no in-game toggle).
 
 ### Still worth polishing (post-MVP)
-- True deck→hand **flight** tween (current deal-in is an in-place entrance, not a fly).
 - **Difficulty tiers** for the AI (random / greedy / lookahead).
 - Hazard **target selection** UI (trivial now at 2 players; needed for 3–4).
 - Sound design.

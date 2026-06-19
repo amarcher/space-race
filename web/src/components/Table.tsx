@@ -11,9 +11,12 @@ import {
   type SlingshotEvent,
 } from '../game'
 import { Card } from './Card'
+import { DragLayer, useCardDrag } from './DragLayer'
+import { FlightLayer, useFlights } from './FlightLayer'
 import { Hand } from './Hand'
 import { PlayerBoard } from './PlayerBoard'
 import { SlingshotOverlay } from './SlingshotOverlay'
+import { prefersReducedMotion, type Rect } from '../motion'
 import './Table.css'
 
 const DRAW_DELAY = 480
@@ -34,15 +37,42 @@ const LOG_ICON: Record<string, string> = {
   info: '·',
 }
 
+// Screen-space rect of the .card inside an anchor element (deck/discard pile).
+function cardRectOf(el: HTMLElement | null): Rect | null {
+  if (!el) return null
+  const card = (el.querySelector('.card') as HTMLElement | null) ?? el
+  const r = card.getBoundingClientRect()
+  return { left: r.left, top: r.top, width: r.width }
+}
+
+// A card-sized landing rect centred in a hand container (cards land here on draw).
+function landingRect(el: HTMLElement | null): Rect | null {
+  if (!el) return null
+  const inner = el.querySelector('.card') as HTMLElement | null
+  const box = el.getBoundingClientRect()
+  const w = inner ? inner.getBoundingClientRect().width : box.width * 0.4
+  const h = (w * 4) / 3
+  return { left: box.left + box.width / 2 - w / 2, top: box.top + box.height / 2 - h / 2, width: w }
+}
+
 export function Table({ onExit }: { onExit?: () => void }) {
   const [state, setState] = useState<GameState>(() => createGame())
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
-  const [dragUid, setDragUid] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
   const [animating, setAnimating] = useState(false)
+  // hide the top discard while it's flying off into someone's hand (no double image)
+  const [hideDiscardTop, setHideDiscardTop] = useState(false)
   const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
+
+  // DOM anchors for pile↔hand flights
+  const deckRef = useRef<HTMLDivElement>(null)
+  const discardRef = useRef<HTMLDivElement>(null)
+  const handRef = useRef<HTMLDivElement>(null)
+  const oppHandRef = useRef<HTMLDivElement>(null)
+
+  const { flights, fly } = useFlights()
 
   const human = state.players[0]
   const opp = state.players[1]
@@ -55,29 +85,66 @@ export function Table({ onExit }: { onExit?: () => void }) {
     [moves],
   )
 
+  // Apply a move, but first fly the card between pile and hand so draws/discards
+  // read as motion. Only draw/discard touch the piles — plays/passes commit
+  // instantly. The state change is deferred until the card lands so it's never
+  // shown twice. Honours reduced-motion by committing immediately.
+  // `fromOverride` lets a crane-drop hand off the floating card's exact position.
+  const animateAndCommit = (move: Move, fromOverride?: Rect) => {
+    if (prefersReducedMotion() || (move.type !== 'draw' && move.type !== 'discard')) {
+      setState((s) => applyMove(s, move))
+      return
+    }
+    const actor = state.turn
+    const topDiscardCard = state.discard[state.discard.length - 1]
+    let from: Rect | null = null
+    let to: Rect | null = null
+    let kind: string | undefined
+    let faceDown = false
+
+    if (move.type === 'draw') {
+      const source = move.source ?? 'deck'
+      from = cardRectOf(source === 'discard' ? discardRef.current : deckRef.current)
+      to = landingRect(actor === 0 ? handRef.current : oppHandRef.current)
+      if (source === 'discard') {
+        kind = topDiscardCard?.kind
+        setHideDiscardTop(true)
+      } else {
+        faceDown = true // a fresh card off the deck stays face-down in flight
+      }
+    } else {
+      // discard: from the played card's slot (or the crane drop point) → discard pile
+      const slotEl = document.querySelector<HTMLElement>(`.hand__slot[data-uid="${move.uid}"]`)
+      from = fromOverride ?? (actor === 0 ? cardRectOf(slotEl) : cardRectOf(oppHandRef.current))
+      to = cardRectOf(discardRef.current)
+      kind = state.players[actor].hand.find((c) => c.uid === move.uid)?.kind
+    }
+
+    if (!from || !to) {
+      setState((s) => applyMove(s, move))
+      return
+    }
+    setAnimating(true)
+    fly({ from, to, kind, faceDown }).then(() => {
+      setHideDiscardTop(false)
+      setState((s) => applyMove(s, move))
+      setAnimating(false)
+    })
+  }
+
   // ---- automated turn loop: deal/draw + AI moves ----
   useEffect(() => {
-    if (state.phase === 'roundOver' || animating) return // hold the loop during the Slingshot animation
+    if (state.phase === 'roundOver' || animating) return // hold the loop during animations
     let action: (() => void) | null = null
     let delay = 0
 
     if (state.phase === 'draw' && cur.isAI) {
       // AI draws itself (deck or top of discard, per its heuristic).
       delay = DRAW_DELAY
-      action = () =>
-        setState((s) => {
-          if (s.phase !== 'draw' || !s.players[s.turn].isAI) return s
-          const mv = chooseMove(s) ?? { type: 'draw', source: 'deck' as const }
-          return applyMove(s, mv)
-        })
+      action = () => animateAndCommit(chooseMove(state) ?? { type: 'draw', source: 'deck' as const })
     } else if (state.phase === 'play' && cur.isAI) {
       delay = AI_DELAY
-      action = () =>
-        setState((s) => {
-          if (s.phase !== 'play' || !s.players[s.turn].isAI) return s
-          const mv = chooseMove(s) ?? { type: 'pass' }
-          return applyMove(s, mv)
-        })
+      action = () => animateAndCommit(chooseMove(state) ?? { type: 'pass' as const })
     }
     if (!action) return
     const t = setTimeout(action, delay)
@@ -131,12 +198,12 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
   const doPlay = () => {
     if (!selectedPlay) return
-    setState((s) => applyMove(s, selectedPlay))
+    animateAndCommit(selectedPlay)
     setSelectedUid(null)
   }
   const doDiscard = () => {
     if (!selectedUid) return
-    setState((s) => applyMove(s, { type: 'discard', uid: selectedUid }))
+    animateAndCommit({ type: 'discard', uid: selectedUid })
     setSelectedUid(null)
   }
   const newRound = () => {
@@ -144,28 +211,36 @@ export function Table({ onExit }: { onExit?: () => void }) {
     setState(createGame())
   }
 
-  // ---- drag-and-drop: drag a hand card onto a board (play) or the discard pile ----
+  // ---- crane drag: lift a hand card to the cursor, drop it on a board or the discard ----
+  const zoneAt = (x: number, y: number): string | null => {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null
+    return el?.closest('[data-drop]')?.getAttribute('data-drop') ?? null
+  }
+  const handleDrop = (uid: string, zone: string | null, rect: Rect) => {
+    const mv = moves.find((m): m is Extract<Move, { type: 'play' }> => m.type === 'play' && m.uid === uid)
+    if (zone === 'discard' && yourTurn) {
+      animateAndCommit({ type: 'discard', uid }, rect)
+    } else if (zone === 'self' && mv && mv.targetSeat === undefined) {
+      animateAndCommit(mv)
+    } else if (zone === 'opp' && mv && mv.targetSeat === opp.seat) {
+      animateAndCommit(mv)
+    }
+    // an invalid release just lets the ghosted card fade back into the hand
+    setSelectedUid(null)
+  }
+  const cardDrag = useCardDrag({ zoneAt, onDrop: handleDrop, enabled: yourTurn && !animating })
+
+  const drag = cardDrag.drag
+  const dragUid = drag?.uid ?? null
+  const hoverZone = cardDrag.zone // raw zone currently under the cursor
   const dragMove = dragUid
     ? moves.find((m): m is Extract<Move, { type: 'play' }> => m.type === 'play' && m.uid === dragUid)
     : undefined
+  // which zones this card may legally land on (drives the glow while dragging)
   const drop = {
     self: !!dragMove && dragMove.targetSeat === undefined, // distance/remedy/safety → own board
     opp: !!dragMove && dragMove.targetSeat === opp.seat, // hazard → opponent
     discard: yourTurn && !!dragUid, // any card → discard pile
-  }
-  const allowDrop = (ok: boolean) => (e: React.DragEvent) => {
-    if (ok) {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
-    }
-  }
-  const doDrop = (zone: 'self' | 'opp' | 'discard') => {
-    if (!dragUid) return
-    if (zone === 'discard' && drop.discard) setState((s) => applyMove(s, { type: 'discard', uid: dragUid }))
-    else if (zone === 'self' && drop.self && dragMove) setState((s) => applyMove(s, dragMove))
-    else if (zone === 'opp' && drop.opp && dragMove) setState((s) => applyMove(s, dragMove))
-    setDragUid(null)
-    setSelectedUid(null)
   }
 
   const myTurn = state.turn === 0 && state.phase !== 'roundOver'
@@ -175,11 +250,11 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const topDiscard = state.discard[state.discard.length - 1]
   const recentLog = state.log.slice(-7).reverse()
 
-  const canDrawDeck = drawPhaseHuman && state.deck.length > 0
-  const canDrawDiscard = drawPhaseHuman && state.discard.length > 0
+  const canDrawDeck = drawPhaseHuman && !animating && state.deck.length > 0
+  const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0
   const drawFrom = (source: 'deck' | 'discard') => {
-    if (!drawPhaseHuman) return
-    setState((s) => applyMove(s, { type: 'draw', source }))
+    if (!drawPhaseHuman || animating) return
+    animateAndCommit({ type: 'draw', source })
   }
 
   return (
@@ -200,9 +275,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <div className="table__body">
        <div className="table__main">
       <div
-        className={`dropzone ${dragUid ? (drop.opp ? 'dropzone--ok' : 'dropzone--dim') : ''}`}
-        onDragOver={allowDrop(drop.opp)}
-        onDrop={() => doDrop('opp')}
+        data-drop="opp"
+        className={`dropzone ${dragUid ? (drop.opp ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
+          hoverZone === 'opp' && drop.opp ? 'dropzone--hot' : ''
+        }`}
       >
         <PlayerBoard
           player={opp}
@@ -215,7 +291,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
         )}
       </div>
 
-      <div className="table__opp-hand" aria-label={`${opp.name} holds ${opp.hand.length} cards`}>
+      <div className="table__opp-hand" ref={oppHandRef} aria-label={`${opp.name} holds ${opp.hand.length} cards`}>
         {opp.hand.map((c) => (
           <Card key={c.uid} faceDown size="sm" />
         ))}
@@ -223,6 +299,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
       <div className="table__center">
         <div
+          ref={deckRef}
           className={`pile ${canDrawDeck ? 'pile--draw' : ''}`}
           title={canDrawDeck ? 'Tap to draw' : undefined}
         >
@@ -231,11 +308,11 @@ export function Table({ onExit }: { onExit?: () => void }) {
           <span className="pile__label">{canDrawDeck ? '👆' : ''}</span>
         </div>
         <div
+          ref={discardRef}
+          data-drop="discard"
           className={`pile dropzone ${dragUid ? (drop.discard ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
-            canDrawDiscard ? 'pile--draw' : ''
-          }`}
-          onDragOver={allowDrop(drop.discard)}
-          onDrop={() => doDrop('discard')}
+            hoverZone === 'discard' && drop.discard ? 'dropzone--hot' : ''
+          } ${canDrawDiscard ? 'pile--draw' : ''} ${hideDiscardTop ? 'pile--ghost' : ''}`}
           title={canDrawDiscard ? 'Tap to take this card' : undefined}
         >
           {topDiscard ? (
@@ -254,27 +331,27 @@ export function Table({ onExit }: { onExit?: () => void }) {
       </div>
 
       <div
-        className={`dropzone ${dragUid ? (drop.self ? 'dropzone--ok' : 'dropzone--dim') : ''}`}
-        onDragOver={allowDrop(drop.self)}
-        onDrop={() => doDrop('self')}
+        data-drop="self"
+        className={`dropzone ${dragUid ? (drop.self ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
+          hoverZone === 'self' && drop.self ? 'dropzone--hot' : ''
+        }`}
       >
         <PlayerBoard player={human} isOpponent={false} avatar={AVATAR.you} active={yourTurn} />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play">✅</span>}
       </div>
 
-      <Hand
-        player={human}
-        playableUids={playableUids}
-        selectedUid={selectedUid}
-        draggingUid={dragUid}
-        yourTurn={yourTurn}
-        onSelect={(uid) => setSelectedUid((cur) => (cur === uid ? null : uid))}
-        onDragStart={(uid) => {
-          setDragUid(uid)
-          setSelectedUid(uid)
-        }}
-        onDragEnd={() => setDragUid(null)}
-      />
+      <div ref={handRef}>
+        <Hand
+          player={human}
+          playableUids={playableUids}
+          selectedUid={selectedUid}
+          draggingUid={dragUid}
+          yourTurn={yourTurn}
+          onSelect={(uid) => setSelectedUid((c) => (c === uid ? null : uid))}
+          onDragStart={(e, uid) => cardDrag.begin(e, uid, human.hand.find((c) => c.uid === uid)?.kind ?? '')}
+          wasDragged={cardDrag.wasDragged}
+        />
+      </div>
 
       {yourTurn && playableUids.size === 0 && (
         <p className="table__hint" aria-label="Drag a card to the trash to discard">👆🗑️</p>
@@ -319,6 +396,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
           </>
         )}
       </div>
+
+      <FlightLayer flights={flights} />
+      <DragLayer drag={drag} />
 
       {toast && <div className="toast">{toast}</div>}
 
