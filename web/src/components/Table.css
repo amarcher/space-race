@@ -98,6 +98,17 @@
   border-color: rgba(255, 90, 110, 0.7);
 }
 .dropzone--dim { opacity: 0.55; }
+/* the card is hovering a valid target — lift it toward the crane */
+.dropzone--hot {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 0 0 2px rgba(79, 224, 139, 0.95), 0 0 38px rgba(79, 224, 139, 0.5);
+}
+.dropzone--hot.pile .card,
+.dropzone--hot.pile .pile__empty {
+  box-shadow: 0 0 0 2px rgba(255, 90, 110, 1), 0 0 34px rgba(255, 90, 110, 0.6);
+}
+/* the top discard is mid-flight into a hand — hide it so it isn't shown twice */
+.pile--ghost > .card { opacity: 0; }
 .dropzone__tag {
   position: absolute;
   top: 50%;

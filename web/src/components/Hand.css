@@ -9,6 +9,9 @@
 .hand__slot {
   transform-origin: bottom center;
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* let the browser keep horizontal scroll on the mobile strip while we claim
+     vertical movement to pull a card up out of the hand */
+  touch-action: pan-x;
 }
 /* deal-in: opacity/blur only so it never fights the fan or hover transforms */
 .hand__slot .card {
@@ -26,7 +29,10 @@
   transform: translateY(-6px) rotate(0deg) !important;
   z-index: 5;
 }
-.hand__slot--dragging .card { opacity: 0.4; filter: saturate(0.6); }
+/* the lifted card floats in the DragLayer; leave a faint ghost in its slot so
+   you can see where it'll drop back to */
+.hand__slot--dragging .card { opacity: 0.22; filter: saturate(0.5) brightness(0.8); }
+.hand__slot--dragging { transition: opacity 160ms ease; }
 .hand__slot--playable .card::after {
   content: '';
   position: absolute;

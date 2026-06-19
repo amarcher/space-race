@@ -1,0 +1,32 @@
+/* The lifted hand card while it's being dragged. Tracks the cursor exactly
+   (the outer node has no transition) while the inner node eases the lift/sway,
+   giving the card a little pendulum weight as it swings under the "crane". */
+.draglayer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.draglayer__pos {
+  position: fixed; /* left/top set inline = pointer position, no transition → 1:1 tracking */
+}
+
+.draglayer__card {
+  transform-origin: center;
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  filter: drop-shadow(0 26px 42px rgba(0, 0, 0, 0.6));
+}
+.draglayer__card .card {
+  width: 100% !important;
+  box-shadow:
+    0 0 0 2px rgba(125, 240, 255, 0.6),
+    0 30px 60px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draglayer__card {
+    transition: none;
+  }
+}

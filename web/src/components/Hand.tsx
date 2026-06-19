@@ -9,8 +9,10 @@ interface HandProps {
   draggingUid: string | null
   yourTurn: boolean
   onSelect: (uid: string) => void
-  onDragStart: (uid: string) => void
-  onDragEnd: () => void
+  /** start a crane drag for this card (pointer-driven) */
+  onDragStart: (e: React.PointerEvent, uid: string, kind: string) => void
+  /** true if the press just ended in a drag — used to swallow the trailing click */
+  wasDragged: () => boolean
 }
 
 export function Hand({
@@ -21,7 +23,7 @@ export function Hand({
   yourTurn,
   onSelect,
   onDragStart,
-  onDragEnd,
+  wasDragged,
 }: HandProps) {
   const n = player.hand.length
   return (
@@ -35,17 +37,20 @@ export function Hand({
         return (
           <div
             key={card.uid}
+            data-uid={card.uid}
             className={`hand__slot ${playable ? 'hand__slot--playable' : ''} ${
               selectedUid === card.uid ? 'hand__slot--selected' : ''
             } ${draggingUid === card.uid ? 'hand__slot--dragging' : ''}`}
             style={{ transform: `rotate(${rot}deg) translateY(${lift}px)` }}
-            draggable={yourTurn}
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = 'move'
-              e.dataTransfer.setData('text/plain', card.uid)
-              onDragStart(card.uid)
+            onPointerDown={yourTurn ? (e) => onDragStart(e, card.uid, card.kind) : undefined}
+            // a press that became a drag fires a trailing click on release — swallow it
+            // so the card isn't also toggled-selected after being dropped.
+            onClickCapture={(e) => {
+              if (wasDragged()) {
+                e.preventDefault()
+                e.stopPropagation()
+              }
             }}
-            onDragEnd={onDragEnd}
           >
             <Card
               kind={card.kind}
