@@ -4,8 +4,19 @@ Project workspace for the birthday card game.
 
 ## Live links
 
+- **Play the game** — https://game.spaceexplorer.tech (also https://web-phi-tawny-67.vercel.app)
 - **Figma file** — https://www.figma.com/design/THJUuA3J8VpDYejlGWggQU/1000-Years
 - **Pitch deck** — [`index.html`](./index.html)
+
+## Web game
+
+A playable browser version (human vs. computer) lives in [`web/`](./web) — Vite +
+React + TypeScript. See [`web/PLAN.md`](./web/PLAN.md). It auto-deploys via Vercel:
+pushes to `main` ship to production, pull requests get preview URLs.
+
+```bash
+cd web && npm install && npm run dev   # http://localhost:5180
+```
 
 ## Start here
 
