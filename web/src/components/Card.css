@@ -1,0 +1,173 @@
+.card {
+  --radius: 7%;
+  position: relative;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: #05050f;
+  border-radius: clamp(10px, var(--radius), 22px);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  cursor: default;
+  isolation: isolate;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms ease, filter 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* sizes — height-driven so portrait 3:4 holds everywhere */
+.card--sm { width: 88px; }
+.card--md { width: 150px; }
+.card--lg { width: 230px; }
+
+.card__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+}
+
+/* subtle glass sheen across every card */
+.card__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 22%,
+    rgba(255, 255, 255, 0) 45%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+
+/* hover name caption — only text on an otherwise pure-art card */
+.card__name {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 3;
+  display: grid;
+  gap: 1px;
+  padding: 26px 10px 9px;
+  text-align: left;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(3, 3, 18, 0.92));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+}
+.card__name strong {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.15;
+}
+.card__name em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.66);
+}
+.card--sm .card__name { padding: 18px 7px 7px; }
+.card--sm .card__name strong { font-size: 10.5px; }
+.card--sm .card__name em { font-size: 8.5px; }
+
+/* distance value overlay — distance cards only carry baked text.
+   Centred on the card in full-contrast gold. */
+.card__value {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.02em;
+  font-family: var(--font-display, 'Unbounded', sans-serif);
+  pointer-events: none;
+  text-align: center;
+  /* soft radial scrim only behind the glyphs so gold stays legible over warp */
+  background: radial-gradient(closest-side at 50% 50%, rgba(2, 3, 16, 0.5), rgba(2, 3, 16, 0.12) 55%, transparent 72%);
+}
+.card__value b {
+  font-weight: 900;
+  font-size: 44px;
+  line-height: 0.86;
+  letter-spacing: -1px;
+  color: var(--gold, #ffd93d);
+  -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.6);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 26px rgba(0, 0, 0, 0.55);
+}
+.card__value i {
+  font-weight: 700;
+  font-style: normal;
+  font-size: 14px;
+  letter-spacing: 3px;
+  margin-left: 3px; /* offset the tracking so it stays optically centred */
+  color: var(--gold, #ffd93d);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
+}
+.card--lg .card__value b { font-size: 70px; }
+.card--lg .card__value i { font-size: 20px; }
+.card--sm .card__value b { font-size: 27px; -webkit-text-stroke-width: 1px; }
+.card--sm .card__value i { font-size: 9px; letter-spacing: 1.5px; margin-left: 1.5px; }
+
+.card--interactive { cursor: pointer; }
+.card--interactive:hover,
+.card--interactive:focus-visible {
+  transform: translateY(-10px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 22px 48px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  outline: none;
+}
+.card--interactive:hover .card__name,
+.card--interactive:focus-visible .card__name {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* selected: lifted with a colored ring keyed to card type */
+.card--selected {
+  transform: translateY(-18px) scale(1.03);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 26px 60px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 2px var(--ring, #8b7bff),
+    0 0 0 3px var(--ring, #8b7bff),
+    0 0 28px var(--ring-glow, rgba(139, 123, 255, 0.6));
+}
+.card--selected .card__name { opacity: 1; transform: translateY(0); }
+
+.card--type-distance { --ring: #6fb7ff; --ring-glow: rgba(111, 183, 255, 0.55); }
+.card--type-hazard   { --ring: #ff5a6e; --ring-glow: rgba(255, 90, 110, 0.55); }
+.card--type-remedy   { --ring: #4fe08b; --ring-glow: rgba(79, 224, 139, 0.5); }
+.card--type-safety   { --ring: #ffd76a; --ring-glow: rgba(255, 215, 106, 0.6); }
+
+.card--muted { filter: saturate(0.45) brightness(0.6); }
+.card--muted .card__sheen { opacity: 0.3; }
+
+.card--disabled {
+  cursor: not-allowed;
+  filter: saturate(0.4) brightness(0.55);
+}
+
+.card--back { box-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 6px 18px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.06); }
+.card--back .card__sheen { opacity: 0.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card--interactive:hover { transform: none; }
+}

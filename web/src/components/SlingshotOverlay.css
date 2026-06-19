@@ -1,0 +1,142 @@
+.sling {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: radial-gradient(circle at 50% 45%, rgba(20, 8, 40, 0.72), rgba(3, 3, 14, 0.88));
+  backdrop-filter: blur(4px);
+  animation: sling-bg 2.8s ease forwards;
+  pointer-events: none;
+  overflow: hidden;
+}
+@keyframes sling-bg {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.sling__scene {
+  position: relative;
+  width: min(360px, 80vw);
+  height: min(420px, 52vh);
+}
+.sling__scene .card { position: absolute; left: 50%; top: 50%; width: clamp(150px, 22vh, 210px); }
+
+/* radial speed-burst behind everything */
+.sling__scene::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle, rgba(125, 240, 255, 0.22), transparent 60%);
+  opacity: 0;
+  animation: sling-burst 2.8s ease forwards;
+}
+@keyframes sling-burst {
+  0%, 28% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  40% { opacity: 1; transform: scale(1.1) rotate(8deg); }
+  70% { opacity: 0.5; }
+  100% { opacity: 0; transform: scale(1.4) rotate(20deg); }
+}
+
+/* 1 + 4: the enemy hazard flies in from the top, hangs, then is flung to discard */
+.sling__hazard {
+  animation: sling-hazard 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.sling__hazard .card { box-shadow: 0 0 0 2px rgba(255, 90, 110, 0.8), 0 0 30px rgba(255, 90, 110, 0.5); }
+@keyframes sling-hazard {
+  0% { transform: translate(-50%, -260%) rotate(-12deg) scale(1.1); opacity: 0; }
+  16% { transform: translate(-50%, -55%) rotate(-6deg) scale(1); opacity: 1; }
+  28% { transform: translate(-46%, -50%) rotate(-2deg); }      /* little shake on impact */
+  32% { transform: translate(-54%, -52%) rotate(-9deg); }
+  36% { transform: translate(-50%, -52%) rotate(-6deg); }
+  58% { transform: translate(-50%, -52%) rotate(-6deg); opacity: 1; }
+  100% { transform: translate(-260%, 240%) rotate(-220deg) scale(0.35); opacity: 0; } /* hurled to the discard */
+}
+
+/* 2: your safety swoops up from your hand and intercepts */
+.sling__safety {
+  animation: sling-safety 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.sling__safety .card { box-shadow: 0 0 0 2px rgba(255, 215, 106, 0.95), 0 0 34px rgba(255, 215, 106, 0.6); }
+@keyframes sling-safety {
+  0%, 18% { transform: translate(-50%, 280%) rotate(10deg) scale(0.9); opacity: 0; }
+  30% { transform: translate(-50%, -44%) rotate(0deg) scale(1.06); opacity: 1; } /* slams in front */
+  34% { transform: translate(-50%, -50%) scale(1); }
+  82% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -58%) scale(0.96); opacity: 0; }
+}
+
+/* 3: intercept flash */
+.sling__flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  animation: sling-flash 2.8s ease forwards;
+}
+@keyframes sling-flash {
+  0%, 28% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  31% { opacity: 0.95; transform: translate(-50%, -50%) scale(8); }
+  40% { opacity: 0; transform: translate(-50%, -50%) scale(14); }
+  100% { opacity: 0; }
+}
+
+/* 5: draw a fresh card */
+.sling__draw {
+  animation: sling-draw 2.8s ease forwards;
+}
+@keyframes sling-draw {
+  0%, 64% { transform: translate(-50%, 320%) scale(0.85); opacity: 0; }
+  78% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  92% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.98); opacity: 0; }
+}
+
+.sling__banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 0;
+  animation: sling-banner 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes sling-banner {
+  0%, 30% { opacity: 0; transform: scale(0.5); }
+  38% { opacity: 1; transform: scale(1.12); }
+  46% { transform: scale(1); }
+  86% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+.sling__avatar { font-size: 46px; line-height: 1; }
+.sling__word {
+  font-family: var(--font-display, sans-serif);
+  font-weight: 900;
+  font-size: clamp(34px, 7vw, 64px);
+  letter-spacing: 1px;
+  background: linear-gradient(120deg, #fff, #ffe98f 55%, #ffd23d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 30px rgba(255, 210, 90, 0.6);
+}
+.sling__pts {
+  font-weight: 800;
+  font-size: clamp(16px, 2.4vw, 24px);
+  color: #7df0ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sling, .sling__scene::before, .sling__hazard, .sling__safety, .sling__flash, .sling__draw, .sling__banner {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

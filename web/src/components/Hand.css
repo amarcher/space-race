@@ -1,0 +1,67 @@
+.hand {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 14px 12px 6px;
+}
+.hand .card { width: var(--hand-w, 132px); }
+.hand__slot {
+  transform-origin: bottom center;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* deal-in: opacity/blur only so it never fights the fan or hover transforms */
+.hand__slot .card {
+  animation: dealIn 300ms ease;
+}
+@keyframes dealIn {
+  from { opacity: 0; filter: blur(4px) brightness(1.4); }
+  to { opacity: 1; filter: blur(0) brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hand__slot .card { animation: none; }
+}
+/* counter the fan-rotation when a card is lifted so selection reads upright */
+.hand__slot--selected {
+  transform: translateY(-6px) rotate(0deg) !important;
+  z-index: 5;
+}
+.hand__slot--dragging .card { opacity: 0.4; filter: saturate(0.6); }
+.hand__slot--playable .card::after {
+  content: '';
+  position: absolute;
+  inset: auto 14% -3px;
+  height: 10px;
+  z-index: 4;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(79, 224, 139, 0.85), transparent);
+  filter: blur(2px);
+}
+.hand__slot:not(.hand__slot--playable):not(.hand__slot--selected) .card {
+  filter: saturate(0.7) brightness(0.82);
+}
+
+/* On phones the fan can't fit — switch to a snap-scrolling strip so every
+   card stays full-size and its centred value stays readable. */
+@media (max-width: 760px) {
+  .hand {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 16px 12px 8px;
+    min-height: 188px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .hand::-webkit-scrollbar { display: none; }
+  .hand__slot {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+    transform: none !important; /* drop the fan rotation/offset */
+  }
+  .hand__slot--selected {
+    transform: translateY(-8px) !important;
+  }
+  .hand .card { width: clamp(112px, 32vw, 140px); }
+}

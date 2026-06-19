@@ -1,0 +1,27 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+  --bg: #07071a;
+  /* design-system display face (from the pitch deck / tuck box branding) */
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --gold: #ffd93d;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  color: #f2f1ff;
+  background:
+    radial-gradient(1200px 700px at 18% -10%, rgba(110, 70, 200, 0.28), transparent 60%),
+    radial-gradient(1000px 800px at 100% 10%, rgba(40, 90, 200, 0.22), transparent 55%),
+    radial-gradient(900px 900px at 50% 120%, rgba(200, 60, 140, 0.16), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; }

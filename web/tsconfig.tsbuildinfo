@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/card.tsx","./src/components/gallery.tsx","./src/components/hand.tsx","./src/components/playerboard.tsx","./src/components/slingshotoverlay.tsx","./src/components/table.tsx","./src/game/ai.ts","./src/game/cards.ts","./src/game/engine.ts","./src/game/index.ts","./src/game/rng.ts"],"version":"5.9.3"}

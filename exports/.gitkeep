@@ -1,0 +1,13 @@
+# Exports
+
+Figma PDF exports land here, ready to upload to Game Crafter.
+
+Expected files at the end of Day 10:
+
+- `card-01-25ly.pdf` through `card-19-rescue-shuttle.pdf` (19 card fronts)
+- `card-back.pdf`
+- `tuck-box.pdf` (full dieline with bleed)
+- `rules-insert.pdf` (folded card layout)
+- `milo-card.pdf` (the personalization card)
+
+Total: 22 PDFs. All at 300dpi, CMYK for Game Crafter, bleed marks visible.

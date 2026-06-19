@@ -1,0 +1,20 @@
+title,subtitle,value,subcode,type,count,art_file
+25 Light-Years,warm-up jump,25,LY,Distance,10,s1-07-25ly-warp
+50 Light-Years,light jump,50,LY,Distance,10,s1-06-50ly-warp
+75 Light-Years,half warp,75,LY,Distance,10,s1-05-75ly-warp
+100 Light-Years,full warp,100,LY,Distance,12,s1-04-100ly-warp
+200 Light-Years,hyperwarp,200,LY,Distance,4,s1-03-200ly-warp
+Asteroid Strike,fixed by Repair Drone,H,HIT,Hazard,3,s1-08-asteroid-strike
+Empty Tank,fixed by Fuel Cell,H,FUEL,Hazard,3,s1-09-empty-tank
+Busted Thruster,fixed by New Thruster,H,BREAK,Hazard,3,s1-10-busted-thruster
+Tractor Beam,fixed by Beam Cutter,H,SLOW,Hazard,4,s1-02-tractor-beam
+Black Hole,fixed by Ignition,H,STOP,Hazard,5,s1-01-black-hole
+Repair Drone,fixes Asteroid Strike,R,FIX,Remedy,6,s1-11-repair-drone
+Fuel Cell,fixes Empty Tank,R,FUEL,Remedy,6,s1-12-fuel-cell
+New Thruster,fixes Busted Thruster,R,NEW,Remedy,6,s1-13-new-thruster
+Beam Cutter,fixes Tractor Beam,R,CUT,Remedy,6,s1-14-beam-cutter
+Ignition,required to start · fixes Black Hole,R,GO,Remedy,14,s1-15-ignition
+Ace Pilot,immune to Asteroid Strike,★,ACE,Safety,1,s2-02-ace-pilot
+Antimatter Fuel Cell,immune to Empty Tank,★,ANTIMATTER,Safety,1,s2-04-antimatter-fuel-cell
+Diamond Thruster,immune to Busted Thruster,★,DIAMOND,Safety,1,s2-03-diamond-thruster
+Rescue Shuttle,immune to Tractor Beam + Black Hole,★,RESCUE,Safety,1,s2-01-rescue-shuttle

@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1000 Light-Years Auxiliary Preview</title>
+    <style>
+      :root {
+        --void: #06061a;
+        --nebula: #1a0933;
+        --plasma: #c879ff;
+        --ember: #ff5e5b;
+        --halo: #ffd93d;
+        --ghost: #fff7d6;
+        --ink: #09091d;
+        --muted: rgba(255, 247, 214, 0.72);
+        --line: rgba(255, 217, 61, 0.44);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(200, 121, 255, 0.18), transparent 34rem),
+          linear-gradient(180deg, #03030f, #10051f 55%, #050510);
+        color: var(--ghost);
+        font-family: Avenir Next, Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 48px 0 72px;
+      }
+
+      h1, h2, h3, p { margin: 0; }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        border-bottom: 1px solid rgba(255, 217, 61, 0.28);
+        padding-bottom: 24px;
+        margin-bottom: 36px;
+      }
+
+      h1 {
+        font-family: Georgia, serif;
+        font-size: clamp(34px, 5vw, 72px);
+        font-weight: 700;
+        letter-spacing: 0;
+        line-height: 0.92;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        max-width: 420px;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px;
+        align-items: start;
+      }
+
+      .panel {
+        min-width: 0;
+      }
+
+      .label {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 12px;
+        color: var(--halo);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .path {
+        color: rgba(255, 247, 214, 0.52);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+        letter-spacing: 0;
+        text-transform: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card,
+      .rules-card,
+      .box-front,
+      .box-back {
+        aspect-ratio: 2.5 / 3.5;
+        border-radius: 18px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+        border: 1px solid rgba(255, 247, 214, 0.2);
+        background-position: center;
+        background-size: cover;
+      }
+
+      .card {
+        background-image: url("artbin/s3-02-card-back-tile_v2.png");
+        display: grid;
+        place-items: center;
+      }
+
+      .card::before,
+      .box-front::before,
+      .box-back::before,
+      .rules-card::before {
+        content: "";
+        position: absolute;
+        inset: 11px;
+        border: 1px solid rgba(255, 217, 61, 0.44);
+        border-radius: 13px;
+        pointer-events: none;
+      }
+
+      .medallion {
+        width: 54%;
+        aspect-ratio: 1;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        position: relative;
+        background:
+          radial-gradient(circle, rgba(6, 6, 26, 0.88) 0 48%, rgba(255, 217, 61, 0.2) 49% 52%, rgba(6, 6, 26, 0.86) 53%),
+          conic-gradient(from 210deg, #7d5a12, #ffe986, #b27716, #fff1a8, #7d5a12);
+        box-shadow:
+          0 0 0 2px rgba(255, 217, 61, 0.36),
+          0 0 36px rgba(255, 217, 61, 0.22),
+          inset 0 0 28px rgba(0, 0, 0, 0.7);
+      }
+
+      .rocket {
+        width: 44%;
+        height: 44%;
+        position: relative;
+      }
+
+      .rocket::before {
+        content: "";
+        position: absolute;
+        inset: 2% 28% 18%;
+        border-radius: 50% 50% 42% 42%;
+        background: linear-gradient(180deg, #fff7d6, #ffd93d 52%, #ff5e5b);
+        transform: rotate(-28deg);
+        box-shadow: 0 0 18px rgba(255, 247, 214, 0.5);
+      }
+
+      .rocket::after {
+        content: "";
+        position: absolute;
+        width: 20%;
+        height: 20%;
+        left: 40%;
+        top: 24%;
+        border-radius: 999px;
+        background: var(--void);
+        transform: rotate(-28deg);
+      }
+
+      .box-front {
+        background-image:
+          linear-gradient(180deg, rgba(6, 6, 26, 0.1), rgba(6, 6, 26, 0.36)),
+          url("artbin/s3-01-tuck-box-bg_v2.png");
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 42px 34px;
+      }
+
+      .wordmark {
+        font-family: Georgia, serif;
+        font-size: clamp(38px, 5vw, 62px);
+        line-height: 0.86;
+        letter-spacing: 0;
+        color: var(--ghost);
+        text-shadow: 0 3px 22px rgba(0, 0, 0, 0.72);
+      }
+
+      .wordmark span {
+        display: block;
+        color: var(--halo);
+      }
+
+      .box-front .deck-sub {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 217, 61, 0.48);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .box-front .est {
+        margin-top: auto;
+        color: rgba(255, 217, 61, 0.74);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        letter-spacing: 0.24em;
+      }
+
+      .box-back {
+        background-image:
+          linear-gradient(180deg, rgba(6, 6, 26, 0.12), rgba(6, 6, 26, 0.52)),
+          url("artbin/s3-03-rules-text-bg_v1.png");
+        padding: 34px 30px;
+      }
+
+      .box-back h3,
+      .rules-card h3 {
+        color: var(--halo);
+        font-family: Georgia, serif;
+        font-size: 30px;
+        line-height: 0.98;
+      }
+
+      .box-back p {
+        color: rgba(255, 247, 214, 0.82);
+        font-size: 14px;
+        line-height: 1.48;
+        margin-top: 18px;
+      }
+
+      .box-back ul,
+      .rules-card ol,
+      .rules-card ul {
+        margin: 18px 0 0;
+        padding-left: 18px;
+        color: rgba(255, 247, 214, 0.78);
+        font-size: 13px;
+        line-height: 1.42;
+      }
+
+      .rules-card {
+        background-image:
+          linear-gradient(180deg, rgba(6, 6, 26, 0.08), rgba(6, 6, 26, 0.58)),
+          url("artbin/s3-03-rules-text-bg_v1.png");
+        padding: 28px;
+      }
+
+      .rules-card h3 { font-size: 26px; }
+
+      .rules-card .rule-sub {
+        margin-top: 6px;
+        color: rgba(255, 217, 61, 0.74);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.17em;
+        text-transform: uppercase;
+      }
+
+      .rules-card section {
+        margin-top: 15px;
+      }
+
+      .rules-card h4 {
+        margin: 0 0 5px;
+        color: var(--ghost);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .rules-card p {
+        color: rgba(255, 247, 214, 0.78);
+        font-size: 12px;
+        line-height: 1.38;
+      }
+
+      .rules-card ol,
+      .rules-card ul {
+        margin-top: 7px;
+        font-size: 11px;
+        line-height: 1.32;
+      }
+
+      .spread {
+        grid-column: 1 / -1;
+        margin-top: 12px;
+      }
+
+      .dieline {
+        display: grid;
+        grid-template-columns: 0.62fr 1fr 1fr 1fr 1fr;
+        grid-template-rows: 0.42fr 1fr 0.42fr;
+        gap: 8px;
+        min-height: 430px;
+      }
+
+      .die-panel {
+        border: 1px dashed rgba(255, 217, 61, 0.42);
+        border-radius: 8px;
+        min-height: 80px;
+        background: rgba(255, 247, 214, 0.04);
+        color: rgba(255, 247, 214, 0.52);
+        display: grid;
+        place-items: center;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+      }
+
+      .die-front,
+      .die-back {
+        min-height: 260px;
+        background-size: cover;
+        background-position: center;
+        border-style: solid;
+      }
+
+      .die-front {
+        background-image:
+          linear-gradient(180deg, rgba(6, 6, 26, 0.16), rgba(6, 6, 26, 0.5)),
+          url("artbin/s3-01-tuck-box-bg_v2.png");
+      }
+
+      .die-back {
+        background-image:
+          linear-gradient(180deg, rgba(6, 6, 26, 0.12), rgba(6, 6, 26, 0.56)),
+          url("artbin/s3-03-rules-text-bg_v1.png");
+      }
+
+      .die-side {
+        background-image: url("artbin/s3-01-tuck-box-bg_v2.png");
+        background-size: cover;
+        border-style: solid;
+      }
+
+      .die-front strong,
+      .die-back strong {
+        color: var(--halo);
+        font-family: Georgia, serif;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: 0;
+        text-transform: none;
+        text-align: center;
+        padding: 0 16px;
+      }
+
+      @media (max-width: 920px) {
+        header,
+        .grid {
+          grid-template-columns: 1fr;
+          display: grid;
+        }
+
+        .dieline {
+          grid-template-columns: 1fr;
+          grid-template-rows: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Auxiliary<br />Preview</h1>
+        <p class="subtitle">
+          Fresh generated backgrounds shown with provisional overlays for the card back, tuck box,
+          and rules insert. Use this as a judgment sheet before moving the assets into Figma.
+        </p>
+      </header>
+
+      <div class="grid">
+        <div class="panel">
+          <div class="label">
+            <span>Card Back</span>
+            <span class="path">artbin/s3-02-card-back-tile_v2.png</span>
+          </div>
+          <div class="card">
+            <div class="medallion" aria-hidden="true">
+              <div class="rocket"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="label">
+            <span>Tuck Front</span>
+            <span class="path">artbin/s3-01-tuck-box-bg_v2.png</span>
+          </div>
+          <div class="box-front">
+            <div class="wordmark">1000<span>Light-Years</span></div>
+            <div class="deck-sub">A galactic card game</div>
+            <div class="est">EST 2026</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="label">
+            <span>Rules Insert</span>
+            <span class="path">artbin/s3-03-rules-text-bg_v1.png</span>
+          </div>
+          <div class="rules-card">
+            <h3>1000 Light-Years</h3>
+            <p class="rule-sub">Race to the stars</p>
+
+            <section>
+              <h4>Setup</h4>
+              <p>Shuffle the deck. Deal 6 cards to each pilot. Choose who goes first.</p>
+            </section>
+
+            <section>
+              <h4>Your Turn</h4>
+              <ol>
+                <li>Draw one card.</li>
+                <li>Play one card or discard one.</li>
+                <li>Pass to the next pilot.</li>
+              </ol>
+            </section>
+
+            <section>
+              <h4>Hazards</h4>
+              <p>An opponent may play a hazard on you. You cannot advance until you play the matching remedy.</p>
+            </section>
+
+            <section>
+              <h4>Safeties</h4>
+              <p>Reveal a safety to become permanently immune to its matching hazard.</p>
+            </section>
+          </div>
+        </div>
+
+        <div class="panel spread">
+          <div class="label">
+            <span>Tuck Box Dieline Sketch</span>
+            <span class="path">layout reference only</span>
+          </div>
+          <div class="dieline">
+            <div class="die-panel"></div>
+            <div class="die-panel">Top flap</div>
+            <div class="die-panel">Top flap</div>
+            <div class="die-panel">Top flap</div>
+            <div class="die-panel">Top flap</div>
+            <div class="die-panel">Glue</div>
+            <div class="die-panel die-side">Side</div>
+            <div class="die-panel die-front"><strong>1000<br />Light-Years</strong></div>
+            <div class="die-panel die-side">Side</div>
+            <div class="die-panel die-back"><strong>2-6 pilots<br />Ages 5+</strong></div>
+            <div class="die-panel"></div>
+            <div class="die-panel">Bottom flap</div>
+            <div class="die-panel">Bottom flap</div>
+            <div class="die-panel">Bottom flap</div>
+            <div class="die-panel">Bottom flap</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

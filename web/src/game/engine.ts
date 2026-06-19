@@ -1,0 +1,414 @@
+// Pure, serializable game engine for 1000 Light-Years.
+// No React, no DOM — just GameState + legalMoves + applyMove + scoring.
+// Designed so the exact same state object can later cross a WebSocket.
+
+import {
+  CARD_DEFS,
+  HAND_SIZE,
+  LANES,
+  MAX_200_PER_PLAYER,
+  SAFETY_MILEAGE,
+  SLINGSHOT_MILEAGE,
+  WIN_DISTANCE,
+  buildDeck,
+  defOf,
+  type CardDef,
+  type CardInstance,
+  type Lane,
+} from './cards'
+import { mulberry32, shuffle } from './rng'
+
+export interface PlayerState {
+  seat: number
+  name: string
+  isAI: boolean
+  hand: CardInstance[]
+  distance: number
+  distancePile: CardInstance[]
+  started: boolean // has fired Ignition at least once (green light)
+  /** per-lane stacks of played hazards/remedies/ignition — kept in front of the
+   * player (cards stay in play). A remedy lands on top of the hazard it fixes. */
+  battle: Record<Lane, CardInstance[]>
+  safeties: string[] // revealed safety kinds (permanent immunity)
+  coupFourres: number
+  count200: number
+}
+
+const emptyBattle = (): Record<Lane, CardInstance[]> =>
+  Object.fromEntries(LANES.map((l) => [l, []])) as unknown as Record<Lane, CardInstance[]>
+
+export type Phase = 'draw' | 'play' | 'roundOver'
+
+export type LogKind = 'hazard' | 'remedy' | 'safety' | 'distance' | 'coup' | 'win' | 'info'
+
+export interface LogEntry {
+  id: number
+  seat: number
+  text: string
+  kind: LogKind
+}
+
+export interface SlingshotEvent {
+  id: number
+  seat: number // the defender who pulled off the Slingshot
+  attacker: number
+  hazardKind: string
+  safetyKind: string
+}
+
+export interface GameState {
+  deck: CardInstance[]
+  discard: CardInstance[]
+  players: PlayerState[]
+  turn: number
+  phase: Phase
+  winner: number | null
+  log: LogEntry[]
+  logSeq: number
+  /** set the moment a Slingshot resolves, so the UI can play the hero animation */
+  lastSlingshot: SlingshotEvent | null
+}
+
+export type Move =
+  | { type: 'draw'; source?: 'deck' | 'discard' }
+  | { type: 'play'; uid: string; targetSeat?: number }
+  | { type: 'discard'; uid: string }
+  | { type: 'pass' }
+
+const other = (seat: number): number => (seat === 0 ? 1 : 0)
+
+const topOf = (pile: CardInstance[]): CardInstance | undefined => pile[pile.length - 1]
+
+// The restraint lane (Tractor Beam) is a *speed limit*, not a full stop: it caps
+// you to short hops and can sit on top of a separate blocking hazard.
+const BLOCKING_LANES: Lane[] = ['collision', 'fuel', 'engine', 'stop']
+const SPEED_LANE: Lane = 'restraint'
+export const SPEED_LIMIT_VALUE = 50
+
+export const isImmune = (p: PlayerState, hazardKind: string): boolean => {
+  const haz = CARD_DEFS[hazardKind]
+  return (haz.protectedBy ?? []).some((s) => p.safeties.includes(s))
+}
+
+/** A safety that covers the Stop lane (Black Hole) also acts as a green light. */
+const grantsGreenLight = (def: CardDef): boolean =>
+  def.type === 'safety' && (def.immuneTo ?? []).includes('black-hole')
+
+/** The active (un-remedied, un-immune) hazard kind on a lane, or null. */
+const topHazardOfLane = (p: PlayerState, lane: Lane): string | null => {
+  const top = topOf(p.battle[lane])
+  if (top) {
+    const def = defOf(top)
+    if (def.type === 'hazard' && !isImmune(p, def.kind)) return def.kind
+  }
+  return null
+}
+
+/** The hazard currently *blocking* this player (collision/fuel/engine/stop), or null. */
+export const activeHazard = (p: PlayerState): string | null => {
+  for (const lane of BLOCKING_LANES) {
+    const h = topHazardOfLane(p, lane)
+    if (h) return h
+  }
+  return null
+}
+
+/** Whether a Tractor Beam is throttling this player (distances capped at 50). */
+export const speedLimited = (p: PlayerState): boolean => topHazardOfLane(p, SPEED_LANE) !== null
+
+/** Can `attacker`'s hand hazard `target` right now? (ignores Slingshot) */
+export const canAttack = (target: PlayerState, hazardKind: string): boolean => {
+  if (!target.started || isImmune(target, hazardKind) || target.distance >= WIN_DISTANCE) return false
+  const lane = CARD_DEFS[hazardKind].lane!
+  // Tractor Beam (speed limit) can be applied even over a blocking hazard, as
+  // long as they aren't already speed-limited. Blocking hazards need a clear lane.
+  if (lane === SPEED_LANE) return topHazardOfLane(target, SPEED_LANE) === null
+  return activeHazard(target) === null
+}
+
+export interface NewGameOptions {
+  names?: [string, string]
+  aiSeats?: number[]
+  seed?: number
+}
+
+export function createGame(opts: NewGameOptions = {}): GameState {
+  const seed = opts.seed ?? (Date.now() >>> 0)
+  const rng = mulberry32(seed)
+  const deck = shuffle(buildDeck(), rng)
+  const names = opts.names ?? ['You', 'Computer']
+  const aiSeats = opts.aiSeats ?? [1]
+
+  const players: PlayerState[] = [0, 1].map((seat) => ({
+    seat,
+    name: names[seat],
+    isAI: aiSeats.includes(seat),
+    hand: [],
+    distance: 0,
+    distancePile: [],
+    started: false,
+    battle: emptyBattle(),
+    safeties: [],
+    coupFourres: 0,
+    count200: 0,
+  }))
+
+  for (let i = 0; i < HAND_SIZE; i++) {
+    for (const p of players) p.hand.push(deck.pop()!)
+  }
+
+  return {
+    deck,
+    discard: [],
+    players,
+    turn: 0,
+    phase: 'draw',
+    winner: null,
+    logSeq: 1,
+    lastSlingshot: null,
+    log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
+  }
+}
+
+export function legalMoves(state: GameState): Move[] {
+  if (state.phase === 'roundOver') return []
+  const me = state.players[state.turn]
+
+  if (state.phase === 'draw') {
+    // Draw from the deck, or take the top of the discard pile instead. Once the
+    // deck is empty we stop offering draws (end-game: play/discard until stuck)
+    // so discard-recycling can't loop forever.
+    if (state.deck.length === 0) return [{ type: 'draw', source: 'deck' }]
+    const moves: Move[] = [{ type: 'draw', source: 'deck' }]
+    if (state.discard.length > 0) moves.push({ type: 'draw', source: 'discard' })
+    return moves
+  }
+
+  const moves: Move[] = []
+  const opp = state.players[other(state.turn)]
+  const hzr = activeHazard(me)
+  const slow = speedLimited(me)
+
+  for (const card of me.hand) {
+    const def = defOf(card)
+    switch (def.type) {
+      case 'distance':
+        // overshoot is allowed; while speed-limited only ≤50 ly hops are legal
+        if (
+          me.started &&
+          !hzr &&
+          (!slow || (def.value ?? 0) <= SPEED_LIMIT_VALUE) &&
+          (def.value !== 200 || me.count200 < MAX_200_PER_PLAYER)
+        ) {
+          moves.push({ type: 'play', uid: card.uid })
+        }
+        break
+      case 'remedy':
+        if (def.isGo) {
+          if (!me.started || hzr === 'black-hole') moves.push({ type: 'play', uid: card.uid })
+        } else {
+          const laneHzr = topHazardOfLane(me, def.lane!)
+          if (laneHzr && CARD_DEFS[laneHzr].fixedBy === def.kind) moves.push({ type: 'play', uid: card.uid })
+        }
+        break
+      case 'safety':
+        moves.push({ type: 'play', uid: card.uid })
+        break
+      case 'hazard':
+        if (canAttack(opp, def.kind)) moves.push({ type: 'play', uid: card.uid, targetSeat: opp.seat })
+        break
+    }
+  }
+
+  for (const card of me.hand) moves.push({ type: 'discard', uid: card.uid })
+  return moves
+}
+
+function pushLog(s: GameState, seat: number, text: string, kind: LogKind) {
+  s.log.push({ id: s.logSeq++, seat, text, kind })
+}
+
+function endTurn(s: GameState) {
+  if (s.phase === 'roundOver') return
+  // stalemate: nobody can draw and nobody can act
+  if (s.deck.length === 0 && s.players.every((p) => p.hand.length === 0)) {
+    finishByDistance(s)
+    return
+  }
+  s.turn = other(s.turn)
+  s.phase = 'draw'
+}
+
+function winRound(s: GameState, seat: number) {
+  s.winner = seat
+  s.phase = 'roundOver'
+  pushLog(s, seat, `${s.players[seat].name} reaches ${WIN_DISTANCE} light-years and wins the round!`, 'win')
+}
+
+function finishByDistance(s: GameState) {
+  s.phase = 'roundOver'
+  const [a, b] = s.players
+  s.winner = a.distance === b.distance ? null : a.distance > b.distance ? a.seat : b.seat
+  pushLog(s, -1, 'The deck is spent — the race is called.', 'info')
+}
+
+export function applyMove(state: GameState, move: Move): GameState {
+  if (state.phase === 'roundOver') return state
+  const s: GameState = structuredClone(state)
+  const me = s.players[s.turn]
+
+  if (move.type === 'pass') {
+    endTurn(s)
+    return s
+  }
+
+  if (move.type === 'draw') {
+    if (move.source === 'discard' && s.discard.length > 0) {
+      const card = s.discard.pop()!
+      me.hand.push(card)
+      pushLog(s, me.seat, `${me.name} takes ${defOf(card).title} from the discard pile.`, 'info')
+    } else if (s.deck.length > 0) {
+      me.hand.push(s.deck.pop()!)
+    }
+    s.phase = 'play'
+    return s
+  }
+
+  const idx = me.hand.findIndex((c) => c.uid === move.uid)
+  if (idx < 0) return state
+  const card = me.hand[idx]
+  const def = defOf(card)
+
+  if (move.type === 'discard') {
+    me.hand.splice(idx, 1)
+    s.discard.push(card)
+    pushLog(s, me.seat, `${me.name} discards ${def.title}.`, 'info')
+    endTurn(s)
+    return s
+  }
+
+  // move.type === 'play'
+  switch (def.type) {
+    case 'distance': {
+      me.hand.splice(idx, 1)
+      me.distancePile.push(card)
+      me.distance += def.value ?? 0
+      if (def.value === 200) me.count200++
+      pushLog(s, me.seat, `${me.name} warps ${def.value} ly — now at ${me.distance}.`, 'distance')
+      if (me.distance >= WIN_DISTANCE) {
+        winRound(s, me.seat)
+        return s
+      }
+      endTurn(s)
+      return s
+    }
+
+    case 'remedy': {
+      const laneHzr = topHazardOfLane(me, def.lane!) // the hazard this remedy is clearing, if any
+      me.hand.splice(idx, 1)
+      // remedy stays in play — laid on top of the hazard's lane pile
+      me.battle[def.lane!].push(card)
+      if (def.isGo && !me.started) {
+        me.started = true
+        pushLog(s, me.seat, `${me.name} fires Ignition — engines hot.`, 'remedy')
+      } else if (laneHzr && CARD_DEFS[laneHzr].fixedBy === def.kind) {
+        pushLog(s, me.seat, `${me.name} clears ${CARD_DEFS[laneHzr].title} with ${def.title}.`, 'remedy')
+      } else {
+        pushLog(s, me.seat, `${me.name} plays ${def.title}.`, 'remedy')
+      }
+      endTurn(s)
+      return s
+    }
+
+    case 'safety': {
+      me.hand.splice(idx, 1)
+      me.safeties.push(def.kind)
+      me.distance += SAFETY_MILEAGE // revealing a safety also moves you forward
+      // Rescue Shuttle covers the Stop lane → it doubles as a green light, so it
+      // launches you even if you never fired Ignition.
+      if (grantsGreenLight(def)) me.started = true
+      // immunity is now permanent; any matching hazard already on a lane simply
+      // stops blocking (activeHazard ignores immune lanes). Cards stay in play.
+      pushLog(s, me.seat, `${me.name} reveals ${def.title} — immune, +${SAFETY_MILEAGE} ly (now ${me.distance}).`, 'safety')
+      if (me.distance >= WIN_DISTANCE) {
+        winRound(s, me.seat)
+        return s
+      }
+      endTurn(s)
+      return s
+    }
+
+    case 'hazard': {
+      const target = s.players[move.targetSeat ?? other(s.turn)]
+      me.hand.splice(idx, 1)
+
+      // Slingshot (formerly coup-fourré): target holds the matching safety →
+      // instantly reveals it, the hazard is discarded, +200 ly, then they draw
+      // and take their turn.
+      const safetyIdx = target.hand.findIndex((c) => (defOf(c).immuneTo ?? []).includes(def.kind))
+      if (safetyIdx >= 0) {
+        const safetyCard = target.hand[safetyIdx]
+        const sdef = defOf(safetyCard)
+        target.hand.splice(safetyIdx, 1)
+        target.safeties.push(sdef.kind)
+        target.coupFourres++
+        target.distance += SLINGSHOT_MILEAGE
+        if (grantsGreenLight(sdef)) target.started = true // Rescue Shuttle also launches you
+        s.discard.push(card) // the hazard is sent to the discard pile
+        if (s.deck.length > 0) target.hand.push(s.deck.pop()!) // replacement draw
+        pushLog(
+          s,
+          target.seat,
+          `SLINGSHOT! ${target.name} dodges ${def.title} with ${sdef.title}. +${SLINGSHOT_MILEAGE} ly (now ${target.distance}).`,
+          'coup',
+        )
+        s.lastSlingshot = {
+          id: s.logSeq,
+          seat: target.seat,
+          attacker: me.seat,
+          hazardKind: def.kind,
+          safetyKind: sdef.kind,
+        }
+        if (target.distance >= WIN_DISTANCE) {
+          winRound(s, target.seat)
+          return s
+        }
+        s.turn = target.seat // initiative swings to the defender, who takes a turn
+        s.phase = 'draw'
+        return s
+      }
+
+      target.battle[def.lane!].push(card)
+      pushLog(s, me.seat, `${me.name} hits ${target.name} with ${def.title}.`, 'hazard')
+      endTurn(s)
+      return s
+    }
+  }
+
+  return s
+}
+
+export interface ScoreLine {
+  label: string
+  icon: string
+  points: number
+}
+export interface PlayerScore {
+  seat: number
+  name: string
+  lines: ScoreLine[]
+  total: number
+}
+
+export function scoreRound(state: GameState): PlayerScore[] {
+  // Score is light-years travelled. Safeties/slingshots are already folded into
+  // p.distance as mileage, so we just break the total back out for display.
+  return state.players.map((p) => {
+    const travel = p.distancePile.reduce((n, c) => n + (defOf(c).value ?? 0), 0)
+    const safetyMileage = p.distance - travel
+    const lines: ScoreLine[] = [{ label: `Travel · ${travel} ly`, icon: '🚀', points: travel }]
+    if (safetyMileage > 0)
+      lines.push({ label: `Safety mileage · ${safetyMileage} ly`, icon: '🛡️', points: safetyMileage })
+    return { seat: p.seat, name: p.name, lines, total: p.distance }
+  })
+}

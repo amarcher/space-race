@@ -1,0 +1,21 @@
+# dependencies & build output
+node_modules/
+dist/
+
+# vercel project link
+.vercel/
+
+# python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# casting / scratch artifacts
+.cast/
+
+# local env overrides
+*.local
+.env
+.env.*
