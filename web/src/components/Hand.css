@@ -33,6 +33,10 @@
    you can see where it'll drop back to */
 .hand__slot--dragging .card { opacity: 0.22; filter: saturate(0.5) brightness(0.8); }
 .hand__slot--dragging { transition: opacity 160ms ease; }
+
+/* a just-drawn card holds its place but stays invisible until its flight lands
+   on it — disable the deal-in so it doesn't fade itself in early */
+.hand__slot--incoming .card { opacity: 0 !important; animation: none !important; }
 .hand__slot--playable .card::after {
   content: '';
   position: absolute;

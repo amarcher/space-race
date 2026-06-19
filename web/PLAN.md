@@ -29,9 +29,15 @@ Responsive: desktop fan + mobile snap-scroll hand; gallery 2-up on phones (verif
   replaces native DnD; tap-to-select stays as the accessible fallback. `touch-action:
   pan-x` keeps the mobile hand horizontally scrollable.
 - **Pile flights** (`FlightLayer` + `useFlights`): draws (deck/discard→hand) and
-  discards (hand→discard) tween between piles for both the human and the AI. The state
-  commit is *deferred until the card lands* (`animateAndCommit` in `Table.tsx`), so a
-  card is never in two places. Skipped under `prefers-reduced-motion` (no in-game toggle).
+  discards (hand→discard) tween between piles for both the human and the AI. Skipped
+  under `prefers-reduced-motion` (no in-game toggle). Your own draw is a *handoff*: the
+  move commits first (the card gets a real, hidden hand slot), then that exact card
+  flies from the pile into its slot — flipping face-up off the deck — and reveals on
+  landing (`incomingUid`), so it's one continuous card, not a flyer + a separate pop-in.
+- **Table layout**: the play area is centred between two equal gutters (`--play-w`); the
+  **game log floats in the right gutter** and the **commit panel in the left gutter**
+  (vertical, mirrors the log) so neither shifts the play area off-centre or collides
+  with a screen-bottom overlay. Both collapse to the old stacked/bottom-bar form on phones.
 
 ### Still worth polishing (post-MVP)
 - **Difficulty tiers** for the AI (random / greedy / lookahead).
