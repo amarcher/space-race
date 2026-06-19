@@ -63,6 +63,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [animating, setAnimating] = useState(false)
   // hide the top discard while it's flying off into someone's hand (no double image)
   const [hideDiscardTop, setHideDiscardTop] = useState(false)
+  // the freshly-drawn hand card stays hidden until its flight lands on it
+  const [incomingUid, setIncomingUid] = useState<string | null>(null)
   const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
 
@@ -87,8 +89,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
   // Apply a move, but first fly the card between pile and hand so draws/discards
   // read as motion. Only draw/discard touch the piles — plays/passes commit
-  // instantly. The state change is deferred until the card lands so it's never
-  // shown twice. Honours reduced-motion by committing immediately.
+  // instantly. Honours reduced-motion by committing immediately.
   // `fromOverride` lets a crane-drop hand off the floating card's exact position.
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
     if (prefersReducedMotion() || (move.type !== 'draw' && move.type !== 'discard')) {
@@ -96,7 +97,43 @@ export function Table({ onExit }: { onExit?: () => void }) {
       return
     }
     const actor = state.turn
-    const topDiscardCard = state.discard[state.discard.length - 1]
+
+    // Your own draw: it's the very card off the pile that joins your hand. Commit
+    // first (so the card has a real slot), then fly that card from the pile into
+    // its slot — flipping face-up off the deck — and reveal it on landing. This
+    // keeps it one continuous card instead of a generic flyer + a separate pop-in.
+    if (move.type === 'draw' && actor === 0) {
+      const source = move.source ?? 'deck'
+      const from = cardRectOf(source === 'discard' ? discardRef.current : deckRef.current)
+      const drawn = source === 'discard' ? state.discard[state.discard.length - 1] : state.deck[state.deck.length - 1]
+      if (!from || !drawn) {
+        setState((s) => applyMove(s, move))
+        return
+      }
+      setAnimating(true)
+      if (source === 'discard') setHideDiscardTop(true)
+      setIncomingUid(drawn.uid) // the new hand card stays hidden until the flight lands
+      setState((s) => applyMove(s, move))
+      requestAnimationFrame(() => {
+        const slot = document.querySelector<HTMLElement>(`.hand__slot[data-uid="${drawn.uid}"]`)
+        const to = cardRectOf(slot) ?? landingRect(handRef.current)
+        if (!to) {
+          setIncomingUid(null)
+          setHideDiscardTop(false)
+          setAnimating(false)
+          return
+        }
+        fly({ from, to, kind: drawn.kind, flip: source === 'deck' }).then(() => {
+          setIncomingUid(null)
+          setHideDiscardTop(false)
+          setAnimating(false)
+        })
+      })
+      return
+    }
+
+    // Everything else (AI draws → its hidden hand, and any discard) flies a card
+    // and defers the commit until it lands, so it's never shown in two places.
     let from: Rect | null = null
     let to: Rect | null = null
     let kind: string | undefined
@@ -105,13 +142,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (move.type === 'draw') {
       const source = move.source ?? 'deck'
       from = cardRectOf(source === 'discard' ? discardRef.current : deckRef.current)
-      to = landingRect(actor === 0 ? handRef.current : oppHandRef.current)
-      if (source === 'discard') {
-        kind = topDiscardCard?.kind
-        setHideDiscardTop(true)
-      } else {
-        faceDown = true // a fresh card off the deck stays face-down in flight
-      }
+      to = landingRect(oppHandRef.current)
+      faceDown = true // the AI's hand is hidden, so its draws arrive face-down
     } else {
       // discard: from the played card's slot (or the crane drop point) → discard pile
       const slotEl = document.querySelector<HTMLElement>(`.hand__slot[data-uid="${move.uid}"]`)
@@ -126,7 +158,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
     }
     setAnimating(true)
     fly({ from, to, kind, faceDown }).then(() => {
-      setHideDiscardTop(false)
       setState((s) => applyMove(s, move))
       setAnimating(false)
     })
@@ -346,6 +377,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           playableUids={playableUids}
           selectedUid={selectedUid}
           draggingUid={dragUid}
+          incomingUid={incomingUid}
           yourTurn={yourTurn}
           onSelect={(uid) => setSelectedUid((c) => (c === uid ? null : uid))}
           onDragStart={(e, uid) => cardDrag.begin(e, uid, human.hand.find((c) => c.uid === uid)?.kind ?? '')}
@@ -368,33 +400,35 @@ export function Table({ onExit }: { onExit?: () => void }) {
            ))}
          </ul>
        </aside>
-      </div>
 
-      <div className={`actionbar ${selectedUid && yourTurn ? 'actionbar--show' : ''}`}>
-        {selectedDef && selectedKind && (
-          <>
-            <span className="actionbar__thumb">
-              <Card kind={selectedKind} size="sm" showName={false} />
-            </span>
-            <button
-              className="btn btn--play btn--bigicon"
-              onClick={doPlay}
-              disabled={!selectedPlay}
-              title={playLabel}
-              aria-label={playLabel}
-            >
-              {selectedDef.type === 'hazard' ? '💥' : '▶️'}
-            </button>
-            <button
-              className="btn btn--discard btn--bigicon"
-              onClick={doDiscard}
-              title="Discard"
-              aria-label="Discard"
-            >
-              🗑️
-            </button>
-          </>
-        )}
+       {/* commit panel: lives in the left gutter (mirrors the log) so it stays
+           clear of a screen-bottom dictation/HUD overlay */}
+       <div className={`actionbar ${selectedUid && yourTurn ? 'actionbar--show' : ''}`}>
+         {selectedDef && selectedKind && (
+           <>
+             <span className="actionbar__thumb">
+               <Card kind={selectedKind} size="sm" showName={false} />
+             </span>
+             <button
+               className="btn btn--play btn--bigicon"
+               onClick={doPlay}
+               disabled={!selectedPlay}
+               title={playLabel}
+               aria-label={playLabel}
+             >
+               {selectedDef.type === 'hazard' ? '💥' : '▶️'}
+             </button>
+             <button
+               className="btn btn--discard btn--bigicon"
+               onClick={doDiscard}
+               title="Discard"
+               aria-label="Discard"
+             >
+               🗑️
+             </button>
+           </>
+         )}
+       </div>
       </div>
 
       <FlightLayer flights={flights} />

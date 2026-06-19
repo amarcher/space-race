@@ -9,6 +9,8 @@ export interface FlightSpec {
   /** card kind to show in flight; omit (with faceDown) for a deck back */
   kind?: string
   faceDown?: boolean
+  /** start face-down and flip to `kind` mid-flight (a card being drawn off the deck) */
+  flip?: boolean
 }
 
 interface ActiveFlight extends FlightSpec {
@@ -66,7 +68,19 @@ function Flight({ f }: { f: ActiveFlight }) {
           : 'translate(0px, 0px) scale(1) rotate(0deg)',
       }}
     >
-      <Card kind={f.kind} faceDown={f.faceDown} size="md" showName={false} />
+      {f.flip ? (
+        // a 3-D flip: card-back faces us at the start, the real face by the time it lands
+        <div className={`flight__flip ${go ? 'flight__flip--face' : ''}`}>
+          <div className="flight__face flight__face--front">
+            <Card kind={f.kind} size="md" showName={false} />
+          </div>
+          <div className="flight__face flight__face--back">
+            <Card faceDown size="md" />
+          </div>
+        </div>
+      ) : (
+        <Card kind={f.kind} faceDown={f.faceDown} size="md" showName={false} />
+      )}
     </div>
   )
 }
