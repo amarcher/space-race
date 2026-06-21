@@ -3,8 +3,8 @@
 // rolling opponent > discard the most useless card. Safeties are hoarded for
 // Counter-Thrusts (revealed automatically by the engine) rather than spent.
 
-import { WIN_DISTANCE, defOf, type CardInstance } from './cards'
-import { activeHazard, canAttack, legalMoves, type GameState, type Move, type PlayerState } from './engine'
+import { WIN_DISTANCE, defOf, type CardDef, type CardInstance } from './cards'
+import { activeHazard, canAttack, hazardsOn, legalMoves, type GameState, type Move, type PlayerState } from './engine'
 
 const HAZARD_WEIGHT: Record<string, number> = {
   'black-hole': 28,
@@ -43,11 +43,14 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
   if (fromDiscard && top) {
     const me = state.players[state.turn]
     const def = defOf(top)
-    const hzr = activeHazard(me)
+    const need = hazardsOn(me) // all lanes, including a Tractor Beam throttle
+    // Don't grab a remedy we can already cover from hand — better to draw blind.
+    const haveFix = me.hand.some((c) => defOf(c).fixes != null && defOf(c).fixes === def.fixes)
+    const haveGo = me.hand.some((c) => defOf(c).isGo)
     const worthIt =
       def.type === 'safety' || // never pass up a safety
-      (def.type === 'remedy' && def.isGo && !me.started) || // grab Ignition to launch
-      (def.type === 'remedy' && hzr != null && def.fixes === hzr) // the exact remedy we need
+      (def.type === 'remedy' && def.isGo && !me.started && !haveGo) || // grab Ignition to launch
+      (def.type === 'remedy' && def.fixes != null && need.includes(def.fixes) && !haveFix) // the exact remedy we need, any lane
     if (worthIt) return fromDiscard
   }
   return moves[0] // deck
@@ -85,25 +88,49 @@ function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
   return 0
 }
 
-/** How much the AI wants to keep a card (drives discard choice). */
+/** How much the AI wants to keep a card (drives discard choice). Higher = hold. */
 function keepValue(state: GameState, me: PlayerState, uid: string): number {
   const def = defOf(cardOf(me, uid))
-  const hzr = activeHazard(me)
+  const opp = state.players[me.seat === 0 ? 1 : 0]
+  const myHazards = hazardsOn(me)
+  let v: number
   switch (def.type) {
     case 'safety':
-      return 100
+      v = 100
+      break
     case 'distance': {
-      const v = def.value ?? 0
-      if (v === 200 && me.count200 >= 2) return 1 // can't play a 3rd 200 — dump it
-      return 5 + v * 0.05
+      const dv = def.value ?? 0
+      if (dv === 200 && me.count200 >= 2) v = 1 // can't play a 3rd 200 — dump it
+      else v = 5 + dv * 0.05
+      break
     }
     case 'remedy':
-      if (def.isGo) return me.started ? (hzr === 'black-hole' ? 9 : 3) : 9
-      return 6
-    case 'hazard': {
-      const opp = state.players[me.seat === 0 ? 1 : 0]
-      return canAttack(opp, def.kind) ? 7 : 1
-    }
+      if (def.fixes != null && myHazards.includes(def.fixes)) v = 12 // clears a hazard on me right now
+      else if (def.isGo) v = me.started ? 3 : 9
+      else v = 6
+      break
+    case 'hazard':
+      v = canAttack(opp, def.kind) ? 7 : 1
+      break
+    default:
+      v = 2
   }
-  return 2
+  // Don't feed the opponent: whatever we discard lands face-up on top of the pile
+  // for them to grab next turn. Hold cards that would immediately help them.
+  return v + denyBonus(opp, def)
+}
+
+/** Extra reluctance to discard a card the opponent could pick up and use right away. */
+function denyBonus(opp: PlayerState, def: CardDef): number {
+  if (opp.distance >= WIN_DISTANCE) return 0
+  switch (def.type) {
+    case 'remedy':
+      if (def.isGo && !opp.started) return 6 // would hand them their launch
+      if (def.fixes != null && hazardsOn(opp).includes(def.fixes)) return 6 // would unblock them
+      return 0
+    case 'distance':
+      return opp.started ? 1 : 0 // a moving opponent always welcomes free mileage
+    default:
+      return 0 // safeties they already can't be handed; hazards don't help them advance
+  }
 }

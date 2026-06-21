@@ -113,6 +113,18 @@ export const activeHazard = (p: PlayerState): string | null => {
   return null
 }
 
+/** Every un-remedied, un-immune hazard kind currently on this player — across all
+ * five lanes, so this includes the Tractor Beam speed limit as well as the four
+ * blocking hazards. Drives the AI's "which remedy do I actually need?" choices. */
+export const hazardsOn = (p: PlayerState): string[] => {
+  const out: string[] = []
+  for (const lane of LANES) {
+    const h = topHazardOfLane(p, lane)
+    if (h) out.push(h)
+  }
+  return out
+}
+
 /** Whether a Tractor Beam is throttling this player (distances capped at 50). */
 export const speedLimited = (p: PlayerState): boolean => topHazardOfLane(p, SPEED_LANE) !== null
 
