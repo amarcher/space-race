@@ -65,6 +65,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [hideDiscardTop, setHideDiscardTop] = useState(false)
   // the freshly-drawn hand card stays hidden until its flight lands on it
   const [incomingUid, setIncomingUid] = useState<string | null>(null)
+  // the end-of-round scoreboard can be dismissed to inspect the final board
+  const [scoreboardOpen, setScoreboardOpen] = useState(false)
   const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
 
@@ -162,6 +164,21 @@ export function Table({ onExit }: { onExit?: () => void }) {
       setAnimating(false)
     })
   }
+
+  // pop the scoreboard open each time a round ends (it can then be dismissed)
+  useEffect(() => {
+    if (state.phase === 'roundOver') setScoreboardOpen(true)
+  }, [state.phase])
+
+  // Esc dismisses the scoreboard so the final board is visible underneath
+  useEffect(() => {
+    if (!scoreboardOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setScoreboardOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [scoreboardOpen])
 
   // ---- automated turn loop: deal/draw + AI moves ----
   useEffect(() => {
@@ -440,17 +457,46 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <SlingshotOverlay event={slingshot} avatar={slingshot.seat === 0 ? AVATAR.you : AVATAR.cpu} />
       )}
 
-      {state.phase === 'roundOver' && <Scoreboard state={state} onNewRound={newRound} />}
+      {state.phase === 'roundOver' && scoreboardOpen && (
+        <Scoreboard state={state} onNewRound={newRound} onClose={() => setScoreboardOpen(false)} />
+      )}
+      {state.phase === 'roundOver' && !scoreboardOpen && (
+        <button
+          className="scoreboard__reopen"
+          onClick={() => setScoreboardOpen(true)}
+          title="Show results"
+          aria-label="Show results"
+        >
+          🏆
+        </button>
+      )}
     </div>
   )
 }
 
-function Scoreboard({ state, onNewRound }: { state: GameState; onNewRound: () => void }) {
+function Scoreboard({
+  state,
+  onNewRound,
+  onClose,
+}: {
+  state: GameState
+  onNewRound: () => void
+  onClose: () => void
+}) {
   const scores = scoreRound(state)
   const avatarFor = (seat: number) => (seat === 0 ? AVATAR.you : AVATAR.cpu)
   return (
-    <div className="scoreboard">
-      <div className="scoreboard__card">
+    // click the backdrop (outside the card) to dismiss and inspect the final board
+    <div className="scoreboard" onClick={onClose}>
+      <div className="scoreboard__card" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="scoreboard__close"
+          onClick={onClose}
+          title="Close (view the board)"
+          aria-label="Close results and view the board"
+        >
+          ✕
+        </button>
         <div className="scoreboard__trophy" aria-label={state.winner != null ? `${state.players[state.winner].name} wins` : 'Round over'}>
           🏆{state.winner != null && <span className="scoreboard__winner">{avatarFor(state.winner)}</span>}
         </div>
