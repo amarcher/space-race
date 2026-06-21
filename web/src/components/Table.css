@@ -338,6 +338,7 @@
   animation: toastin 240ms ease;
 }
 .scoreboard__card {
+  position: relative;
   width: min(560px, 92vw);
   padding: 28px;
   border-radius: 20px;
@@ -346,6 +347,48 @@
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
   text-align: center;
 }
+.scoreboard__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+.scoreboard__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  transform: scale(1.06);
+}
+/* floating pill to bring the dismissed scoreboard back */
+.scoreboard__reopen {
+  position: fixed;
+  z-index: 60;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 215, 106, 0.5);
+  border-radius: 999px;
+  background: linear-gradient(160deg, #16163a, #0b0b22);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 215, 106, 0.18);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  animation: toastin 240ms ease;
+}
+.scoreboard__reopen:hover { transform: scale(1.06); }
 .scoreboard__trophy {
   text-align: center;
   font-size: 58px;
