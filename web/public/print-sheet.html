@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>1000 Light-Years — Print &amp; Cut Sheet (106 cards)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+  /* ───────────────────────────────────────────────────────────────
+     1000 Light-Years — double-sided print & cut sheet
+     • US Letter (8.5 × 11 in), 3 × 3 cards per page, flush (zero gap)
+     • Card cell: 2.25 × 3.0 in  (3:4 portrait, same ratio as on screen)
+     • Pages alternate FRONT, BACK, FRONT, BACK … for duplex printing.
+       Print double-sided, FLIP ON LONG EDGE. Back cells are mirrored
+       so every back lands exactly behind its front.
+     • All 106 physical cards are emitted (duplicates included).
+     Tweak --card-w / --card-h below to resize; the rest re-centres.
+     ─────────────────────────────────────────────────────────────── */
+  :root {
+    --page-w: 8.5in;
+    --page-h: 11in;
+    --cols: 3;
+    --rows: 3;
+    --card-w: 2.25in;
+    --card-h: 3in;          /* 2.25 × 4/3 = 3.0  → exact 3:4 */
+    --grid-w: calc(var(--cols) * var(--card-w));
+    --grid-h: calc(var(--rows) * var(--card-h));
+    --mx: calc((var(--page-w) - var(--grid-w)) / 2);
+    --my: calc((var(--page-h) - var(--grid-h)) / 2);
+    --gold: #ffd93d;
+    --font-display: 'Unbounded', system-ui, sans-serif;
+    --tick: 0.18in;         /* length of cut-guide ticks in the margin */
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #2a2a33;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #e8e8ef;
+  }
+
+  /* On-screen helper banner (never prints) */
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    background: #14141c;
+    border-bottom: 1px solid #303040;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .toolbar b { color: var(--gold); }
+  .toolbar button {
+    font: inherit;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: var(--gold);
+    color: #07071a;
+    cursor: pointer;
+  }
+  .toolbar .hint { color: #9a9ab0; }
+
+  .pages { padding: 18px 0 60px; }
+
+  /* One printed sheet face */
+  .page {
+    position: relative;
+    width: var(--page-w);
+    height: var(--page-h);
+    margin: 0 auto 18px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .page__label {
+    position: absolute;
+    top: 0.28in;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    letter-spacing: 0.5px;
+    color: #b8b8c4;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* The 3×3 card block, flush (no gaps), centred on the page */
+  .grid {
+    position: absolute;
+    left: var(--mx);
+    top: var(--my);
+    width: var(--grid-w);
+    height: var(--grid-h);
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--card-w));
+    grid-template-rows: repeat(var(--rows), var(--card-h));
+    gap: 0;
+  }
+
+  /* A single card — full-bleed art, square-cornered for flush cutting */
+  .card {
+    position: relative;
+    width: var(--card-w);
+    height: var(--card-h);
+    overflow: hidden;
+    background: #05050f;
+    container-type: inline-size;   /* lets the gold numeral scale in cqw */
+  }
+  .card--empty { background: transparent; }
+
+  .card__art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;             /* crops 720×964 → 3:4, same as on screen */
+    display: block;
+  }
+
+  /* subtle glass sheen, matching the in-game card */
+  .card__sheen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.03) 22%,
+      rgba(255, 255, 255, 0) 45%
+    );
+    mix-blend-mode: screen;
+    opacity: 0.6;
+  }
+  .card--back .card__sheen { opacity: 0.35; }
+
+  /* distance numeral — Unbounded gold with black stroke + radial scrim,
+     reproduced 1:1 from the game's Card.css (container-relative units) */
+  .card__value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.02em;
+    font-family: var(--font-display);
+    text-align: center;
+    background: radial-gradient(closest-side at 50% 50%,
+      rgba(2, 3, 16, 0.5), rgba(2, 3, 16, 0.12) 55%, transparent 72%);
+  }
+  .card__value b {
+    font-weight: 900;
+    font-size: 29.3cqw;
+    line-height: 0.86;
+    letter-spacing: -0.7cqw;
+    color: var(--gold);
+    -webkit-text-stroke: 1cqw rgba(0, 0, 0, 0.6);
+    paint-order: stroke fill;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 26px rgba(0, 0, 0, 0.55);
+  }
+  .card__value i {
+    font-weight: 700;
+    font-style: normal;
+    font-size: 9.3cqw;
+    letter-spacing: 2cqw;
+    margin-left: 2cqw;
+    color: var(--gold);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Cut-guide ticks: thin marks that live only in the page margins so
+     they never print on a card. Line a guillotine up tick-to-tick and
+     make full-length straight cuts. */
+  .tick {
+    position: absolute;
+    background: #000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .tick--v { width: 0.4pt; height: var(--tick); }
+  .tick--h { height: 0.4pt; width: var(--tick); }
+
+  @media print {
+    .toolbar { display: none; }
+    .pages { padding: 0; }
+    .page { margin: 0; box-shadow: none; }
+    /* keep illustration colours faithful */
+    .card, .card__art, .card__value, .card__sheen { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+  @page {
+    size: 8.5in 11in;
+    margin: 0;
+  }
+
+  /* On-screen only: drop shadow so sheets read as paper */
+  @media screen {
+    .page { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45); }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Print…</button>
+    <span class="hint">
+      <b>106 cards</b> · 12 sheets, double-sided · 3×3 per page.
+      &nbsp;In the print dialog: <b>Two-sided ON</b>, flip on <b>long edge</b>,
+      paper <b>Letter</b>, margins <b>None / Default</b>, scale <b>100%</b>,
+      and enable <b>Background graphics</b>.
+    </span>
+  </div>
+  <div class="pages" id="pages"></div>
+
+<script>
+  // ── Deck definition (mirrors web/src/game/cards.ts) ────────────────
+  const CARD_DEFS = {
+    'warp-25':  { type:'distance', art:'warp-25',  value:25,  title:'25 Light-Years' },
+    'warp-50':  { type:'distance', art:'warp-50',  value:50,  title:'50 Light-Years' },
+    'warp-75':  { type:'distance', art:'warp-75',  value:75,  title:'75 Light-Years' },
+    'warp-100': { type:'distance', art:'warp-100', value:100, title:'100 Light-Years' },
+    'warp-200': { type:'distance', art:'warp-200', value:200, title:'200 Light-Years' },
+    'asteroid-strike':      { type:'hazard', art:'asteroid-strike',      title:'Asteroid Strike' },
+    'empty-tank':           { type:'hazard', art:'empty-tank',           title:'Empty Tank' },
+    'busted-thruster':      { type:'hazard', art:'busted-thruster',      title:'Busted Thruster' },
+    'tractor-beam':         { type:'hazard', art:'tractor-beam',         title:'Tractor Beam' },
+    'black-hole':           { type:'hazard', art:'black-hole',           title:'Black Hole' },
+    'repair-drone':         { type:'remedy', art:'repair-drone',         title:'Repair Drone' },
+    'fuel-cell':            { type:'remedy', art:'fuel-cell',            title:'Fuel Cell' },
+    'new-thruster':         { type:'remedy', art:'new-thruster',         title:'New Thruster' },
+    'beam-cutter':          { type:'remedy', art:'beam-cutter',          title:'Beam Cutter' },
+    'ignition':             { type:'remedy', art:'ignition',             title:'Ignition' },
+    'ace-pilot':            { type:'safety', art:'ace-pilot',            title:'Ace Pilot' },
+    'antimatter-fuel-cell': { type:'safety', art:'antimatter-fuel-cell', title:'Antimatter Fuel Cell' },
+    'diamond-thruster':     { type:'safety', art:'diamond-thruster',     title:'Diamond Thruster' },
+    'rescue-shuttle':       { type:'safety', art:'rescue-shuttle',       title:'Rescue Shuttle' },
+  };
+  const DECK_COUNTS = {
+    'warp-25':10, 'warp-50':10, 'warp-75':10, 'warp-100':12, 'warp-200':4,
+    'asteroid-strike':3, 'empty-tank':3, 'busted-thruster':3, 'tractor-beam':4, 'black-hole':5,
+    'repair-drone':6, 'fuel-cell':6, 'new-thruster':6, 'beam-cutter':6, 'ignition':14,
+    'ace-pilot':1, 'antimatter-fuel-cell':1, 'diamond-thruster':1, 'rescue-shuttle':1,
+  };
+  // Grouped order so duplicates of a kind sit together — easier to sort after cutting.
+  const ORDER = [
+    'warp-25','warp-50','warp-75','warp-100','warp-200',
+    'asteroid-strike','repair-drone','ace-pilot',
+    'empty-tank','fuel-cell','antimatter-fuel-cell',
+    'busted-thruster','new-thruster','diamond-thruster',
+    'tractor-beam','beam-cutter',
+    'black-hole','ignition','rescue-shuttle',
+  ];
+  const BACK_ART = 'card-back';
+  const COLS = 3, ROWS = 3, PER_PAGE = COLS * ROWS;
+
+  // Expand the deck to its 106 physical instances, in grouped order.
+  const deck = [];
+  for (const kind of ORDER) {
+    for (let i = 0; i < DECK_COUNTS[kind]; i++) deck.push(kind);
+  }
+
+  function cardFrontEl(kind) {
+    const def = CARD_DEFS[kind];
+    const el = document.createElement('div');
+    el.className = 'card';
+    if (!def) { el.className = 'card card--empty'; return el; }
+    el.innerHTML =
+      '<img class="card__art" src="cards/' + def.art + '.webp" alt="">' +
+      '<span class="card__sheen"></span>' +
+      (def.type === 'distance' && def.value != null
+        ? '<span class="card__value"><b>' + def.value + '</b><i>LY</i></span>'
+        : '');
+    el.title = def.title;
+    return el;
+  }
+  function cardBackEl() {
+    const el = document.createElement('div');
+    el.className = 'card card--back';
+    el.innerHTML =
+      '<img class="card__art" src="cards/' + BACK_ART + '.webp" alt="">' +
+      '<span class="card__sheen"></span>';
+    return el;
+  }
+  function emptyEl() {
+    const el = document.createElement('div');
+    el.className = 'card card--empty';
+    return el;
+  }
+
+  // Cut-guide ticks: one per grid line, in the surrounding margins only.
+  function addTicks(page) {
+    const cw = 'var(--card-w)', ch = 'var(--card-h)', mx = 'var(--mx)', my = 'var(--my)', tk = 'var(--tick)';
+    // vertical cut lines (COLS+1 of them) → ticks above and below the block
+    for (let c = 0; c <= COLS; c++) {
+      const x = 'calc(' + mx + ' + ' + c + ' * ' + cw + ')';
+      const top = document.createElement('div');
+      top.className = 'tick tick--v';
+      top.style.left = x; top.style.top = 'calc(' + my + ' - ' + tk + ')';
+      const bot = document.createElement('div');
+      bot.className = 'tick tick--v';
+      bot.style.left = x; bot.style.top = 'calc(' + my + ' + ' + ROWS + ' * ' + ch + ')';
+      page.appendChild(top); page.appendChild(bot);
+    }
+    // horizontal cut lines (ROWS+1) → ticks left and right of the block
+    for (let r = 0; r <= ROWS; r++) {
+      const y = 'calc(' + my + ' + ' + r + ' * ' + ch + ')';
+      const left = document.createElement('div');
+      left.className = 'tick tick--h';
+      left.style.top = y; left.style.left = 'calc(' + mx + ' - ' + tk + ')';
+      const right = document.createElement('div');
+      right.className = 'tick tick--h';
+      right.style.top = y; right.style.left = 'calc(' + mx + ' + ' + COLS + ' * ' + cw + ')';
+      page.appendChild(left); page.appendChild(right);
+    }
+  }
+
+  function makePage(labelText) {
+    const page = document.createElement('div');
+    page.className = 'page';
+    const label = document.createElement('div');
+    label.className = 'page__label';
+    label.textContent = labelText;
+    page.appendChild(label);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    page.appendChild(grid);
+    addTicks(page);
+    return { page, grid };
+  }
+
+  const pagesEl = document.getElementById('pages');
+  const totalSheets = Math.ceil(deck.length / PER_PAGE);
+
+  for (let p = 0; p < totalSheets; p++) {
+    const slice = deck.slice(p * PER_PAGE, p * PER_PAGE + PER_PAGE);
+
+    // FRONT page — cards in reading order, blanks pad the last page.
+    const front = makePage('1000 Light-Years — fronts · sheet ' + (p + 1) + ' / ' + totalSheets);
+    for (let i = 0; i < PER_PAGE; i++) {
+      front.grid.appendChild(i < slice.length ? cardFrontEl(slice[i]) : emptyEl());
+    }
+    pagesEl.appendChild(front.page);
+
+    // BACK page — same sheet's reverse. Mirror columns so each back lands
+    // behind its front after a long-edge duplex flip. Only fill slots whose
+    // mirrored front slot has a card (keeps the last page clean).
+    const back = makePage('backs · sheet ' + (p + 1) + ' / ' + totalSheets + ' (mirrored for duplex)');
+    for (let i = 0; i < PER_PAGE; i++) {
+      const r = Math.floor(i / COLS), c = i % COLS;
+      const mirroredFrontIndex = r * COLS + (COLS - 1 - c);
+      back.grid.appendChild(mirroredFrontIndex < slice.length ? cardBackEl() : emptyEl());
+    }
+    pagesEl.appendChild(back.page);
+  }
+</script>
+</body>
+</html>
