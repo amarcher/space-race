@@ -163,6 +163,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative; /* anchor for the floating discard hint */
 }
 .table__log {
   position: absolute;
@@ -204,9 +205,14 @@
   font-variant-numeric: tabular-nums;
 }
 .pile__label {
-  /* reserve a constant, centred box so the icon/size swapping in on your turn
-     (''→👆, 🗑️→👆, 11px→18px) never changes the pile height — no layout shift. */
-  min-height: 24px;
+  /* out of flow (pinned just below the card) so the icon/size swapping in on
+     your turn (''→👆, 🗑️→👆, 11px→18px) can never change the pile height. */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,19 +221,26 @@
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
 }
 .table__center .pile .card { width: var(--deck-w); }
 .pile--draw { cursor: pointer; }
 .pile--draw .card,
 .pile--draw .pile__empty {
   border-radius: 14px;
-  box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.9), 0 0 24px rgba(125, 240, 255, 0.5);
-  animation: drawpulse 1.1s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.9), 0 0 18px rgba(125, 240, 255, 0.4);
+}
+/* Pulse the glow itself rather than moving the card — box-shadow doesn't affect
+   layout, so the pile never changes height frame to frame. Higher specificity
+   than the generic `.pile .card` popIn so this animation wins. */
+.table__center .pile--draw .card,
+.table__center .pile--draw .pile__empty {
+  animation: drawglow 1.5s ease-in-out infinite;
 }
 .pile--draw .pile__label { color: #7df0ff; font-size: 18px; }
-@keyframes drawpulse {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+@keyframes drawglow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.8), 0 0 14px rgba(125, 240, 255, 0.3); }
+  50%      { box-shadow: 0 0 0 2px rgba(125, 240, 255, 1), 0 0 32px rgba(125, 240, 255, 0.6); }
 }
 .pile__empty {
   width: var(--deck-w);
@@ -301,10 +314,16 @@
 .actionbar .btn { width: 100%; }
 
 .table__hint {
+  /* out of flow so toggling the discard prompt never adds a row / shifts height */
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
   text-align: center;
   color: rgba(255, 255, 255, 0.5);
   font-size: 13px;
   margin: 0;
+  pointer-events: none;
 }
 
 .toast {
