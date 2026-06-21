@@ -204,6 +204,13 @@
   font-variant-numeric: tabular-nums;
 }
 .pile__label {
+  /* reserve a constant, centred box so the icon/size swapping in on your turn
+     (''→👆, 🗑️→👆, 11px→18px) never changes the pile height — no layout shift. */
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
