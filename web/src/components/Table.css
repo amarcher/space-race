@@ -621,37 +621,65 @@
 
 @media (max-width: 760px) {
   .table {
-    /* no room for a margin log on phones — give the play area the full width */
+    /* no room for a margin log on phones — give the play area the full width.
+       Every play-piece is sized down (height-aware vh clamps) so the whole stack
+       — both boards, the centre piles, the hand fan AND the bottom action bar —
+       fits one non-scrolling phone screen with no overlap. */
     --play-w: 100%;
-    padding: 10px 10px 12px;
-    gap: 8px;
+    --deck-w: clamp(72px, 12vh, 116px); /* was 19.5vh — the piles dominated */
+    padding: 8px 8px 10px;
+    gap: 6px;
   }
-  .table__bar { flex-wrap: wrap; row-gap: 6px; }
+  /* single header row: title + all four icon buttons must fit one phone line, so
+     trim the title and the buttons a touch (the turn-cue that used to wrap is gone) */
+  .table__bar { flex-wrap: nowrap; gap: 8px; }
+  .table__bar h1 { font-size: clamp(15px, 4.4vw, 20px); min-width: 0; }
+  .table__bar-actions { gap: 6px; }
+  .table__bar-actions .btn--icon { padding: 7px 9px; font-size: 16px; }
 
   /* phones are tight vertically — keep the board flat so nothing clips */
   .table__main { perspective: none; }
-  .table__plane { transform: none; }
+  .table__plane { transform: none; gap: 6px; }
 
-  /* the log is now a summoned dropdown, fine on mobile too */
-  .table__center { gap: clamp(18px, 9vw, 56px); }
+  /* compact boards: smaller tableau cards + a slimmer meter/head so two boards
+     plus the centre leave room for the hand */
+  .board { --tab-w: clamp(38px, 6.2vh, 60px); padding: 6px 10px 7px; }
+  .board__head { gap: 10px; margin-bottom: 5px; }
+  .board__meter { height: 24px; }
+  .board__avatar { font-size: 24px; }
+  .board__rocket-img { width: 20px; height: 20px; }
 
-  /* no gutter on phones — drop the commit panel back to a bottom bar */
+  /* the deck + discard sit closer together */
+  .table__center { gap: clamp(18px, 9vw, 56px); padding: 0 8px; }
+
+  /* the hand fan never needs the whole bottom — leave a band for the action bar */
+  .hand { min-height: 0; }
+
+  /* no gutter on phones — the commit bar is a SLIM single row pinned to the very
+     bottom (thumb + the two big buttons), so it reads clearly and, paired with
+     the reserved band below, never buries the hand */
   .actionbar {
     position: fixed;
     left: 50%;
     right: auto;
     top: auto;
-    bottom: 12px;
+    bottom: 8px;
     max-width: none;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    align-items: center;
     width: calc(100% - 16px);
-    gap: 8px 10px;
-    padding: 10px 12px;
+    gap: 10px;
+    padding: 8px 12px;
     transform: translate(-50%, 14px);
   }
   .actionbar--show { transform: translate(-50%, 0); }
-  .actionbar__thumb { flex-basis: 100%; justify-content: center; }
-  .actionbar__thumb .card { width: 60px; }
+  .actionbar__thumb { flex: 0 0 auto; justify-content: center; }
+  .actionbar__thumb .card { width: 44px; }
   .actionbar .btn { flex: 1 1 auto; width: auto; }
+  .actionbar .btn--bigicon { font-size: 22px; padding: 8px 14px; }
+
+  /* while committing, reserve the action-bar band so the hand lifts clear of it
+     (the centre flexes to absorb the shift — boards + hand never overlap it) */
+  .table--committing .table__body { padding-bottom: 64px; }
 }
