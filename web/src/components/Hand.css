@@ -80,27 +80,42 @@
   filter: saturate(0.7) brightness(0.82);
 }
 
-/* On phones the fan can't fit — switch to a snap-scrolling strip so every
-   card stays full-size and its centred value stays readable. */
+/* On phones the full-size fan won't fit, but we still want EVERY card visible at
+   once — no horizontal scroll. Shrink the cards and overlap them into a tight
+   held fan: the arc (rotation + lift) is kept so it reads as a hand, and a
+   negative inline-margin laps each card over its neighbour so 6–7 fit the width.
+   Later cards stack on top, so each card's right half (where nothing critical
+   sits) tucks under the next while its value stays clear. */
 @media (max-width: 760px) {
   .hand {
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 16px 12px 8px;
-    min-height: 188px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 0;
+    padding: 30px 6px 4px;
+    min-height: 150px;
   }
-  .hand::-webkit-scrollbar { display: none; }
+  /* width tracks vw but the max is capped low enough that 7 lapped cards never
+     out-grow the viewport anywhere in the 320–760px range (the cap engages
+     before the row could overflow). */
+  .hand .card { width: clamp(68px, 18.5vw, 104px); }
+  /* lap each card over the previous; the first keeps its full width. cards later
+     in the DOM paint on top, so the overlap reveals each value left-to-right.
+     the fan arc is damped here (less rotation/lift) so the splayed ends don't
+     widen the row past the screen. */
   .hand__slot {
-    flex: 0 0 auto;
-    scroll-snap-align: center;
-    transform: none !important; /* drop the fan rotation/offset */
+    margin-left: -34px;
+    z-index: 1;
+    transform: translateY(calc(var(--ty, 0px) * 0.45)) rotate(calc(var(--rot, 0deg) * 0.5));
   }
-  .hand__slot--selected {
-    transform: translateY(-8px) !important;
+  .hand__slot:first-child { margin-left: 0; }
+  /* hover/lift relayout is pointer-only; on touch a press lifts via --selected */
+  .hand__slot:hover + .hand__slot,
+  .hand__slot:has(+ .hand__slot:hover) {
+    transform: translateY(var(--ty, 0)) rotate(var(--rot, 0deg));
   }
-  .hand .card { width: clamp(112px, 32vw, 140px); }
+  .hand__slot--selected,
+  .hand__slot:hover {
+    transform: translateY(calc(var(--ty, 0px) - 24px)) rotate(0deg) scale(1.12) !important;
+    z-index: 20;
+  }
 }
