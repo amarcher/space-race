@@ -86,46 +86,84 @@
 .table__status-you { font-size: 24px; }
 .table__bar-actions { display: flex; gap: 8px; }
 
+/* Buttonography — physical, beveled, pressable buttons rather than flat chips.
+   Top highlight + inner bottom shadow read as a raised surface; :active pushes
+   it in; :hover lifts the glow. */
 .btn {
   font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
-  border-radius: 10px;
+  font-weight: 700;
+  border-radius: 12px;
   padding: 9px 16px;
-  border: 1px solid transparent;
+  color: #eef0ff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.045));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.38);
   cursor: pointer;
-  transition: transform 120ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: transform 110ms ease, background 160ms ease, box-shadow 160ms ease, filter 160ms ease;
 }
-.btn:active { transform: translateY(1px); }
-.btn--ghost {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.82);
+.btn:hover {
+  filter: brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.3),
+    0 7px 20px rgba(0, 0, 0, 0.42),
+    0 0 16px rgba(140, 170, 255, 0.28);
 }
-.btn--ghost:hover { background: rgba(255, 255, 255, 0.12); }
+.btn:active {
+  transform: translateY(1.5px);
+  filter: brightness(0.97);
+  box-shadow:
+    inset 0 2px 7px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.btn:focus-visible { outline: 2px solid rgba(140, 170, 255, 0.85); outline-offset: 2px; }
+
+.btn--ghost { color: rgba(255, 255, 255, 0.88); }
+
 .btn--play {
-  background: linear-gradient(120deg, #4f8bff, #6fb7ff);
   color: #04122e;
-  box-shadow: 0 6px 18px rgba(79, 139, 255, 0.4);
+  border-color: rgba(185, 220, 255, 0.65);
+  background: linear-gradient(180deg, #82c2ff, #4f8bff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -3px 8px rgba(0, 40, 120, 0.5),
+    0 6px 20px rgba(79, 139, 255, 0.5),
+    0 0 22px rgba(111, 183, 255, 0.45);
 }
-.btn--play:disabled { filter: grayscale(0.7) brightness(0.7); cursor: not-allowed; box-shadow: none; }
-.btn--discard {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.8);
+.btn--play:disabled {
+  filter: grayscale(0.7) brightness(0.7);
+  cursor: not-allowed;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 6px rgba(0, 0, 0, 0.3);
 }
-.btn--discard:hover { background: rgba(255, 90, 110, 0.18); border-color: rgba(255, 90, 110, 0.5); }
+.btn--discard:hover {
+  filter: none;
+  border-color: rgba(255, 90, 110, 0.6);
+  background: linear-gradient(180deg, rgba(255, 90, 110, 0.32), rgba(255, 90, 110, 0.12));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 7px 20px rgba(0, 0, 0, 0.42),
+    0 0 16px rgba(255, 90, 110, 0.4);
+}
+
 .btn--big { padding: 13px 30px; font-size: 15px; }
-.btn--icon {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  font-size: 18px;
-  line-height: 1;
-  padding: 7px 11px;
+.btn--icon { font-size: 18px; line-height: 1; padding: 8px 12px; }
+/* lit state for a toggle icon button (e.g. the game-log toggle when open) */
+.btn--icon-on {
+  border-color: rgba(140, 170, 255, 0.7);
+  background: linear-gradient(180deg, rgba(140, 170, 255, 0.4), rgba(140, 170, 255, 0.16));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px rgba(140, 170, 255, 0.4);
 }
-.btn--icon:hover { background: rgba(255, 255, 255, 0.12); }
-.btn--bigicon { font-size: 26px; line-height: 1; padding: 8px 18px; }
-.btn--big.btn--bigicon { font-size: 36px; padding: 10px 30px; }
+.btn--bigicon { font-size: 26px; line-height: 1; padding: 9px 18px; }
+.btn--big.btn--bigicon { font-size: 36px; padding: 12px 30px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+  .btn:active { transform: none; }
+}
 
 /* drag-and-drop zones */
 .dropzone {
@@ -203,14 +241,24 @@
   gap: 8px;
   position: relative; /* anchor for the floating discard hint */
 }
+/* the game log is now summoned, not always-on: a dropdown anchored top-right,
+   so the board breathes. Toggled by the 📜 button in the header. */
 .table__log {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  width: var(--log-w);
-  max-height: 100%;
+  position: fixed;
+  top: 54px;
+  right: 16px;
+  width: clamp(170px, 22vw, 232px);
+  max-height: 62vh;
+  z-index: 58;
   display: flex;
+  animation: logDrop 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes logDrop {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .table__log { animation: none; }
 }
 
 /* just the deck + discard, big and centred */
@@ -298,26 +346,31 @@
 .log {
   list-style: none;
   margin: 0;
-  padding: 10px 6px;
+  padding: 10px 8px;
   width: 100%;
+  max-height: 62vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 12.5px;
   border-radius: 14px;
-  background: rgba(8, 8, 24, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  overflow: hidden;
+  background: rgba(8, 8, 24, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
 }
 .log__line {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 3px 4px;
   line-height: 1.1;
-  opacity: 0.55;
+  opacity: 0.82;
+  border-radius: 8px;
 }
-.log__line:first-child { opacity: 1; }
+.log__line:first-child { opacity: 1; background: rgba(255, 255, 255, 0.06); }
 .log__who { font-size: 14px; }
 .log__icon { font-size: 16px; }
 .log__line--coup .log__icon,
@@ -487,8 +540,7 @@
   .table__bar { flex-wrap: wrap; row-gap: 6px; }
   .table__status { order: 3; flex-basis: 100%; font-size: 13px; }
 
-  /* drop the log sidebar so the piles are never crowded */
-  .table__log { display: none; }
+  /* the log is now a summoned dropdown, fine on mobile too */
   .table__center { gap: clamp(18px, 9vw, 56px); }
 
   .table__opp-hand { gap: 2px; }
