@@ -562,17 +562,32 @@
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 215, 106, 0.18);
   font-size: 26px;
   line-height: 1;
+  color: #ffd76a;
   cursor: pointer;
   animation: toastin 240ms ease;
 }
 .scoreboard__reopen:hover { transform: scale(1.06); }
 .scoreboard__trophy {
-  text-align: center;
+  position: relative;
+  display: flex;
+  justify-content: center;
   font-size: 58px;
   line-height: 1;
   margin-bottom: 14px;
 }
-.scoreboard__winner { font-size: 34px; margin-left: 4px; }
+.scoreboard__trophy-svg {
+  color: #ffd76a;
+  filter: drop-shadow(0 4px 14px rgba(255, 200, 80, 0.5));
+}
+/* winner avatar as a badge tucked at the base of the trophy */
+.scoreboard__winner {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
 .scorecol h3 { margin: 0 0 8px; font-size: 42px; text-align: center; }
 .scorecol li span { font-size: 18px; }
 .scoreboard__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
@@ -584,7 +599,7 @@
   border: 1px solid rgba(255, 255, 255, 0.07);
 }
 .scorecol--win { border-color: rgba(255, 215, 106, 0.5); box-shadow: 0 0 24px rgba(255, 215, 106, 0.18); }
-.scorecol h3 { margin: 0 0 10px; font-size: 16px; }
+.scorecol h3 { margin: 0 auto 10px; font-size: 40px; display: flex; justify-content: center; }
 .scorecol ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .scorecol li { display: flex; justify-content: space-between; font-size: 13px; color: rgba(255, 255, 255, 0.7); }
 .scorecol li b { color: #fff; font-variant-numeric: tabular-nums; }

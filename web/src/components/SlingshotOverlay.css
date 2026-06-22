@@ -116,7 +116,7 @@
   86% { opacity: 1; }
   100% { opacity: 0; transform: scale(1.04); }
 }
-.sling__avatar { font-size: 46px; line-height: 1; }
+.sling__avatar { font-size: 46px; line-height: 1; display: inline-flex; }
 .sling__word {
   font-family: var(--font-display, sans-serif);
   font-weight: 900;
@@ -129,6 +129,9 @@
   text-shadow: 0 0 30px rgba(255, 210, 90, 0.6);
 }
 .sling__pts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-weight: 800;
   font-size: clamp(16px, 2.4vw, 24px);
   color: #7df0ff;

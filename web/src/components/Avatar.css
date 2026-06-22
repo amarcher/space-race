@@ -1,0 +1,8 @@
+/* Avatars size to the surrounding font-size (1em) and centre as a block so they
+   sit cleanly in flex rows, the meter header, the log and the scoreboard. */
+.avatar {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
