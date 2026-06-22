@@ -68,6 +68,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [incomingUid, setIncomingUid] = useState<string | null>(null)
   // the end-of-round scoreboard can be dismissed to inspect the final board
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
+  // the game log is tucked away in a dropdown, summoned from the header
+  const [logOpen, setLogOpen] = useState(false)
   // transient impact feel: a screen shake, a full-screen flash, and a per-board
   // hit-recoil / recovery-spring (keyed so the same board can re-trigger)
   const [shaking, setShaking] = useState(false)
@@ -350,7 +352,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const statusIcon = state.phase === 'roundOver' ? '' : myTurn ? '👇' : '💭'
   const statusLabel = state.phase === 'roundOver' ? '' : myTurn ? 'Your turn' : `${cur.name} is thinking`
   const topDiscard = state.discard[state.discard.length - 1]
-  const recentLog = state.log.slice(-7).reverse()
+  const recentLog = state.log.slice(-18).reverse()
 
   const canDrawDeck = drawPhaseHuman && !animating && state.deck.length > 0
   const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0
@@ -367,6 +369,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
           {statusIcon} {yourTurn && <span className="table__status-you">{AVATAR.you}</span>}
         </span>
         <div className="table__bar-actions">
+          <button
+            className={`btn btn--icon ${logOpen ? 'btn--icon-on' : ''}`}
+            onClick={() => setLogOpen((o) => !o)}
+            title="Game log"
+            aria-label="Game log"
+            aria-pressed={logOpen}
+          >
+            📜
+          </button>
           <button className="btn btn--icon" onClick={newRound} title="New round" aria-label="New round">🔄</button>
           {onExit && (
             <button className="btn btn--icon" onClick={onExit} title="Card gallery" aria-label="Card gallery">🃏</button>
@@ -468,6 +479,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       )}
        </div>
 
+       {logOpen && (
        <aside className="table__log" aria-label="Game log">
          <ul className="log">
            {recentLog.map((e) => (
@@ -478,6 +490,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
            ))}
          </ul>
        </aside>
+       )}
 
        {/* commit panel: lives in the left gutter (mirrors the log) so it stays
            clear of a screen-bottom dictation/HUD overlay */}
