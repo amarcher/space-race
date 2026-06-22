@@ -1,0 +1,15 @@
+/* Particle burst overlay — above the board/cards, below flight & drag clones
+   and the Slingshot hero. Never intercepts input. */
+.burst-layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 55;
+  display: block;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst-layer { display: none; }
+}
