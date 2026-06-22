@@ -46,11 +46,19 @@ export function PlayerBoard({ player, isOpponent, active, avatar, impact }: Play
   const slow = speedLimited(player)
   const pct = Math.min(100, (player.distance / WIN_DISTANCE) * 100)
 
-  const status = !player.started
-    ? { icon: '⏸️', label: 'Docked', cls: 'docked' }
+  // Persistent ambient state — communicated purely with colour/motion (no icon,
+  // no text). BLOCKED is a red emergency (stopped, powered-down, awaiting a
+  // remedy); LIMITED is a milder amber "tethered" feel (tractor speed-limit);
+  // CRUISING is calm; DOCKED is dormant (not yet launched). A hidden aria-label
+  // keeps the state available to assistive tech without putting words on-screen.
+  const ambient = !player.started ? 'dormant' : hzr ? 'blocked' : slow ? 'limited' : 'cruising'
+  const ambientLabel = !player.started
+    ? 'docked'
     : hzr
-      ? { icon: '⚠️', label: CARD_DEFS[hzr].title, cls: 'hazard' }
-      : { icon: '▶️', label: 'Cruising', cls: 'rolling' }
+      ? `stopped — needs ${CARD_DEFS[hzr].title}`
+      : slow
+        ? 'speed-limited by Tractor Beam'
+        : 'cruising'
 
   const distanceGroups = DISTANCE_VALUES.map((v) => ({
     v,
@@ -63,9 +71,10 @@ export function PlayerBoard({ player, isOpponent, active, avatar, impact }: Play
 
   return (
     <section
-      className={`board ${active ? 'board--active' : ''} ${isOpponent ? 'board--opp' : ''} ${
-        impact ? `board--${impact}` : ''
-      }`}
+      className={`board board--${ambient} ${active ? 'board--active' : ''} ${
+        isOpponent ? 'board--opp' : ''
+      } ${impact ? `board--${impact}` : ''}`}
+      aria-label={`${player.name} — ${ambientLabel}`}
     >
       <header className="board__head">
         <span className={`board__avatar ${active ? 'board__avatar--active' : ''}`} title={player.name} aria-label={player.name}>
@@ -78,18 +87,6 @@ export function PlayerBoard({ player, isOpponent, active, avatar, impact }: Play
           <span className="board__meter-num" aria-hidden>{player.distance}</span>
           <span className="board__flag" aria-hidden>🏁</span>
         </div>
-        <span
-          className={`board__status board__status--${status.cls}`}
-          title={status.label}
-          aria-label={status.label}
-        >
-          {status.icon}
-        </span>
-        {slow && (
-          <span className="board__slow" title="Speed limit — 50 ly or less" aria-label="Speed limit 50 or less">
-            🐌
-          </span>
-        )}
       </header>
 
       <div className="board__tableau">

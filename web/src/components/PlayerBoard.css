@@ -1,16 +1,88 @@
 .board {
   --tab-w: clamp(50px, 7vh, 78px);
   --tab-h: calc(var(--tab-w) * 4 / 3);
+  position: relative;
   border-radius: 14px;
   padding: 8px 14px 10px;
   background: rgba(12, 12, 32, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(6px);
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, filter 320ms ease;
 }
 .board--active {
   border-color: rgba(139, 123, 255, 0.55);
   box-shadow: 0 0 0 1px rgba(139, 123, 255, 0.35), 0 0 30px rgba(139, 123, 255, 0.18);
+}
+
+/* ── Persistent ambient state ──────────────────────────────────────────────
+   Pure colour + motion (no icon, no text). The pulsing glow lives on ::after
+   so it never collides with the transient hit/recover transform animations on
+   .board itself. ::after sits above the cards as a tint/vignette (no pointer). */
+.board::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+/* BLOCKED — a space emergency: red alarm glow pulsing, the ship powered-down
+   (desaturated/dimmed), and the progress meter gone dark-red. */
+.board--blocked {
+  border-color: rgba(255, 80, 100, 0.65);
+}
+.board--blocked::after {
+  opacity: 1;
+  background:
+    radial-gradient(130% 80% at 50% 0%, rgba(255, 40, 60, 0.34), transparent 62%),
+    radial-gradient(130% 80% at 50% 100%, rgba(255, 30, 50, 0.22), transparent 60%);
+  animation: alarmPulse 0.95s ease-in-out infinite;
+}
+.board--blocked .board__tableau {
+  filter: saturate(0.5) brightness(0.66);
+  transition: filter 320ms ease;
+}
+.board--blocked .board__meter-fill {
+  background: linear-gradient(90deg, #4a0e1a, #8c1a2e);
+  box-shadow: 0 0 14px rgba(255, 60, 80, 0.55);
+}
+.board--blocked .board__rocket { filter: grayscale(1) brightness(0.55); }
+.board--blocked .board__avatar { filter: grayscale(0.6) brightness(0.75); }
+@keyframes alarmPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+/* LIMITED — a milder amber "tethered"/restrained pulse (tractor speed-limit).
+   Clearly less severe: no power-down, ship stays lit. */
+.board--limited {
+  border-color: rgba(255, 200, 90, 0.55);
+}
+.board--limited::after {
+  opacity: 1;
+  background:
+    radial-gradient(130% 80% at 50% 0%, rgba(255, 190, 80, 0.2), transparent 62%),
+    radial-gradient(130% 80% at 50% 100%, rgba(90, 220, 220, 0.12), transparent 60%);
+  animation: tetherPulse 1.7s ease-in-out infinite;
+}
+.board--limited .board__meter-fill {
+  background: linear-gradient(90deg, #b07a18, #e0b23d 60%, #6fd0d0);
+}
+@keyframes tetherPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.8; } }
+
+/* CRUISING — calm, healthy; a whisper of cyan so "all systems go" reads. */
+.board--cruising::after {
+  opacity: 1;
+  background: radial-gradient(120% 70% at 50% 100%, rgba(79, 224, 139, 0.1), transparent 58%);
+}
+
+/* DOCKED (not launched) — dormant, slightly dimmed. */
+.board--dormant { filter: saturate(0.85) brightness(0.94); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* convey the state with a steady tint instead of a pulse */
+  .board--blocked::after,
+  .board--limited::after { animation: none; opacity: 0.7; }
 }
 
 /* a hazard slams in: the ship lurches sideways with a red impact glow */
@@ -61,20 +133,6 @@
   animation: bob 1.2s ease-in-out infinite;
 }
 @keyframes bob { 0%, 100% { transform: scale(1.12) translateY(0); } 50% { transform: scale(1.12) translateY(-4px); } }
-
-.board__status {
-  font-size: 22px;
-  line-height: 1;
-  padding: 2px;
-}
-.board__status--hazard { animation: hazardflash 1s ease-in-out infinite; }
-.board__slow {
-  font-size: 20px;
-  line-height: 1;
-  animation: slowbob 1.6s ease-in-out infinite;
-}
-@keyframes slowbob { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-3px); } }
-@keyframes hazardflash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 
 .board__meter {
   position: relative;
@@ -131,6 +189,7 @@
   gap: 8px;
   min-height: var(--tab-h);
   flex-wrap: wrap;
+  transition: filter 320ms ease; /* ease the powered-down dim in/out */
 }
 .board__empty {
   font-size: 11px;
