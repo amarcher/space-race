@@ -6,9 +6,10 @@
 //   node web/scripts/gen-sfx.mjs            # generate any missing clips
 //   node web/scripts/gen-sfx.mjs --force    # regenerate all
 //
-// Key sources, first that resolves wins:
+// Key sources, first that resolves wins (a key is NEVER printed or committed):
 //   1. $ELEVENLABS_API_KEY (or the var named by $SFX_KEY_VAR) in the environment
-//   2. ~/.elevenlabs/api_key  (the elevenlabs CLI's stored key — raw text)
+//   2. web/.env.local        (ELEVENLABS_API_KEY=… line; gitignored)
+//   3. ~/.elevenlabs/api_key  (the elevenlabs CLI's stored key — raw text)
 //
 // Short, game-y, kid-friendly prompts; prompt_influence 0.3; durations 0.3–3s.
 
@@ -21,25 +22,41 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..', '..') // .../space-race
 const OUT_DIR = resolve(REPO_ROOT, 'web', 'public', 'sfx')
 
+const ENV_LOCAL_FILE = resolve(REPO_ROOT, 'web', '.env.local') // gitignored, never committed
 const CLI_KEY_FILE = resolve(homedir(), '.elevenlabs', 'api_key')
 
 // ElevenLabs keys are `sk_` + base62; strip anything outside that charset (a BOM
 // / newline / stray whitespace would otherwise 401). Tolerates undefined input.
 const sanitize = (s) => (s ?? '').replace(/[^A-Za-z0-9_]/g, '')
 
-function loadKey() {
-  // 1) explicit env var (e.g. ELEVENLABS_API_KEY="$(cat ~/.elevenlabs/api_key)")
-  const envName = process.env.SFX_KEY_VAR || 'ELEVENLABS_API_KEY'
-  const fromEnv = sanitize(process.env[envName])
-  if (fromEnv) return { key: fromEnv, source: `$${envName}` }
+// pull ELEVENLABS_API_KEY=... out of a dotenv file without depending on dotenv
+function keyFromEnvFile(file) {
+  if (!existsSync(file)) return ''
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*ELEVENLABS_API_KEY\s*=\s*(.+?)\s*$/)
+    if (m) return sanitize(m[1].replace(/^["']|["']$/g, ''))
+  }
+  return ''
+}
 
-  // 2) the elevenlabs CLI's stored key (raw text, single line)
+function loadKey() {
+  // 1) the process environment
+  const fromEnv = sanitize(process.env[process.env.SFX_KEY_VAR || 'ELEVENLABS_API_KEY'])
+  if (fromEnv) return { key: fromEnv, source: '$ELEVENLABS_API_KEY' }
+
+  // 2) the project-local, gitignored web/.env.local
+  const fromLocal = keyFromEnvFile(ENV_LOCAL_FILE)
+  if (fromLocal) return { key: fromLocal, source: 'web/.env.local' }
+
+  // 3) the elevenlabs CLI's stored key (raw text, single line)
   if (existsSync(CLI_KEY_FILE)) {
     const val = sanitize(readFileSync(CLI_KEY_FILE, 'utf8'))
     if (val) return { key: val, source: '~/.elevenlabs/api_key' }
   }
 
-  throw new Error(`No ElevenLabs key found. Set $ELEVENLABS_API_KEY or store it at ${CLI_KEY_FILE}.`)
+  throw new Error(
+    `No ElevenLabs key found. Set $ELEVENLABS_API_KEY, add ELEVENLABS_API_KEY=… to ${ENV_LOCAL_FILE}, or store it at ${CLI_KEY_FILE}.`,
+  )
 }
 
 // name -> { prompt, duration }. Kept short and punchy; the engine adds rate
@@ -56,7 +73,7 @@ const SFX = {
   warp: { prompt: 'hyperspace jump whoosh, sci-fi, powerful', duration: 1.8 },
   slingshot: { prompt: 'triumphant sci-fi stinger, quick, bright', duration: 1.2 },
   win: { prompt: 'short cheerful victory chime, kids game, bright and happy', duration: 1.8 },
-  'ui-click': { prompt: 'soft UI click, subtle, very short', duration: 0.3 },
+  'ui-click': { prompt: 'soft UI click, subtle, very short', duration: 0.5 }, // API min is 0.5s
 }
 
 const ENDPOINT = 'https://api.elevenlabs.io/v1/sound-generation'
