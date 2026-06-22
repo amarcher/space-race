@@ -167,11 +167,16 @@
 }
 .board__rocket {
   position: absolute;
-  right: -10px;
+  right: -12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 19px;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+.board__rocket-img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 .board__flag {
   position: absolute;

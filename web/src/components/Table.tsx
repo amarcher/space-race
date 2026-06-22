@@ -558,7 +558,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           title="Show results"
           aria-label="Show results"
         >
-          <Icon name="trophy" />
+          <img className="scoreboard__reopen-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
         </button>
       )}
     </div>
@@ -590,8 +590,7 @@ function Scoreboard({
           ✕
         </button>
         <div className="scoreboard__trophy" aria-label={state.winner != null ? `${state.players[state.winner].name} wins` : 'Round over'}>
-          {/* trophy-hero raster slot (/ui/trophy-hero.png) — SVG placeholder for now */}
-          <Icon name="trophy" className="scoreboard__trophy-svg" />
+          <img className="scoreboard__trophy-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
           {state.winner != null && (
             <span className="scoreboard__winner"><Avatar who={whoFor(state.winner)} /></span>
           )}
