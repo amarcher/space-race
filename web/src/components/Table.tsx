@@ -396,6 +396,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
       <div className="table__body">
        <div className="table__main">
+      {/* the board recedes onto a perspective plane for depth; the hand stays
+          flat below it (outside this wrapper) so it reads face-on to the player */}
+      <div className="table__plane">
       <div
         data-drop="opp"
         className={`dropzone ${dragUid ? (drop.opp ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
@@ -467,6 +470,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           impact={impact?.seat === human.seat ? impact.tone : null}
         />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play">✅</span>}
+      </div>
       </div>
 
       <div ref={handRef}>
