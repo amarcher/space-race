@@ -7,18 +7,23 @@
   overflow: hidden;
   pointer-events: none;
   background: #05050f;
-  animation: takeoverInOut 2000ms ease both;
+  /* quick fade-IN, then hold fully visible for the WHOLE clip (dismissal is
+     driven by the video's `ended` event, not a timer) */
+  animation: takeoverIn 320ms ease both;
 }
+/* on `ended` — a short fade-OUT, then unmount */
+.takeover--leaving { animation: takeoverOut 350ms ease forwards; }
 .takeover__video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-/* warp dives into the tunnel; the others ease in gently and settle */
-.takeover--warp .takeover__video { animation: takeoverDive 2000ms ease-out both; }
+/* warp dives into the tunnel across the full clip; the others ease in + settle.
+   long durations (ease-out) so the motion spans the clip rather than ending at 2s */
+.takeover--warp .takeover__video { animation: takeoverDive 7000ms ease-out both; }
 .takeover--hazard .takeover__video,
 .takeover--remedy .takeover__video,
-.takeover--safety .takeover__video { animation: takeoverScaleIn 2000ms ease-out both; }
+.takeover--safety .takeover__video { animation: takeoverScaleIn 5000ms ease-out both; }
 
 /* soft vignette so it reads as peering through a porthole, not a hard cut */
 .takeover::after {
@@ -45,10 +50,12 @@
   background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(255, 200, 70, 0.28));
 }
 
-@keyframes takeoverInOut {
+@keyframes takeoverIn {
   0% { opacity: 0; }
-  14% { opacity: 1; }
-  80% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes takeoverOut {
+  0% { opacity: 1; }
   100% { opacity: 0; }
 }
 @keyframes takeoverDive {
