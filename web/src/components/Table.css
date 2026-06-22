@@ -76,45 +76,10 @@
   color: transparent;
   white-space: nowrap;
 }
-.table__status {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 22px;
-  line-height: 1;
-}
-.table__status-you { font-size: 24px; }
-
-/* Bespoke turn cue (no emoji): an energetic "go" orb on your turn, a calm
-   three-dot "thinking" loop while the opponent decides. */
-.turn-cue { display: inline-flex; align-items: center; gap: 5px; }
-.turn-cue i { display: block; border-radius: 999px; background: currentColor; }
-.turn-cue--you { color: #7df0ff; }
-.turn-cue--you i {
-  width: 14px;
-  height: 14px;
-  box-shadow: 0 0 12px currentColor;
-  animation: turnGo 1s ease-in-out infinite;
-}
-@keyframes turnGo {
-  0%, 100% { transform: scale(0.65); opacity: 0.65; }
-  50%      { transform: scale(1.1); opacity: 1; }
-}
-.turn-cue--think { color: rgba(186, 192, 220, 0.85); }
-.turn-cue--think i {
-  width: 7px;
-  height: 7px;
-  animation: turnThink 1.2s ease-in-out infinite;
-}
-.turn-cue--think i:nth-child(2) { animation-delay: 0.16s; }
-.turn-cue--think i:nth-child(3) { animation-delay: 0.32s; }
-@keyframes turnThink {
-  0%, 100% { opacity: 0.25; transform: translateY(0); }
-  50%      { opacity: 1; transform: translateY(-3px); }
-}
-
-.table__bar-actions { display: flex; gap: 8px; }
+/* the title sits left; push all the header buttons hard to the right edge of
+   the bar (the blinking turn-cue that used to fill this space is gone — whose-
+   turn now reads off the active board's glow + ambient) */
+.table__bar-actions { display: flex; gap: 8px; margin-left: auto; }
 
 /* Buttonography — physical, beveled, pressable buttons rather than flat chips.
    Top highlight + inner bottom shadow read as a raised surface; :active pushes
@@ -440,8 +405,6 @@
     animation: none;
     box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.8);
   }
-  .turn-cue--you i { animation: none; opacity: 1; transform: scale(1); }
-  .turn-cue--think i { animation: none; opacity: 0.7; }
 }
 
 .log {
@@ -629,7 +592,6 @@
     gap: 8px;
   }
   .table__bar { flex-wrap: wrap; row-gap: 6px; }
-  .table__status { order: 3; flex-basis: 100%; font-size: 13px; }
 
   /* phones are tight vertically — keep the board flat so nothing clips */
   .table__main { perspective: none; }

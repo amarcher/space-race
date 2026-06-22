@@ -365,12 +365,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
     discard: yourTurn && !!dragUid, // any card → discard pile
   }
 
-  const myTurn = state.turn === 0 && state.phase !== 'roundOver'
   const drawPhaseHuman = state.turn === 0 && state.phase === 'draw'
-  // turn cue: bespoke animated indicator (no emoji) — energetic "go" pulse on
-  // your turn, a calm three-dot "thinking" loop while the opponent decides
-  const turnState = state.phase === 'roundOver' ? 'over' : myTurn ? 'you' : 'think'
-  const statusLabel = state.phase === 'roundOver' ? '' : myTurn ? 'Your turn' : `${cur.name} is thinking`
   // you've drawn but hold nothing playable → must discard; invite the discard pile
   const mustDiscard = yourTurn && playableUids.size === 0
   const topDiscard = state.discard[state.discard.length - 1]
@@ -387,20 +382,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
     <div className={`table ${shaking ? 'table--shake' : ''}`}>
       <header className="table__bar">
         <h1>1000 Light-Years</h1>
-        <span className="table__status" title={statusLabel} aria-label={statusLabel}>
-          {turnState !== 'over' && (
-            <span className={`turn-cue turn-cue--${turnState}`} aria-hidden>
-              {turnState === 'think' ? (
-                <>
-                  <i /><i /><i />
-                </>
-              ) : (
-                <i />
-              )}
-            </span>
-          )}
-          {yourTurn && <span className="table__status-you"><Avatar who="you" /></span>}
-        </span>
         <div className="table__bar-actions">
           <button
             className={`btn btn--icon ${logOpen ? 'btn--icon-on' : ''}`}

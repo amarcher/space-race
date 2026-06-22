@@ -14,7 +14,7 @@ export default function App() {
         <Table onExit={() => setView('gallery')} />
       ) : (
         <div>
-          <div style={{ textAlign: 'center', paddingTop: 18 }}>
+          <div style={{ textAlign: 'left', padding: '18px 0 0 clamp(16px, 4vw, 40px)' }}>
             <button className="btn btn--ghost" onClick={() => setView('game')} style={{ cursor: 'pointer' }}>
               ← Back to game
             </button>
