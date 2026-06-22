@@ -35,6 +35,19 @@ export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, str
     }),
   )
 
+const CLIP_KIND_SET = new Set(CLIP_KINDS)
+
+/**
+ * The clip's first frame, exported as a still. Using frame-0 as BOTH the static
+ * <img> and the <video> poster means the still and the motion share identical
+ * 9:16 framing/crop at every resolution — so the hover swap has no zoom/jump.
+ * Returns undefined for kinds without a clip (→ keep the regular 3:4 webp).
+ */
+export function cardPoster(kind: string | undefined): string | undefined {
+  if (!kind || !CLIP_KIND_SET.has(kind)) return undefined
+  return `/cards/video/${kind}.poster.webp`
+}
+
 /**
  * Resolve the best available clip for a kind given a priority of states
  * (e.g. ['hover','idle'] while hovered). Returns undefined → use the static art.

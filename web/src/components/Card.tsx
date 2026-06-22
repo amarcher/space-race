@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cardVideo } from '../game/cardArt'
+import { cardPoster, cardVideo } from '../game/cardArt'
 import { CARD_BACK_URL, CARD_DEFS, artUrl } from '../game/cards'
 import { prefersReducedMotion } from '../motion'
 import { useCardTilt } from './useCardTilt'
@@ -49,6 +49,11 @@ export function Card({
 }: CardProps) {
   const def = kind ? CARD_DEFS[kind] : undefined
   const src = faceDown || !def ? CARD_BACK_URL : artUrl(def)
+  // For clip cards, the still is the video's frame-0 (9:16) so the static art
+  // and the hover clip crop identically — no zoom/jump on the swap. Cards
+  // without a clip (and the deck back) keep their regular 3:4 webp.
+  const poster = faceDown ? undefined : cardPoster(kind)
+  const stillSrc = poster ?? src
   const interactive = !!onClick && !disabled
   // any face-up card responds to hover (foil tilt + glare + clip) — not just
   // your-turn hand cards — so board stacks, the piles and off-turn hand cards
@@ -111,13 +116,13 @@ export function Card({
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
-      <img className="card__art" src={src} alt="" draggable={false} loading="lazy" />
+      <img className="card__art" src={stillSrc} alt="" draggable={false} loading="lazy" />
       {videoSrc && (
         <video
           key={videoSrc}
           className={`card__video ${videoReady ? 'card__video--ready' : ''}`}
           src={videoSrc}
-          poster={src}
+          poster={stillSrc}
           autoPlay
           loop
           muted
