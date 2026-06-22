@@ -374,6 +374,22 @@
   animation: none;
 }
 
+/* "draw FIRST" nudge — you reached for a hand card while still in the draw
+   phase. Blink the existing draw cues noticeably FASTER (and a touch brighter)
+   for a couple seconds to pull your eye to the deck/discard. Only affects piles
+   that are already a draw source (compound with .pile--draw). */
+.table__center .pile--nudge.pile--draw .card,
+.table__center .pile--nudge.pile--draw .pile__empty {
+  animation-duration: 0.42s;
+}
+.pile--nudge.pile--draw::before,
+.pile--nudge.pile--draw::after {
+  animation-duration: 0.5s;
+  border-color: rgba(160, 246, 255, 1);
+  border-width: 3px;
+}
+.pile--nudge.pile--draw::after { animation-delay: 0.25s; }
+
 /* "discard here" invite — you've drawn but hold nothing playable. The discard
    pile breathes an amber outline (no pointing hand, no text). */
 .pile--invite .card,
@@ -405,6 +421,12 @@
     animation: none;
     box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.8);
   }
+  /* draw-first nudge with no motion: a steady, stronger cyan ring + full-opacity
+     outline rings while the nudge window is active */
+  .pile--nudge.pile--draw .card, .pile--nudge.pile--draw .pile__empty {
+    box-shadow: 0 0 0 3px rgba(160, 246, 255, 1), 0 0 22px rgba(125, 240, 255, 0.7);
+  }
+  .pile--nudge.pile--draw::before, .pile--nudge.pile--draw::after { opacity: 0.95; }
 }
 
 .log {
