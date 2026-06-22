@@ -15,21 +15,25 @@ export type CardArtState =
   | 'hover' // a livelier loop while the card is hovered / selected
   | 'played' // a one-shot flourish when the card is committed (reserved; not yet wired)
 
-/** kind → state → asset URL. Empty entries simply fall back to the static webp. */
-export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, string>>>> = {
-  // First real clip: animates on hover/select (loop) and plays once, centre-stage,
-  // when the card is committed (the `played` one-shot).
-  'warp-25': {
-    idle: '/cards/video/warp-25.mp4',
-    hover: '/cards/video/warp-25.mp4',
-    played: '/cards/video/warp-25.mp4',
-  },
-  // Demo: the hyperwarp card breathes (slow push into the tunnel). Generated from
-  // the static art as a placeholder — replace with the real Veo clip.
-  'warp-200': { idle: '/cards/video/warp-200-idle.webm' },
-  // Owner's Veo assets land here, e.g.:
-  // 'black-hole': { idle: '/cards/video/black-hole-idle.webm', hover: '/cards/video/black-hole-hover.webm' },
-}
+// Every card currently ships a single `/cards/video/<kind>.mp4` that serves as
+// the hover/idle loop AND the played one-shot. To enable a card, drop its mp4
+// in web/public/cards/video/ and add the kind here. (For a dedicated one-shot,
+// give the kind an explicit entry below instead of listing it here.)
+const CLIP_KINDS = [
+  'warp-25', 'warp-50', 'warp-75', 'warp-100', 'warp-200',
+  'asteroid-strike', 'empty-tank', 'busted-thruster', 'tractor-beam', 'black-hole',
+  'repair-drone', 'fuel-cell', 'new-thruster', 'beam-cutter', 'ignition',
+  'ace-pilot', 'antimatter-fuel-cell', 'diamond-thruster', 'rescue-shuttle',
+]
+
+/** kind → state → asset URL. Missing entries simply fall back to the static webp. */
+export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, string>>>> =
+  Object.fromEntries(
+    CLIP_KINDS.map((kind) => {
+      const url = `/cards/video/${kind}.mp4`
+      return [kind, { idle: url, hover: url, played: url }]
+    }),
+  )
 
 /**
  * Resolve the best available clip for a kind given a priority of states
