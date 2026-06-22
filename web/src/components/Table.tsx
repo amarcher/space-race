@@ -10,8 +10,10 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
+import { cardVideo } from '../game/cardArt'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
+import { HyperwarpTakeover } from './HyperwarpTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
 import { Hand } from './Hand'
@@ -76,6 +78,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [flash, setFlash] = useState<{ tone: 'hit' | 'recover'; key: number } | null>(null)
   const [impact, setImpact] = useState<{ seat: number; tone: 'hit' | 'recover'; key: number } | null>(null)
   const impactSeq = useRef(0)
+  // full-screen hero takeover for the rare 200-ly hyperwarp
+  const [hyperwarp, setHyperwarp] = useState<{ src: string; key: number } | null>(null)
   const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
 
@@ -129,9 +133,14 @@ export function Table({ onExit }: { onExit?: () => void }) {
     const actor = state.turn
     const card = state.players[actor].hand.find((c) => c.uid === move.uid)
     const def = card ? CARD_DEFS[card.kind] : undefined
-    if (!def) return
+    if (!card || !def) return
     if (def.type === 'distance') {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
+      // the big 200-ly jump earns a full-screen hyperwarp hero moment
+      if (def.value === 200 && !prefersReducedMotion()) {
+        const clip = cardVideo(card.kind, ['idle', 'hover'])
+        if (clip) setHyperwarp({ src: clip, key: ++impactSeq.current })
+      }
       return
     }
     const victimSeat = def.type === 'hazard' ? move.targetSeat ?? actor : actor
@@ -526,6 +535,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <DragLayer drag={drag} />
       <canvas ref={burstRef} className="burst-layer" aria-hidden />
       {flash && <div key={flash.key} className={`impact-flash impact-flash--${flash.tone}`} aria-hidden />}
+      {hyperwarp && (
+        <HyperwarpTakeover key={hyperwarp.key} src={hyperwarp.src} onDone={() => setHyperwarp(null)} />
+      )}
 
       {toast && <div className="toast">{toast}</div>}
 
