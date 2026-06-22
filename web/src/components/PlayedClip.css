@@ -1,0 +1,35 @@
+/* one-shot played-card flourish — centre-stage, above the board, below the
+   Slingshot hero (70). Never intercepts input. */
+.playedclip {
+  position: fixed;
+  inset: 0;
+  z-index: 64;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(2, 3, 16, 0.5), transparent 72%);
+  animation: playedScrim 320ms ease both;
+}
+.playedclip__video {
+  height: 46vh;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 18px;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.6),
+    0 0 56px rgba(111, 183, 255, 0.4);
+  animation: playedPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes playedScrim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes playedPop {
+  from { opacity: 0; transform: scale(0.7) translateY(22px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playedclip { display: none; }
+}
