@@ -26,3 +26,8 @@ export const DRAG_THRESHOLD = 8 // px of travel before a press becomes a drag (v
 export const DRAG_SCALE = 1.12 // how much the lifted card grows
 export const DRAG_LIFT = 0.5 // card rises by this fraction of its width above the cursor
 export const DRAG_MAX_TILT = 16 // deg of velocity-driven sway
+
+// Card 3D hover tilt — the pointer-driven lean + holographic glare on interactive
+// cards (hand, piles, gallery). Perspective lives in Card.css (CSS-only consumer).
+export const CARD_TILT_MAX = 10 // deg the card leans toward the pointer
+export const CARD_GLARE_MAX = 0.5 // peak opacity of the foil glare that tracks the pointer

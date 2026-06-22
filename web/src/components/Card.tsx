@@ -1,4 +1,5 @@
 import { CARD_BACK_URL, CARD_DEFS, artUrl } from '../game/cards'
+import { useCardTilt } from './useCardTilt'
 import './Card.css'
 
 export type CardSize = 'sm' | 'md' | 'lg'
@@ -38,6 +39,7 @@ export function Card({
   const def = kind ? CARD_DEFS[kind] : undefined
   const src = faceDown || !def ? CARD_BACK_URL : artUrl(def)
   const interactive = !!onClick && !disabled
+  const tilt = useCardTilt(interactive)
 
   const className = [
     'card',
@@ -56,6 +58,7 @@ export function Card({
 
   return (
     <button
+      ref={tilt.ref}
       type="button"
       className={className}
       onClick={interactive ? onClick : undefined}
@@ -63,13 +66,14 @@ export function Card({
       aria-label={label}
       title={faceDown ? undefined : def?.title}
       data-type={def?.type}
+      {...tilt.handlers}
     >
       <img className="card__art" src={src} alt="" draggable={false} loading="lazy" />
       <span className="card__sheen" aria-hidden />
+      <span className="card__glare" aria-hidden />
       {showValue && !faceDown && def?.type === 'distance' && def.value != null && (
         <span className="card__value" aria-hidden>
           <b>{def.value}</b>
-          <i>LY</i>
         </span>
       )}
       {!faceDown && def && showName && (

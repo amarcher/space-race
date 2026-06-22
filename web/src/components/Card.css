@@ -1,5 +1,14 @@
 .card {
   --radius: 7%;
+  /* composed transform — pointer tilt (useCardTilt) + lift/scale (hover/selected
+     states) layered into one declaration so they never clobber each other. */
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --lift: 0px;
+  --scale: 1;
+  --mx: 50%;
+  --my: 50%;
+  --glare: 0;
   position: relative;
   display: block;
   /* size baked-in text (the distance numerals) in container units so it scales
@@ -15,6 +24,9 @@
   overflow: hidden;
   cursor: default;
   isolation: isolate;
+  transform-style: preserve-3d;
+  transform: perspective(760px) translateY(var(--lift)) rotateX(var(--tilt-x))
+    rotateY(var(--tilt-y)) scale(var(--scale));
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.5),
     0 8px 24px rgba(0, 0, 0, 0.45),
@@ -53,6 +65,25 @@
   );
   mix-blend-mode: screen;
   opacity: 0.7;
+}
+
+/* foil glare — a bright highlight + faint holographic wash that track the
+   pointer (driven by --mx/--my/--glare from useCardTilt). Rests at 0 opacity. */
+.card__glare {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at var(--mx) var(--my),
+      rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%),
+    conic-gradient(from 90deg at var(--mx) var(--my),
+      rgba(255, 80, 170, 0.16), rgba(255, 215, 90, 0.16), rgba(90, 220, 255, 0.16),
+      rgba(150, 90, 255, 0.16), rgba(255, 80, 170, 0.16));
+  mix-blend-mode: screen;
+  opacity: var(--glare);
+  transition: opacity 180ms ease;
 }
 
 /* hover name caption — only text on an otherwise pure-art card */
@@ -108,7 +139,7 @@
    150/88/230px ≈ 44/27/70px). */
 .card__value b {
   font-weight: 900;
-  font-size: 29.3cqw;
+  font-size: 34cqw;
   line-height: 0.86;
   letter-spacing: -0.7cqw;
   color: var(--gold, #ffd93d);
@@ -116,20 +147,11 @@
   paint-order: stroke fill;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 26px rgba(0, 0, 0, 0.55);
 }
-.card__value i {
-  font-weight: 700;
-  font-style: normal;
-  font-size: 9.3cqw;
-  letter-spacing: 2cqw;
-  margin-left: 2cqw; /* offset the tracking so it stays optically centred */
-  color: var(--gold, #ffd93d);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6);
-}
 
 .card--interactive { cursor: pointer; }
 .card--interactive:hover,
 .card--interactive:focus-visible {
-  transform: translateY(-10px);
+  --lift: -10px;
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.5),
     0 22px 48px rgba(0, 0, 0, 0.55),
@@ -144,7 +166,8 @@
 
 /* selected: lifted with a colored ring keyed to card type */
 .card--selected {
-  transform: translateY(-18px) scale(1.03);
+  --lift: -18px;
+  --scale: 1.03;
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.5),
     0 26px 60px rgba(0, 0, 0, 0.6),
@@ -172,5 +195,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .card { transition: none; }
-  .card--interactive:hover { transform: none; }
+  /* no pointer tilt or hover lift; selected still lifts via its own vars */
+  .card--interactive:hover,
+  .card--interactive:focus-visible { --lift: 0px; }
+  .card__glare { display: none; }
 }
