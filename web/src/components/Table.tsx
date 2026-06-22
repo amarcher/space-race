@@ -89,6 +89,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // full-screen hero takeover for headline plays (warp-200 + hazard/remedy/safety)
   const [takeover, setTakeover] = useState<{ src: string; variant: TakeoverVariant; key: number } | null>(null)
   const lastSlingId = useRef<number>(-1)
+  // "draw first" nudge: set when you reach for a hand card before drawing — the
+  // pile draw-cues blink fast for a couple seconds to pull your eye to the deck
+  const [drawNudge, setDrawNudge] = useState(false)
+  const drawNudgeTimer = useRef<number>()
 
   // DOM anchors for pile↔hand flights
   const deckRef = useRef<HTMLDivElement>(null)
@@ -377,6 +381,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (!drawPhaseHuman || animating) return
     animateAndCommit({ type: 'draw', source })
   }
+  // You poked a hand card but haven't drawn yet — flash the draw cues faster for
+  // a beat to point you at the deck/discard. Restart the window on every poke.
+  const nudgeToDraw = () => {
+    if (!drawPhaseHuman || animating) return
+    setDrawNudge(true)
+    window.clearTimeout(drawNudgeTimer.current)
+    drawNudgeTimer.current = window.setTimeout(() => setDrawNudge(false), 2400)
+  }
+  useEffect(() => () => window.clearTimeout(drawNudgeTimer.current), [])
 
   return (
     <div className={`table ${shaking ? 'table--shake' : ''}`}>
@@ -426,7 +439,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <div className="table__center">
         <div
           ref={deckRef}
-          className={`pile ${canDrawDeck ? 'pile--draw' : ''}`}
+          className={`pile ${canDrawDeck ? 'pile--draw' : ''} ${drawNudge ? 'pile--nudge' : ''}`}
           title={canDrawDeck ? 'Tap to draw' : undefined}
         >
           <Card faceDown size="md" onClick={canDrawDeck ? () => drawFrom('deck') : undefined} />
@@ -438,9 +451,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
           data-drop="discard"
           className={`pile dropzone ${dragUid ? (drop.discard ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
             hoverZone === 'discard' && drop.discard ? 'dropzone--hot' : ''
-          } ${canDrawDiscard ? 'pile--draw' : ''} ${hideDiscardTop ? 'pile--ghost' : ''} ${
-            mustDiscard ? 'pile--invite' : ''
-          }`}
+          } ${canDrawDiscard ? 'pile--draw' : ''} ${drawNudge ? 'pile--nudge' : ''} ${
+            hideDiscardTop ? 'pile--ghost' : ''
+          } ${mustDiscard ? 'pile--invite' : ''}`}
           title={canDrawDiscard ? 'Tap to take this card' : undefined}
         >
           {topDiscard ? (
@@ -475,7 +488,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       </div>
       </div>
 
-      <div ref={handRef}>
+      <div ref={handRef} onPointerDownCapture={drawPhaseHuman ? nudgeToDraw : undefined}>
         <Hand
           player={human}
           playableUids={playableUids}
