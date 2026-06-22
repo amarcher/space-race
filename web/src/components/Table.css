@@ -240,6 +240,27 @@
   flex-direction: column;
   gap: 8px;
   position: relative; /* anchor for the floating discard hint */
+  /* depth: the board sits on a receding plane (see .table__plane); the hand is a
+     sibling below it so it stays face-on to the player */
+  perspective: 1600px;
+  perspective-origin: center 42%;
+}
+/* the receding board plane: opponent board, opp hand, the deck/discard centre and
+   your own board all tilt back together. getBoundingClientRect returns the
+   PROJECTED screen rect under this transform, so drag hit-testing (elementFromPoint)
+   and deck<->hand flights still resolve to the right place. */
+.table__plane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: rotateX(10deg);
+  transform-origin: center bottom;
+}
+@media (prefers-reduced-motion: reduce) {
+  .table__main { perspective: none; }
+  .table__plane { transform: none; }
 }
 /* the game log is now summoned, not always-on: a dropdown anchored top-right,
    so the board breathes. Toggled by the 📜 button in the header. */
@@ -539,6 +560,10 @@
   }
   .table__bar { flex-wrap: wrap; row-gap: 6px; }
   .table__status { order: 3; flex-basis: 100%; font-size: 13px; }
+
+  /* phones are tight vertically — keep the board flat so nothing clips */
+  .table__main { perspective: none; }
+  .table__plane { transform: none; }
 
   /* the log is now a summoned dropdown, fine on mobile too */
   .table__center { gap: clamp(18px, 9vw, 56px); }
