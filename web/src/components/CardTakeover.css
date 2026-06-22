@@ -7,23 +7,21 @@
   overflow: hidden;
   pointer-events: none;
   background: #05050f;
-  /* quick fade-IN, then hold fully visible for the WHOLE clip (dismissal is
-     driven by the video's `ended` event, not a timer) */
-  animation: takeoverIn 320ms ease both;
+  /* quick fade-IN, then hold; dismissal is driven by a short JS timer (PLAY_MS) */
+  animation: takeoverIn 300ms ease both;
 }
-/* on `ended` — a short fade-OUT, then unmount */
+/* on dismiss — a short fade-OUT, then unmount */
 .takeover--leaving { animation: takeoverOut 350ms ease forwards; }
 .takeover__video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-/* warp dives into the tunnel across the full clip; the others ease in + settle.
-   long durations (ease-out) so the motion spans the clip rather than ending at 2s */
-.takeover--warp .takeover__video { animation: takeoverDive 7000ms ease-out both; }
+/* motion spans the short ~2.5s window: warp dives, the others ease in + settle */
+.takeover--warp .takeover__video { animation: takeoverDive 2600ms ease-out both; }
 .takeover--hazard .takeover__video,
 .takeover--remedy .takeover__video,
-.takeover--safety .takeover__video { animation: takeoverScaleIn 5000ms ease-out both; }
+.takeover--safety .takeover__video { animation: takeoverScaleIn 2600ms ease-out both; }
 
 /* soft vignette so it reads as peering through a porthole, not a hard cut */
 .takeover::after {

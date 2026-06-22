@@ -3,14 +3,18 @@ import './CardTakeover.css'
 
 export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety'
 
+// How long a takeover holds before it dismisses. A SHORT, fresh, time-capped
+// single play — we do NOT play the whole ~4s clip. Tune here.
+const PLAY_MS = 2500
 const FADE_OUT_MS = 350 // matches .takeover--leaving in the CSS
-const SAFETY_MS = 8000 // fallback if `ended` never fires (decode error / missing clip)
 
 /**
- * Full-screen hero takeover for a card play: the card's clip plays ONCE over the
- * board, then — when the video ENDS — fades out and unmounts to REVEAL the
- * (already-applied) board result. warp keeps its dive-zoom; hazard/remedy/safety
- * get a clean scale-in + a tasteful type tint (red / green / gold) + vignette.
+ * Full-screen hero takeover for a card play: the card's clip plays a SHORT,
+ * fresh burst (from the start, ~PLAY_MS) over the board, then fades out and
+ * unmounts to REVEAL the (already-applied) board result. It is NOT allowed to
+ * play the full clip or resume from a prior position — each play starts fresh at
+ * 0 and is time-capped. warp keeps its dive-zoom; hazard/remedy/safety get a
+ * clean scale-in + a tasteful type tint (red / green / gold) + vignette.
  * Non-interactive, below the Slingshot hero (z 70). Skipped under reduced motion.
  */
 export function CardTakeover({
@@ -24,27 +28,32 @@ export function CardTakeover({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [leaving, setLeaving] = useState(false)
-  // keep onDone reachable without re-running the effect (the parent passes a
-  // fresh closure each render — depending on it would thrash the listener/timer)
+  // read onDone via a ref so the effect can run exactly once (the parent passes
+  // a fresh closure each render — depending on it would restart the timer)
   const onDoneRef = useRef(onDone)
   onDoneRef.current = onDone
-  const doneRef = useRef(false)
 
   useEffect(() => {
+    // start the clip FRESH from the beginning (never resume a prior position)
+    const v = videoRef.current
+    if (v) {
+      try {
+        v.currentTime = 0
+      } catch {
+        /* not seekable yet — autoplay already starts at 0 */
+      }
+      v.play?.().catch(() => {})
+    }
+    // dismiss after a short, fixed window — one play, no loop, not the full clip
+    let done = false
     const finish = () => {
-      if (doneRef.current) return
-      doneRef.current = true
+      if (done) return
+      done = true
       setLeaving(true) // trigger the fade-out, then unmount
       window.setTimeout(() => onDoneRef.current(), FADE_OUT_MS)
     }
-    const v = videoRef.current
-    v?.addEventListener('ended', finish)
-    // play exactly once; the safety net only catches a clip that never ends
-    const safety = window.setTimeout(finish, SAFETY_MS)
-    return () => {
-      v?.removeEventListener('ended', finish)
-      window.clearTimeout(safety)
-    }
+    const t = window.setTimeout(finish, PLAY_MS)
+    return () => window.clearTimeout(t)
     // run once on mount — onDone is read via the ref above
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
