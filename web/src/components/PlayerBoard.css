@@ -1,5 +1,5 @@
 .board {
-  --tab-w: clamp(50px, 7vh, 78px);
+  --tab-w: clamp(56px, 9vh, 104px);
   --tab-h: calc(var(--tab-w) * 4 / 3);
   position: relative;
   border-radius: 14px;
@@ -151,7 +151,7 @@
 .board__meter {
   position: relative;
   flex: 1;
-  height: 26px;
+  height: 32px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.06);
