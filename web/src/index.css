@@ -20,8 +20,21 @@ body {
     radial-gradient(900px 900px at 50% 120%, rgba(200, 60, 140, 0.16), transparent 60%),
     var(--bg);
   background-attachment: fixed;
-  min-height: 100%;
   -webkit-font-smoothing: antialiased;
+  /* The app is a fixed-viewport game — the document must NEVER scroll (no empty
+     bottom space, no rubber-banding). Any view that needs to scroll (the rules
+     gallery) owns its own scroll container. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 button { font-family: inherit; }
+
+/* the single scrollable view (rules/gallery); the document stays locked */
+.view-scroll {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}

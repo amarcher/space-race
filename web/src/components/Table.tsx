@@ -538,7 +538,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
       </div>
       </div>
 
-      <div ref={handRef} onPointerDownCapture={drawPhaseHuman ? nudgeToDraw : undefined}>
+      {/* tap-catcher: with a card selected, tapping anywhere off the card + action
+          bar returns it to the hand (clears the selection). Hidden during a drag
+          so it never intercepts the crane drop hit-test. The hand sits above it,
+          so tapping another card still re-selects, and the lifted card toggles. */}
+      {selectedUid && yourTurn && !dragUid && (
+        <div className="select-scrim" onClick={() => setSelectedUid(null)} aria-hidden />
+      )}
+
+      <div ref={handRef} className="hand-wrap" onPointerDownCapture={drawPhaseHuman ? nudgeToDraw : undefined}>
         <Hand
           player={human}
           playableUids={playableUids}

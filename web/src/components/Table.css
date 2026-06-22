@@ -462,6 +462,19 @@
 .log__line--coup .log__icon,
 .log__line--win .log__icon { font-size: 21px; }
 
+/* full-bleed tap-catcher behind the selected card + action bar. Sits above the
+   board/centre (so a tap there deselects) but BELOW the hand (z-index below) and
+   the action bar (z 40), so picking another card or hitting play/discard still
+   works. Absolute within .table__main so it shares that stacking context. */
+.select-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: pointer;
+}
+/* lift the hand above the scrim so its cards stay tappable/draggable */
+.hand-wrap { position: relative; z-index: 6; }
+
 /* commit panel — a vertical card in the LEFT gutter, mirroring the log on the
    right, so it never collides with a screen-bottom overlay */
 .actionbar {
