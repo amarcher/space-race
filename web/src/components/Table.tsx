@@ -58,6 +58,15 @@ function landingRect(el: HTMLElement | null): Rect | null {
   return { left: box.left + box.width / 2 - w / 2, top: box.top + box.height / 2 - h / 2, width: w }
 }
 
+// A fixed card-sized rect centred over a container (used for the opponent's
+// draw/discard flights now that its face-down hand row is gone — cards fly
+// to/from the opponent's board area at deck-card size instead).
+function boardSlotRect(el: HTMLElement | null, width: number): Rect | null {
+  if (!el) return null
+  const b = el.getBoundingClientRect()
+  return { left: b.left + b.width / 2 - width / 2, top: b.top + b.height / 2 - (width * 4) / 3 / 2, width }
+}
+
 export function Table({ onExit }: { onExit?: () => void }) {
   const [state, setState] = useState<GameState>(() => createGame())
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
@@ -216,15 +225,17 @@ export function Table({ onExit }: { onExit?: () => void }) {
     let kind: string | undefined
     let faceDown = false
 
+    // the opponent's hand row is gone — fly its draws/discards to/from its board
+    const deckCardW = cardRectOf(deckRef.current)?.width ?? 120
     if (move.type === 'draw') {
       const source = move.source ?? 'deck'
       from = cardRectOf(source === 'discard' ? discardRef.current : deckRef.current)
-      to = landingRect(oppHandRef.current)
+      to = boardSlotRect(oppHandRef.current, deckCardW)
       faceDown = true // the AI's hand is hidden, so its draws arrive face-down
     } else {
       // discard: from the played card's slot (or the crane drop point) → discard pile
       const slotEl = document.querySelector<HTMLElement>(`.hand__slot[data-uid="${move.uid}"]`)
-      from = fromOverride ?? (actor === 0 ? cardRectOf(slotEl) : cardRectOf(oppHandRef.current))
+      from = fromOverride ?? (actor === 0 ? cardRectOf(slotEl) : boardSlotRect(oppHandRef.current, deckCardW))
       to = cardRectOf(discardRef.current)
       kind = state.players[actor].hand.find((c) => c.uid === move.uid)?.kind
     }
@@ -414,6 +425,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <div className="table__plane">
       <div
         data-drop="opp"
+        ref={oppHandRef}
         className={`dropzone ${dragUid ? (drop.opp ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
           hoverZone === 'opp' && drop.opp ? 'dropzone--hot' : ''
         }`}
@@ -428,12 +440,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
         {drop.opp && (
           <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
         )}
-      </div>
-
-      <div className="table__opp-hand" ref={oppHandRef} aria-label={`${opp.name} holds ${opp.hand.length} cards`}>
-        {opp.hand.map((c) => (
-          <Card key={c.uid} faceDown size="sm" />
-        ))}
       </div>
 
       <div className="table__center">
