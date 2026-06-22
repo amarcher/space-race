@@ -10,12 +10,12 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
-import { cardVideo } from '../game/cardArt'
+import { cardHeroVideo, cardVideo } from '../game/cardArt'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { Icon, type IconName } from './Icon'
 import { Avatar } from './Avatar'
-import { HyperwarpTakeover } from './HyperwarpTakeover'
+import { CardTakeover, type TakeoverVariant } from './CardTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
 import { Hand } from './Hand'
@@ -77,8 +77,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [flash, setFlash] = useState<{ tone: 'hit' | 'recover'; key: number } | null>(null)
   const [impact, setImpact] = useState<{ seat: number; tone: 'hit' | 'recover'; key: number } | null>(null)
   const impactSeq = useRef(0)
-  // full-screen hero takeover for the rare 200-ly hyperwarp
-  const [hyperwarp, setHyperwarp] = useState<{ src: string; key: number } | null>(null)
+  // full-screen hero takeover for headline plays (warp-200 + hazard/remedy/safety)
+  const [takeover, setTakeover] = useState<{ src: string; variant: TakeoverVariant; key: number } | null>(null)
   const lastSlingId = useRef<number>(-1)
 
   // DOM anchors for pile↔hand flights
@@ -132,13 +132,18 @@ export function Table({ onExit }: { onExit?: () => void }) {
     const card = state.players[actor].hand.find((c) => c.uid === move.uid)
     const def = card ? CARD_DEFS[card.kind] : undefined
     if (!card || !def) return
+    // a full-screen hero takeover plays the card's clip over the board, then
+    // fades to REVEAL the (already-applied) board result. The board effects below
+    // still fire underneath. Skipped under reduced motion.
+    const heroClip = cardHeroVideo(card.kind) ?? cardVideo(card.kind, ['idle', 'hover'])
+    const fireTakeover = (variant: TakeoverVariant) => {
+      if (heroClip && !prefersReducedMotion()) setTakeover({ src: heroClip, variant, key: ++impactSeq.current })
+    }
+
     if (def.type === 'distance') {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
       // the big 200-ly jump earns a full-screen hyperwarp hero moment
-      if (def.value === 200 && !prefersReducedMotion()) {
-        const clip = cardVideo(card.kind, ['idle', 'hover'])
-        if (clip) setHyperwarp({ src: clip, key: ++impactSeq.current })
-      }
+      if (def.value === 200) fireTakeover('warp')
       return
     }
     const victimSeat = def.type === 'hazard' ? move.targetSeat ?? actor : actor
@@ -147,8 +152,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
       const r = el.getBoundingClientRect()
       fireBurst(r.left + r.width / 2, r.top + r.height / 2, def.type as BurstType)
     }
-    if (def.type === 'hazard') triggerHit(victimSeat)
-    else if (def.type === 'remedy') setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
+    if (def.type === 'hazard') {
+      triggerHit(victimSeat)
+      fireTakeover('hazard')
+    } else if (def.type === 'remedy') {
+      setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
+      fireTakeover('remedy')
+    } else if (def.type === 'safety') {
+      fireTakeover('safety')
+    }
   }
 
   // Apply a move, but first fly the card between pile and hand so draws/discards
@@ -539,8 +551,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <DragLayer drag={drag} />
       <canvas ref={burstRef} className="burst-layer" aria-hidden />
       {flash && <div key={flash.key} className={`impact-flash impact-flash--${flash.tone}`} aria-hidden />}
-      {hyperwarp && (
-        <HyperwarpTakeover key={hyperwarp.key} src={hyperwarp.src} onDone={() => setHyperwarp(null)} />
+      {takeover && (
+        <CardTakeover key={takeover.key} src={takeover.src} variant={takeover.variant} onDone={() => setTakeover(null)} />
       )}
 
 

@@ -1,0 +1,66 @@
+/* Full-screen card-clip takeover — above the board, below the Slingshot hero
+   (70). Non-interactive; fades in, holds, fades out over ~2s. */
+.takeover {
+  position: fixed;
+  inset: 0;
+  z-index: 68;
+  overflow: hidden;
+  pointer-events: none;
+  background: #05050f;
+  animation: takeoverInOut 2000ms ease both;
+}
+.takeover__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* warp dives into the tunnel; the others ease in gently and settle */
+.takeover--warp .takeover__video { animation: takeoverDive 2000ms ease-out both; }
+.takeover--hazard .takeover__video,
+.takeover--remedy .takeover__video,
+.takeover--safety .takeover__video { animation: takeoverScaleIn 2000ms ease-out both; }
+
+/* soft vignette so it reads as peering through a porthole, not a hard cut */
+.takeover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 92% at 50% 48%, transparent 52%, rgba(2, 3, 16, 0.9));
+}
+
+/* tasteful type tint — peripheral wash, keeps the clip centre clear */
+.takeover__tint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.takeover--warp .takeover__tint { display: none; }
+.takeover--hazard .takeover__tint {
+  background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(255, 40, 60, 0.3));
+}
+.takeover--remedy .takeover__tint {
+  background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(40, 220, 130, 0.26));
+}
+.takeover--safety .takeover__tint {
+  background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(255, 200, 70, 0.28));
+}
+
+@keyframes takeoverInOut {
+  0% { opacity: 0; }
+  14% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes takeoverDive {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.12); }
+}
+@keyframes takeoverScaleIn {
+  0% { transform: scale(1.12); }
+  60% { transform: scale(1.01); }
+  100% { transform: scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .takeover { display: none; }
+}
