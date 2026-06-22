@@ -41,8 +41,10 @@ export function Starfield() {
     let py = 0
     let tx = 0 // target
     let ty = 0
-    let warp = 0 // current hyperspace intensity (0..1)
-    let warpTarget = 0 // a jump sets this; it ramps warp up then decays away
+    let warp = 0 // current (eased) hyperspace intensity, 0..1
+    let warpPeak = 0 // intensity to hold while there's fuel — scales with the hop
+    let warpFuel = 0 // frames of warp left to burn — also scales with the hop, so a
+    // big jump streaks longer AND lasts longer (proportional to light-years)
 
     const build = () => {
       const n = Math.min(160, Math.round((w * h) / 13000))
@@ -63,11 +65,17 @@ export function Starfield() {
     const paint = (t: number, drift: number) => {
       px += (tx - px) * 0.05
       py += (ty - py) * 0.05
-      // ramp warp up toward the jump's target, then let the target decay so the
-      // streaks bloom fast and ease back to the calm drift (a hyperspace jump).
-      warp += (warpTarget - warp) * 0.3
-      warpTarget *= 0.9
-      if (warp < 0.004 && warpTarget < 0.004) warp = warpTarget = 0
+      // hold the jump at full streak while there's fuel, then ease back to the
+      // calm drift. Both the peak and the fuel scale with the light-years played,
+      // so a 25 is a quick blip and a 200 is a long, dramatic hyperspace run.
+      if (warpFuel > 0) {
+        warpFuel -= 1
+        warp += (warpPeak - warp) * 0.28
+      } else {
+        warp *= 0.86
+        warpPeak *= 0.86
+        if (warp < 0.01) warp = warpPeak = 0
+      }
       const streaking = warp > 0.06
       // vanishing point the streaks radiate from (matches the tunnel card art)
       const cx = w / 2
@@ -124,7 +132,9 @@ export function Starfield() {
     // light-years travelled (a 25 hop is a flicker, a 200 hop is a full streak).
     const onWarp = (e: Event) => {
       const ly = (e as CustomEvent<{ ly: number }>).detail?.ly ?? 50
-      warpTarget = Math.max(warpTarget, 0.4 + Math.min(1, ly / 200) * 0.6)
+      const norm = Math.min(1, ly / 200) // 25→0.125 … 200→1
+      warpPeak = Math.max(warpPeak, 0.55 + norm * 0.45) // streak length: 0.6 … 1.0
+      warpFuel = Math.max(warpFuel, Math.round(14 + norm * 62)) // ~0.25s … ~1.3s held
     }
 
     const frame = (t: number) => {
