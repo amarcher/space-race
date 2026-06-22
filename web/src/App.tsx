@@ -16,7 +16,9 @@ export default function App() {
       {view === 'game' ? (
         <Table onExit={() => setView('gallery')} />
       ) : (
-        <div>
+        // the rules/gallery is the one scrollable view — it owns its own scroll
+        // container (the document itself is locked, see index.css)
+        <div className="view-scroll">
           <div style={{ textAlign: 'left', padding: '18px 0 0 clamp(16px, 4vw, 40px)' }}>
             <button className="btn btn--ghost" onClick={() => setView('game')} style={{ cursor: 'pointer' }}>
               ← Back to game
