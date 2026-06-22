@@ -180,6 +180,8 @@
 
 .btn--big { padding: 13px 30px; font-size: 15px; }
 .btn--icon { font-size: 18px; line-height: 1; padding: 8px 12px; }
+/* icon buttons centre their inline-SVG glyph */
+.btn--icon, .btn--bigicon { display: inline-flex; align-items: center; justify-content: center; }
 /* lit state for a toggle icon button (e.g. the game-log toggle when open) */
 .btn--icon-on {
   border-color: rgba(140, 170, 255, 0.7);

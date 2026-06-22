@@ -385,11 +385,11 @@ export function Table({ onExit }: { onExit?: () => void }) {
             aria-label="Game log"
             aria-pressed={logOpen}
           >
-            📜
+            <Icon name="log" />
           </button>
-          <button className="btn btn--icon" onClick={newRound} title="New round" aria-label="New round">🔄</button>
+          <button className="btn btn--icon" onClick={newRound} title="New round" aria-label="New round"><Icon name="restart" /></button>
           {onExit && (
-            <button className="btn btn--icon" onClick={onExit} title="Card gallery" aria-label="Card gallery">🃏</button>
+            <button className="btn btn--icon" onClick={onExit} title="Card gallery" aria-label="Card gallery"><Icon name="cards" /></button>
           )}
         </div>
       </header>
@@ -454,7 +454,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           ) : (
             <div className="pile__empty" />
           )}
-          <span className="pile__label" aria-label="Discard pile">{canDrawDiscard ? '' : '🗑️'}</span>
+          <span className="pile__label" aria-label="Discard pile">{canDrawDiscard ? null : <Icon name="bin" size={16} />}</span>
         </div>
       </div>
 

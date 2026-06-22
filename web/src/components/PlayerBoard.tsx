@@ -83,10 +83,11 @@ export function PlayerBoard({ player, isOpponent, active, avatar, impact }: Play
         </span>
         <div className="board__meter" title={`${player.distance} of ${WIN_DISTANCE} light-years`}>
           <div className="board__meter-fill" style={{ width: `${pct}%` }}>
-            <span className="board__rocket" aria-hidden>🚀</span>
+            {/* ship-marker raster slot (/ui/ship-marker.png) — SVG placeholder for now */}
+            <span className="board__rocket" aria-hidden><Icon name="ship" /></span>
           </div>
           <span className="board__meter-num" aria-hidden>{player.distance}</span>
-          <span className="board__flag" aria-hidden>🏁</span>
+          <span className="board__flag" aria-hidden><Icon name="gate" /></span>
         </div>
       </header>
 
