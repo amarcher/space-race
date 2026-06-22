@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CARD_DEFS,
   DECK_COUNTS,
@@ -20,20 +21,107 @@ const GROUPS: { type: CardType; label: string }[] = [
   { type: 'safety', label: 'Safeties' },
 ]
 
-const titleOf = (kind?: string) => (kind ? CARD_DEFS[kind]?.title : undefined)
+type TrackTone = 'hazard' | 'remedy' | 'safety'
+/** a single name cell: enough to render the text AND pop the matching card */
+interface TrackRef {
+  kind: string
+  title: string
+}
+const refOf = (kind?: string): TrackRef | null =>
+  kind && CARD_DEFS[kind] ? { kind, title: CARD_DEFS[kind].title } : null
 
 // Derive the hazard → remedy → safety tracks straight from the card data so the
-// rules can never drift out of sync with the deck. One row per threat lane.
-const HAZARD_TRACKS = LANES.map((lane) => {
+// rules can never drift out of sync with the deck. We keep each cell's card KIND
+// (not just its title) so the name can pop the actual animated card. One row per
+// threat lane.
+interface TrackRow {
+  hazard: TrackRef | null
+  remedy: TrackRef | null
+  safety: TrackRef | null
+}
+const HAZARD_TRACKS: TrackRow[] = LANES.map((lane) => {
   const hazard = GALLERY_ORDER.map((k) => CARD_DEFS[k]).find((d) => d.type === 'hazard' && d.lane === lane)
   return hazard
     ? {
-        hazard: hazard.title,
-        remedy: titleOf(hazard.fixedBy) ?? '—',
-        safety: titleOf(hazard.protectedBy?.[0]) ?? '—',
+        hazard: refOf(hazard.kind),
+        remedy: refOf(hazard.fixedBy),
+        safety: refOf(hazard.protectedBy?.[0]),
       }
     : null
-}).filter((t): t is { hazard: string; remedy: string; safety: string } => t !== null)
+}).filter((t): t is TrackRow => t !== null)
+
+const POP_W = 116 // floating card preview width (px); height follows 3:4
+
+// module-scoped: the closer for whichever track preview is currently open, so a
+// newly-opened one can dismiss it (at most one preview on screen at a time)
+let activeClose: (() => void) | null = null
+
+/**
+ * A hazard-track NAME that reveals its actual card — animated — on hover
+ * (desktop) or press-and-hold (mobile). The preview is a fixed-position card
+ * portalled to <body> and clamped to stay on-screen; `ambient` forces the clip
+ * to play just like a gallery hover.
+ */
+function TrackName({ refData, tone }: { refData: TrackRef; tone: TrackTone }) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+
+  // only ONE preview shows at a time — opening one dismisses any other (guards
+  // against a missed pointerleave/up leaving a stale popover behind)
+  const close = useCallback(() => {
+    setPos(null)
+    if (activeClose === close) activeClose = null
+  }, [])
+  const open = () => {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (!r) return
+    if (activeClose && activeClose !== close) activeClose()
+    activeClose = close
+    const cardH = (POP_W * 4) / 3
+    const vw = window.innerWidth
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - POP_W / 2, vw - POP_W - 8))
+    // prefer above the name; flip below if there isn't room
+    const top = r.top > cardH + 18 ? r.top - cardH - 12 : r.bottom + 12
+    setPos({ left, top })
+  }
+  // tidy up if this preview is still the active one when it unmounts
+  useEffect(() => close, [close])
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={`track-name track-name--${tone} ${pos ? 'track-name--on' : ''}`}
+        // desktop: hover. mobile: press-and-hold (mirrors the in-hand long-press)
+        onPointerEnter={(e) => e.pointerType === 'mouse' && open()}
+        onPointerLeave={(e) => e.pointerType === 'mouse' && close()}
+        onPointerDown={(e) => e.pointerType !== 'mouse' && open()}
+        onPointerUp={(e) => e.pointerType !== 'mouse' && close()}
+        onPointerCancel={close}
+        onFocus={open}
+        onBlur={close}
+        onClick={(e) => e.preventDefault()}
+        aria-label={`${refData.title} card`}
+      >
+        {refData.title}
+      </button>
+      {pos &&
+        createPortal(
+          <div className="track-pop" style={{ left: pos.left, top: pos.top, width: POP_W }} aria-hidden>
+            <Card kind={refData.kind} size="md" ambient showName={false} />
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
+
+const TrackCell = ({ refData, tone, label }: { refData: TrackRef | null; tone: TrackTone; label: string }) => (
+  <span className="tracks__cell" data-label={label}>
+    {refData ? <TrackName refData={refData} tone={tone} /> : '—'}
+  </span>
+)
 
 /** "How to Play" rules/NUX screen + a full reference of every card in the deck. */
 export function Gallery() {
@@ -110,16 +198,10 @@ export function Gallery() {
               </span>
             </li>
             {HAZARD_TRACKS.map((t) => (
-              <li className="tracks__row" key={t.hazard}>
-                <span className="tracks__cell" data-label="Hazard">
-                  {t.hazard}
-                </span>
-                <span className="tracks__cell" data-label="Fix it with">
-                  {t.remedy}
-                </span>
-                <span className="tracks__cell" data-label="Safe forever with">
-                  {t.safety}
-                </span>
+              <li className="tracks__row" key={t.hazard?.kind ?? t.remedy?.kind}>
+                <TrackCell refData={t.hazard} tone="hazard" label="Hazard" />
+                <TrackCell refData={t.remedy} tone="remedy" label="Fix it with" />
+                <TrackCell refData={t.safety} tone="safety" label="Safe forever with" />
               </li>
             ))}
           </ul>

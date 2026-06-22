@@ -107,9 +107,52 @@
   font-weight: 600;
 }
 .tracks__cell { display: flex; align-items: center; gap: 8px; }
-.tracks__row .tracks__cell:nth-child(1) { color: #ffb3bd; font-weight: 600; }
-.tracks__row .tracks__cell:nth-child(2) { color: #9beebb; }
-.tracks__row .tracks__cell:nth-child(3) { color: #ffe6a6; }
+
+/* each card NAME is an interactive trigger that pops the actual (animated) card.
+   A dotted underline hints it's hoverable/pressable; tone-coloured per column. */
+.track-name {
+  font: inherit;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  text-decoration: underline dotted rgba(255, 255, 255, 0.35);
+  text-underline-offset: 3px;
+  border-radius: 4px;
+  transition: filter 140ms ease, text-shadow 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none; /* keep a press-and-hold stable (don't scroll the page) */
+}
+.track-name--hazard { color: #ffb3bd; }
+.track-name--remedy { color: #9beebb; }
+.track-name--safety { color: #ffe6a6; }
+.track-name:hover,
+.track-name:focus-visible,
+.track-name--on {
+  filter: brightness(1.18);
+  text-decoration-color: currentColor;
+  text-shadow: 0 0 14px currentColor;
+  outline: none;
+}
+
+/* the floating animated card preview (portalled to <body>, position:fixed) */
+.track-pop {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
+  animation: trackPopIn 140ms ease both;
+}
+@keyframes trackPopIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-pop { animation: none; }
+}
 
 /* ---- Scoring ---- */
 .rules__scoring { margin-top: 14px; }
