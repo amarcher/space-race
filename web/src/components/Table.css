@@ -84,6 +84,35 @@
   line-height: 1;
 }
 .table__status-you { font-size: 24px; }
+
+/* Bespoke turn cue (no emoji): an energetic "go" orb on your turn, a calm
+   three-dot "thinking" loop while the opponent decides. */
+.turn-cue { display: inline-flex; align-items: center; gap: 5px; }
+.turn-cue i { display: block; border-radius: 999px; background: currentColor; }
+.turn-cue--you { color: #7df0ff; }
+.turn-cue--you i {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 12px currentColor;
+  animation: turnGo 1s ease-in-out infinite;
+}
+@keyframes turnGo {
+  0%, 100% { transform: scale(0.65); opacity: 0.65; }
+  50%      { transform: scale(1.1); opacity: 1; }
+}
+.turn-cue--think { color: rgba(186, 192, 220, 0.85); }
+.turn-cue--think i {
+  width: 7px;
+  height: 7px;
+  animation: turnThink 1.2s ease-in-out infinite;
+}
+.turn-cue--think i:nth-child(2) { animation-delay: 0.16s; }
+.turn-cue--think i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes turnThink {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%      { opacity: 1; transform: translateY(-3px); }
+}
+
 .table__bar-actions { display: flex; gap: 8px; }
 
 /* Buttonography — physical, beveled, pressable buttons rather than flat chips.
@@ -312,8 +341,8 @@
   font-variant-numeric: tabular-nums;
 }
 .pile__label {
-  /* out of flow (pinned just below the card) so the icon/size swapping in on
-     your turn (''→👆, 🗑️→👆, 11px→18px) can never change the pile height. */
+  /* out of flow (pinned just below the card) so swapping its content can never
+     change the pile height. */
   position: absolute;
   top: 100%;
   left: 0;
@@ -344,10 +373,41 @@
 .table__center .pile--draw .pile__empty {
   animation: drawglow 1.5s ease-in-out infinite;
 }
-.pile--draw .pile__label { color: #7df0ff; font-size: 18px; }
 @keyframes drawglow {
   0%, 100% { box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.8), 0 0 14px rgba(125, 240, 255, 0.3); }
   50%      { box-shadow: 0 0 0 2px rgba(125, 240, 255, 1), 0 0 32px rgba(125, 240, 255, 0.6); }
+}
+/* Bespoke "draw here" cue — two expanding sonar rings ping out from the pile,
+   on top of the cyan rim glow. Word-free, icon-free. (.pile is position:relative,
+   and its only in-flow child is the card, so inset:0 frames the card.) */
+.pile--draw::before,
+.pile--draw::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 2px solid rgba(125, 240, 255, 0.85);
+  pointer-events: none;
+  z-index: 3;
+  animation: drawPing 1.6s ease-out infinite;
+}
+.pile--draw::after { animation-delay: 0.8s; }
+@keyframes drawPing {
+  0%   { transform: scale(1); opacity: 0.85; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+
+/* "discard here" invite — you've drawn but hold nothing playable. The discard
+   pile breathes an amber outline (no pointing hand, no text). */
+.pile--invite .card,
+.pile--invite .pile__empty {
+  border-radius: 14px;
+  animation: inviteGlow 1.5s ease-in-out infinite;
+}
+@keyframes inviteGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.5), 0 0 12px rgba(255, 180, 90, 0.28); }
+  50%      { box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.95), 0 0 28px rgba(255, 180, 90, 0.6); }
 }
 .pile__empty {
   width: var(--deck-w);
@@ -362,6 +422,15 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .pile .card { animation: none; }
+  /* convey draw/discard affordance + turn state with steady cues, no motion */
+  .pile--draw::before, .pile--draw::after { animation: none; opacity: 0.5; }
+  .pile--draw .card, .pile--draw .pile__empty { animation: none; }
+  .pile--invite .card, .pile--invite .pile__empty {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(255, 200, 110, 0.8);
+  }
+  .turn-cue--you i { animation: none; opacity: 1; transform: scale(1); }
+  .turn-cue--think i { animation: none; opacity: 0.7; }
 }
 
 .log {
@@ -424,19 +493,6 @@
 .actionbar__thumb { display: inline-flex; }
 .actionbar__thumb .card { width: clamp(48px, 4.6vw, 72px); }
 .actionbar .btn { width: 100%; }
-
-.table__hint {
-  /* out of flow so toggling the discard prompt never adds a row / shifts height */
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 13px;
-  margin: 0;
-  pointer-events: none;
-}
 
 @keyframes toastin {
   from { opacity: 0; transform: translate(-50%, -12px); }
