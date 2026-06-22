@@ -14,6 +14,7 @@ import { cardVideo } from '../game/cardArt'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { Icon, type IconName } from './Icon'
+import { Avatar } from './Avatar'
 import { HyperwarpTakeover } from './HyperwarpTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
@@ -28,7 +29,7 @@ const AI_DELAY = 780
 const SLINGSHOT_MS = 2800
 
 // Icon vocabulary — the UI leans on pictures so a non-reader can follow along.
-const AVATAR = { you: '🧑‍🚀', cpu: '🤖' }
+const whoFor = (seat: number): 'you' | 'cpu' => (seat === 0 ? 'you' : 'cpu')
 const LOG_ICON: Record<string, IconName> = {
   hazard: 'burst',
   remedy: 'wrench',
@@ -375,7 +376,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
               )}
             </span>
           )}
-          {yourTurn && <span className="table__status-you">{AVATAR.you}</span>}
+          {yourTurn && <span className="table__status-you"><Avatar who="you" /></span>}
         </span>
         <div className="table__bar-actions">
           <button
@@ -408,7 +409,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <PlayerBoard
           player={opp}
           isOpponent
-          avatar={AVATAR.cpu}
+          who="cpu"
           active={state.turn === 1 && state.phase !== 'roundOver'}
           impact={impact?.seat === opp.seat ? impact.tone : null}
         />
@@ -467,7 +468,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <PlayerBoard
           player={human}
           isOpponent={false}
-          avatar={AVATAR.you}
+          who="you"
           active={yourTurn}
           impact={impact?.seat === human.seat ? impact.tone : null}
         />
@@ -496,7 +497,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
          <ul className="log">
            {recentLog.map((e) => (
              <li key={e.id} className={`log__line log__line--${e.kind}`} title={e.text}>
-               {e.seat >= 0 && <span className="log__who">{e.seat === 0 ? AVATAR.you : AVATAR.cpu}</span>}
+               {e.seat >= 0 && <span className="log__who"><Avatar who={whoFor(e.seat)} /></span>}
                <span className="log__icon"><Icon name={LOG_ICON[e.kind] ?? 'dot'} /></span>
              </li>
            ))}
@@ -544,7 +545,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
 
       {slingshot && (
-        <SlingshotOverlay event={slingshot} avatar={slingshot.seat === 0 ? AVATAR.you : AVATAR.cpu} />
+        <SlingshotOverlay event={slingshot} who={whoFor(slingshot.seat)} />
       )}
 
       {state.phase === 'roundOver' && scoreboardOpen && (
@@ -557,7 +558,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           title="Show results"
           aria-label="Show results"
         >
-          🏆
+          <Icon name="trophy" />
         </button>
       )}
     </div>
@@ -574,7 +575,8 @@ function Scoreboard({
   onClose: () => void
 }) {
   const scores = scoreRound(state)
-  const avatarFor = (seat: number) => (seat === 0 ? AVATAR.you : AVATAR.cpu)
+  // map the score-line glyphs returned by engine.ts (untouched) → bespoke SVG
+  const scoreIcon: Record<string, IconName> = { '🚀': 'thrust', '🛡️': 'shield' }
   return (
     // click the backdrop (outside the card) to dismiss and inspect the final board
     <div className="scoreboard" onClick={onClose}>
@@ -588,29 +590,33 @@ function Scoreboard({
           ✕
         </button>
         <div className="scoreboard__trophy" aria-label={state.winner != null ? `${state.players[state.winner].name} wins` : 'Round over'}>
-          🏆{state.winner != null && <span className="scoreboard__winner">{avatarFor(state.winner)}</span>}
+          {/* trophy-hero raster slot (/ui/trophy-hero.png) — SVG placeholder for now */}
+          <Icon name="trophy" className="scoreboard__trophy-svg" />
+          {state.winner != null && (
+            <span className="scoreboard__winner"><Avatar who={whoFor(state.winner)} /></span>
+          )}
         </div>
         <div className="scoreboard__cols">
           {scores.map((s) => (
             <div key={s.seat} className={`scorecol ${state.winner === s.seat ? 'scorecol--win' : ''}`}>
-              <h3 aria-label={s.name}>{avatarFor(s.seat)}</h3>
+              <h3 aria-label={s.name}><Avatar who={whoFor(s.seat)} /></h3>
               <ul>
                 {s.lines.map((l, i) => (
                   <li key={i} title={l.label}>
-                    <span aria-hidden>{l.icon}</span>
+                    <span aria-hidden><Icon name={scoreIcon[l.icon] ?? 'thrust'} /></span>
                     <b>{l.points}</b>
                   </li>
                 ))}
               </ul>
               <div className="scorecol__total" title="Total">
-                <span aria-hidden>🏆</span>
+                <span aria-hidden><Icon name="trophy" /></span>
                 <b>{s.total}</b>
               </div>
             </div>
           ))}
         </div>
         <button className="btn btn--play btn--bigicon btn--big" onClick={onNewRound} title="Play again" aria-label="Play again">
-          🔄
+          <Icon name="restart" />
         </button>
       </div>
     </div>

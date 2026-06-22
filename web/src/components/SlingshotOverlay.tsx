@@ -1,6 +1,8 @@
 import { SLINGSHOT_MILEAGE } from '../game/cards'
 import type { SlingshotEvent } from '../game/engine'
+import { Avatar, type Who } from './Avatar'
 import { Card } from './Card'
+import { Icon } from './Icon'
 import './SlingshotOverlay.css'
 
 /**
@@ -11,7 +13,7 @@ import './SlingshotOverlay.css'
  * 4. the hazard is flung to the discard pile,
  * 5. you draw a fresh card.
  */
-export function SlingshotOverlay({ event, avatar }: { event: SlingshotEvent; avatar: string }) {
+export function SlingshotOverlay({ event, who }: { event: SlingshotEvent; who: Who }) {
   return (
     <div className="sling" key={event.id} aria-label="Slingshot!">
       <div className="sling__scene">
@@ -27,9 +29,9 @@ export function SlingshotOverlay({ event, avatar }: { event: SlingshotEvent; ava
         </div>
       </div>
       <div className="sling__banner">
-        <span className="sling__avatar">{avatar}</span>
+        <span className="sling__avatar"><Avatar who={who} /></span>
         <span className="sling__word">SLINGSHOT!</span>
-        <span className="sling__pts">⚡ +{SLINGSHOT_MILEAGE} ly</span>
+        <span className="sling__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
       </div>
     </div>
   )
