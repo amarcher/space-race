@@ -402,6 +402,18 @@
   70%  { opacity: 0; }
   100% { transform: scale(1.18); opacity: 0; }
 }
+/* While the card is hovered/focused it lifts + foil-tilts; the pile-anchored
+   sonar rings would sit at the card's RESTING rect and read as an offset
+   outline. Hide them then — the card's own cyan rim glow (box-shadow on the
+   .card, below) tracks the lift/tilt and carries the cue. The rings still pulse
+   at rest. */
+.pile--draw:hover::before,
+.pile--draw:hover::after,
+.pile--draw:focus-within::before,
+.pile--draw:focus-within::after {
+  opacity: 0;
+  animation: none;
+}
 
 /* "discard here" invite — you've drawn but hold nothing playable. The discard
    pile breathes an amber outline (no pointing hand, no text). */
