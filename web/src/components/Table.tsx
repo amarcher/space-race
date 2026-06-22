@@ -24,8 +24,6 @@ import './Table.css'
 
 const DRAW_DELAY = 480
 const AI_DELAY = 780
-const TOAST_MS = 2200
-const TOAST_KINDS = new Set(['win', 'safety']) // 'coup' gets the full-screen Slingshot animation instead
 const SLINGSHOT_MS = 2800
 
 // Icon vocabulary — the UI leans on pictures so a non-reader can follow along.
@@ -61,7 +59,6 @@ function landingRect(el: HTMLElement | null): Rect | null {
 export function Table({ onExit }: { onExit?: () => void }) {
   const [state, setState] = useState<GameState>(() => createGame())
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
   const [animating, setAnimating] = useState(false)
   // hide the top discard while it's flying off into someone's hand (no double image)
@@ -80,7 +77,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const impactSeq = useRef(0)
   // full-screen hero takeover for the rare 200-ly hyperwarp
   const [hyperwarp, setHyperwarp] = useState<{ src: string; key: number } | null>(null)
-  const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
 
   // DOM anchors for pile↔hand flights
@@ -282,18 +278,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
   useEffect(() => {
     if (!yourTurn) setSelectedUid(null)
   }, [yourTurn])
-
-  // transient banner for the biggest events
-  useEffect(() => {
-    const last = state.log[state.log.length - 1]
-    if (!last || last.id === lastLogId.current) return
-    lastLogId.current = last.id
-    if (TOAST_KINDS.has(last.kind)) {
-      setToast(last.text)
-      const t = setTimeout(() => setToast(null), TOAST_MS)
-      return () => clearTimeout(t)
-    }
-  }, [state.log])
 
   const selectedKind = selectedUid ? human.hand.find((c) => c.uid === selectedUid)?.kind : undefined
   const selectedDef = selectedKind ? CARD_DEFS[selectedKind] : undefined
@@ -543,7 +527,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <HyperwarpTakeover key={hyperwarp.key} src={hyperwarp.src} onDone={() => setHyperwarp(null)} />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
 
       {slingshot && (
         <SlingshotOverlay event={slingshot} avatar={slingshot.seat === 0 ? AVATAR.you : AVATAR.cpu} />
