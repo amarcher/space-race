@@ -17,6 +17,7 @@ export type IconName =
   | 'cards' // card gallery
   | 'log' // game log
   | 'gate' // finish line
+  | 'ship' // meter progress marker (placeholder for the ship-marker raster)
   | 'dot' // neutral log entry
 
 interface IconProps {
@@ -127,6 +128,15 @@ export function Icon({ name, size = '1em', className }: IconProps) {
       return (
         <svg {...common}>
           <path d="M6 3v18M6 4h13l-2.5 4L19 12H6" />
+        </svg>
+      )
+    case 'ship':
+      // a side-profile rocket pointing right, riding the progress meter
+      return (
+        <svg {...common}>
+          <path d="M3 12c4-.3 6-1 8.5-3.2C14 6.6 17 6 21 6c0 4-1 6.4-3.2 8.5C15.5 16.7 7 15.8 3 12z" />
+          <path d="M11 13.5L8 19M13.5 11L19 8" />
+          <circle cx="14.5" cy="9.5" r="1.4" />
         </svg>
       )
     case 'dot':
