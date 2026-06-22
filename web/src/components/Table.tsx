@@ -68,6 +68,12 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [incomingUid, setIncomingUid] = useState<string | null>(null)
   // the end-of-round scoreboard can be dismissed to inspect the final board
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
+  // transient impact feel: a screen shake, a full-screen flash, and a per-board
+  // hit-recoil / recovery-spring (keyed so the same board can re-trigger)
+  const [shaking, setShaking] = useState(false)
+  const [flash, setFlash] = useState<{ tone: 'hit' | 'recover'; key: number } | null>(null)
+  const [impact, setImpact] = useState<{ seat: number; tone: 'hit' | 'recover'; key: number } | null>(null)
+  const impactSeq = useRef(0)
   const lastLogId = useRef<number>(-1)
   const lastSlingId = useRef<number>(-1)
 
@@ -91,10 +97,32 @@ export function Table({ onExit }: { onExit?: () => void }) {
     [moves],
   )
 
+  // A hazard slams a ship: jolt the whole table, flash red, and recoil the
+  // victim's board.
+  const triggerHit = (victimSeat: number) => {
+    const key = ++impactSeq.current
+    setShaking(true)
+    setTimeout(() => setShaking(false), 420)
+    setFlash({ tone: 'hit', key })
+    setTimeout(() => setFlash((f) => (f?.key === key ? null : f)), 240)
+    setImpact({ seat: victimSeat, tone: 'hit', key })
+    setTimeout(() => setImpact((im) => (im?.key === key ? null : im)), 480)
+  }
+  // A remedy clears the hazard: after a beat (hit-pause) the ship springs back
+  // to life with a green bloom.
+  const triggerRecover = (seat: number) => {
+    const key = ++impactSeq.current
+    setFlash({ tone: 'recover', key })
+    setTimeout(() => setFlash((f) => (f?.key === key ? null : f)), 260)
+    setImpact({ seat, tone: 'recover', key })
+    setTimeout(() => setImpact((im) => (im?.key === key ? null : im)), 600)
+  }
+
   // Visceral "effect when played" for a play move: a distance hop jumps the
-  // starfield into a hyperspace warp (length scaled to the light-years), while
-  // remedy/hazard/safety pop a type-coloured particle burst on the board it
-  // lands on (the victim's board for a hazard, the player's own otherwise).
+  // starfield into a hyperspace warp (length scaled to the light-years); a
+  // hazard slams the victim's ship (shake + red flash + recoil + burst); a
+  // remedy clears it (burst, then a beat, then a recovery spring); a safety
+  // pops a gold burst.
   const firePlayEffect = (move: Extract<Move, { type: 'play' }>) => {
     const actor = state.turn
     const card = state.players[actor].hand.find((c) => c.uid === move.uid)
@@ -104,11 +132,14 @@ export function Table({ onExit }: { onExit?: () => void }) {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
       return
     }
-    const victimSeat = def.type === 'hazard' ? move.targetSeat : actor
+    const victimSeat = def.type === 'hazard' ? move.targetSeat ?? actor : actor
     const el = document.querySelector<HTMLElement>(victimSeat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    fireBurst(r.left + r.width / 2, r.top + r.height / 2, def.type as BurstType)
+    if (el) {
+      const r = el.getBoundingClientRect()
+      fireBurst(r.left + r.width / 2, r.top + r.height / 2, def.type as BurstType)
+    }
+    if (def.type === 'hazard') triggerHit(victimSeat)
+    else if (def.type === 'remedy') setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
   }
 
   // Apply a move, but first fly the card between pile and hand so draws/discards
@@ -329,7 +360,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   }
 
   return (
-    <div className="table">
+    <div className={`table ${shaking ? 'table--shake' : ''}`}>
       <header className="table__bar">
         <h1>1000 Light-Years</h1>
         <span className="table__status" title={statusLabel} aria-label={statusLabel}>
@@ -356,6 +387,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           isOpponent
           avatar={AVATAR.cpu}
           active={state.turn === 1 && state.phase !== 'roundOver'}
+          impact={impact?.seat === opp.seat ? impact.tone : null}
         />
         {drop.opp && (
           <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack">💥</span>
@@ -407,7 +439,13 @@ export function Table({ onExit }: { onExit?: () => void }) {
           hoverZone === 'self' && drop.self ? 'dropzone--hot' : ''
         }`}
       >
-        <PlayerBoard player={human} isOpponent={false} avatar={AVATAR.you} active={yourTurn} />
+        <PlayerBoard
+          player={human}
+          isOpponent={false}
+          avatar={AVATAR.you}
+          active={yourTurn}
+          impact={impact?.seat === human.seat ? impact.tone : null}
+        />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play">✅</span>}
       </div>
 
@@ -474,6 +512,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <FlightLayer flights={flights} />
       <DragLayer drag={drag} />
       <canvas ref={burstRef} className="burst-layer" aria-hidden />
+      {flash && <div key={flash.key} className={`impact-flash impact-flash--${flash.tone}`} aria-hidden />}
 
       {toast && <div className="toast">{toast}</div>}
 

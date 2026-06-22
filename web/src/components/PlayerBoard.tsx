@@ -8,6 +8,8 @@ interface PlayerBoardProps {
   isOpponent: boolean
   active: boolean
   avatar: string
+  /** transient hit-recoil / recovery-spring animation, keyed so it can retrigger */
+  impact?: 'hit' | 'recover' | null
 }
 
 const OFFSET = 5 // px each card peeks below the one in front of it
@@ -39,7 +41,7 @@ function Stack({
   )
 }
 
-export function PlayerBoard({ player, isOpponent, active, avatar }: PlayerBoardProps) {
+export function PlayerBoard({ player, isOpponent, active, avatar, impact }: PlayerBoardProps) {
   const hzr = activeHazard(player)
   const slow = speedLimited(player)
   const pct = Math.min(100, (player.distance / WIN_DISTANCE) * 100)
@@ -60,7 +62,11 @@ export function PlayerBoard({ player, isOpponent, active, avatar }: PlayerBoardP
   const nothingInPlay = distanceGroups.length === 0 && laneStacks.length === 0 && player.safeties.length === 0
 
   return (
-    <section className={`board ${active ? 'board--active' : ''} ${isOpponent ? 'board--opp' : ''}`}>
+    <section
+      className={`board ${active ? 'board--active' : ''} ${isOpponent ? 'board--opp' : ''} ${
+        impact ? `board--${impact}` : ''
+      }`}
+    >
       <header className="board__head">
         <span className={`board__avatar ${active ? 'board__avatar--active' : ''}`} title={player.name} aria-label={player.name}>
           {avatar}
