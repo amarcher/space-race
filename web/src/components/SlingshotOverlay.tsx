@@ -16,11 +16,11 @@ export function SlingshotOverlay({ event, avatar }: { event: SlingshotEvent; ava
     <div className="sling" key={event.id} aria-label="Slingshot!">
       <div className="sling__scene">
         <div className="sling__hazard">
-          <Card kind={event.hazardKind} size="lg" showName={false} />
+          <Card kind={event.hazardKind} size="lg" showName={false} ambient />
         </div>
         <div className="sling__flash" aria-hidden />
         <div className="sling__safety">
-          <Card kind={event.safetyKind} size="lg" showName={false} />
+          <Card kind={event.safetyKind} size="lg" showName={false} ambient />
         </div>
         <div className="sling__draw" aria-hidden>
           <Card faceDown size="lg" />
