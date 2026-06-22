@@ -1,6 +1,7 @@
 import { CARD_DEFS, DISTANCE_VALUES, LANES, WIN_DISTANCE, type CardInstance } from '../game/cards'
 import { activeHazard, speedLimited, type PlayerState } from '../game/engine'
 import { Card } from './Card'
+import { Icon } from './Icon'
 import './PlayerBoard.css'
 
 interface PlayerBoardProps {
@@ -119,7 +120,7 @@ export function PlayerBoard({ player, isOpponent, active, avatar, impact }: Play
 
         {player.coupFourres > 0 && (
           <span className="board__coup" title="Slingshot!" aria-label={`${player.coupFourres} slingshot`}>
-            ⚡{player.coupFourres > 1 ? `×${player.coupFourres}` : ''}
+            <Icon name="bolt" />{player.coupFourres > 1 ? `×${player.coupFourres}` : ''}
           </span>
         )}
       </div>

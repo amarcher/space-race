@@ -227,7 +227,10 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 6;
-  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
   border-radius: 999px;
   font-size: 30px;
   line-height: 1;

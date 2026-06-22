@@ -221,7 +221,10 @@
 .board__div--gold { background: rgba(255, 215, 106, 0.4); }
 .board__coup {
   align-self: center;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 15px;
   font-weight: 700;
   color: #ffd76a;
   white-space: nowrap;
