@@ -31,7 +31,7 @@ export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, str
   Object.fromEntries(
     CLIP_KINDS.map((kind) => {
       const url = `/cards/video/${kind}.mp4`
-      return [kind, { idle: url, hover: url, played: url }]
+      return [kind, { idle: url, hover: url }]
     }),
   )
 
