@@ -11,6 +11,8 @@ import {
   type SlingshotEvent,
 } from '../game'
 import { cardHeroVideo, cardVideo } from '../game/cardArt'
+import { playSfx, toggleMuted } from '../audio/sfx'
+import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { Icon, type IconName } from './Icon'
@@ -107,6 +109,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const opp = state.players[1]
   const cur = state.players[state.turn]
   const yourTurn = state.turn === 0 && state.phase === 'play'
+  const muted = useMuted()
 
   const moves = useMemo(() => legalMoves(state), [state])
   const playableUids = useMemo(
@@ -155,8 +158,13 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
     if (def.type === 'distance') {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
-      // the big 200-ly jump earns a full-screen hyperwarp hero moment
-      if (def.value === 200) fireTakeover('warp')
+      // the big 200-ly jump earns a full-screen hyperwarp hero moment + whoosh
+      if (def.value === 200) {
+        fireTakeover('warp')
+        playSfx('warp')
+      } else {
+        playSfx('distance')
+      }
       return
     }
     const victimSeat = def.type === 'hazard' ? move.targetSeat ?? actor : actor
@@ -168,11 +176,14 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (def.type === 'hazard') {
       triggerHit(victimSeat)
       fireTakeover('hazard')
+      playSfx('hazard')
     } else if (def.type === 'remedy') {
       setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
       fireTakeover('remedy')
+      playSfx('remedy')
     } else if (def.type === 'safety') {
       fireTakeover('safety')
+      playSfx('safety')
     }
   }
 
@@ -181,6 +192,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // instantly. Honours reduced-motion by committing immediately.
   // `fromOverride` lets a crane-drop hand off the floating card's exact position.
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
+    // a card sliding off a pile (draw or discard) gets a light flick/whoosh
+    if (move.type === 'draw') playSfx('card-flick')
+    else if (move.type === 'discard') playSfx('card-flick', { rate: 0.9 })
     if (prefersReducedMotion() || (move.type !== 'draw' && move.type !== 'discard')) {
       if (move.type === 'play') firePlayEffect(move)
       setState((s) => applyMove(s, move))
@@ -257,7 +271,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
   // pop the scoreboard open each time a round ends (it can then be dismissed)
   useEffect(() => {
-    if (state.phase === 'roundOver') setScoreboardOpen(true)
+    if (state.phase === 'roundOver') {
+      setScoreboardOpen(true)
+      playSfx('win') // a cheerful chime as the round resolves
+    }
   }, [state.phase])
 
   // Esc dismisses the scoreboard so the final board is visible underneath
@@ -296,6 +313,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
     lastSlingId.current = ev.id
     setSlingshot(ev)
     setAnimating(true)
+    playSfx('slingshot')
     const t = setTimeout(() => {
       setSlingshot(null)
       setAnimating(false)
@@ -397,17 +415,49 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <h1>1000 Light-Years</h1>
         <div className="table__bar-actions">
           <button
+            className="btn btn--icon"
+            onClick={() => toggleMuted()}
+            title={muted ? 'Unmute sound' : 'Mute sound'}
+            aria-label={muted ? 'Unmute sound' : 'Mute sound'}
+            aria-pressed={muted}
+          >
+            <Icon name={muted ? 'sound-off' : 'sound-on'} />
+          </button>
+          <button
             className={`btn btn--icon ${logOpen ? 'btn--icon-on' : ''}`}
-            onClick={() => setLogOpen((o) => !o)}
+            onClick={() => {
+              playSfx('ui-click')
+              setLogOpen((o) => !o)
+            }}
             title="Game log"
             aria-label="Game log"
             aria-pressed={logOpen}
           >
             <Icon name="log" />
           </button>
-          <button className="btn btn--icon" onClick={newRound} title="New round" aria-label="New round"><Icon name="restart" /></button>
+          <button
+            className="btn btn--icon"
+            onClick={() => {
+              playSfx('ui-click')
+              newRound()
+            }}
+            title="New round"
+            aria-label="New round"
+          >
+            <Icon name="restart" />
+          </button>
           {onExit && (
-            <button className="btn btn--icon" onClick={onExit} title="Card gallery" aria-label="Card gallery"><Icon name="cards" /></button>
+            <button
+              className="btn btn--icon"
+              onClick={() => {
+                playSfx('ui-click')
+                onExit()
+              }}
+              title="Card gallery"
+              aria-label="Card gallery"
+            >
+              <Icon name="cards" />
+            </button>
           )}
         </div>
       </header>

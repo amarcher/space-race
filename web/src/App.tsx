@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { initAudio } from './audio/sfx'
 import { Gallery } from './components/Gallery'
 import { Starfield } from './components/Starfield'
 import { Table } from './components/Table'
@@ -7,6 +8,8 @@ type View = 'game' | 'gallery'
 
 export default function App() {
   const [view, setView] = useState<View>('game')
+  // wire the first-gesture audio unlock once (no-op until the user interacts)
+  useEffect(() => initAudio(), [])
   return (
     <>
       <Starfield />

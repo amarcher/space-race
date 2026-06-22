@@ -19,6 +19,8 @@ export type IconName =
   | 'gate' // finish line
   | 'ship' // meter progress marker (placeholder for the ship-marker raster)
   | 'dot' // neutral log entry
+  | 'sound-on' // audio on (speaker + waves)
+  | 'sound-off' // audio muted (speaker + x)
 
 interface IconProps {
   name: IconName
@@ -143,6 +145,23 @@ export function Icon({ name, size = '1em', className }: IconProps) {
       return (
         <svg {...common} fill="currentColor" stroke="none">
           <circle cx="12" cy="12" r="3" />
+        </svg>
+      )
+    case 'sound-on':
+      // a speaker cone with two sound waves
+      return (
+        <svg {...common}>
+          <path d="M4 9.5h3l4-3v11l-4-3H4z" />
+          <path d="M15.5 9.2a4 4 0 0 1 0 5.6" />
+          <path d="M18 6.7a8 8 0 0 1 0 10.6" />
+        </svg>
+      )
+    case 'sound-off':
+      // the same speaker cone, waves replaced by an X (muted)
+      return (
+        <svg {...common}>
+          <path d="M4 9.5h3l4-3v11l-4-3H4z" />
+          <path d="M15.5 9.5l5 5M20.5 9.5l-5 5" />
         </svg>
       )
     default:
