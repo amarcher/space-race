@@ -33,10 +33,14 @@ export function Hand({
     <div className="hand" role="group" aria-label="Your hand">
       {player.hand.map((card, i) => {
         const playable = playableUids.has(card.uid)
-        // gentle fan: rotate/offset around the centre
+        // Held-fan arc: rotation grows linearly toward the ends while the
+        // vertical offset follows a parabola so the middle sits highest and the
+        // ends curve down — a real fanned hand. Both are exposed as CSS vars so
+        // hover/relayout can recompose them (lift + straighten) in the stylesheet.
         const mid = (n - 1) / 2
-        const rot = (i - mid) * 2.6
-        const lift = Math.abs(i - mid) * 5
+        const off = i - mid
+        const rot = off * 4.2
+        const lift = off * off * 4.5
         return (
           <div
             key={card.uid}
@@ -46,7 +50,7 @@ export function Hand({
             } ${draggingUid === card.uid ? 'hand__slot--dragging' : ''} ${
               incomingUid === card.uid ? 'hand__slot--incoming' : ''
             }`}
-            style={{ transform: `rotate(${rot}deg) translateY(${lift}px)` }}
+            style={{ '--rot': `${rot}deg`, '--ty': `${lift}px` } as React.CSSProperties}
             onPointerDown={yourTurn ? (e) => onDragStart(e, card.uid, card.kind) : undefined}
             // a press that became a drag fires a trailing click on release — swallow it
             // so the card isn't also toggled-selected after being dropped.
