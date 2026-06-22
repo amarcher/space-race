@@ -112,6 +112,10 @@ export function Card({
       aria-label={label}
       title={faceDown ? undefined : def?.title}
       data-type={def?.type}
+      // long-press on touch must act like hover + drag, not raise the OS
+      // context/image menu — swallow it (CSS -webkit-touch-callout covers iOS;
+      // this covers Android/desktop right-press)
+      onContextMenu={(e) => e.preventDefault()}
       {...tilt.handlers}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
