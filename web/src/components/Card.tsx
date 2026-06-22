@@ -24,6 +24,9 @@ interface CardProps {
   /** force the looping clip to play without hover/interactivity (e.g. the
    *  Slingshot hero cards) — static art stays the fallback */
   ambient?: boolean
+  /** opt a card OUT of hover animation — for the transient drag/flight clones
+   *  that sit under the cursor (or mid-flight) but shouldn't spuriously play */
+  noHover?: boolean
 }
 
 /**
@@ -42,13 +45,18 @@ export function Card({
   showName = true,
   showValue = true,
   ambient = false,
+  noHover = false,
 }: CardProps) {
   const def = kind ? CARD_DEFS[kind] : undefined
   const src = faceDown || !def ? CARD_BACK_URL : artUrl(def)
   const interactive = !!onClick && !disabled
-  // a card has "living art" (hover tilt + clip swap) when it's interactive OR
-  // explicitly marked ambient (plays its clip on its own, e.g. the Slingshot)
-  const alive = interactive || ambient
+  // any face-up card responds to hover (foil tilt + glare + clip) — not just
+  // your-turn hand cards — so board stacks, the piles and off-turn hand cards
+  // all come alive under the cursor. Clones (drag/flight) opt out via noHover.
+  const hoverable = !faceDown && !noHover
+  // a card has "living art" (hover tilt + clip swap) when it's hoverable, an
+  // interactive face-down draw pile, or explicitly ambient (e.g. the Slingshot)
+  const alive = hoverable || interactive || ambient
   const tilt = useCardTilt(alive)
 
   // Animated art: a card comes alive while hovered/selected (or always, when
@@ -57,7 +65,7 @@ export function Card({
   // concurrency low; ambient is reserved for the few hero cards. No JS for static.
   const [hovered, setHovered] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
-  const lively = alive && !faceDown && !prefersReducedMotion() && (ambient || hovered || selected)
+  const lively = !faceDown && !prefersReducedMotion() && (ambient || hovered || selected)
   const videoSrc = lively ? cardVideo(kind, hovered ? ['hover', 'idle'] : ['idle']) : undefined
 
   // hover state drives the animated-art swap; compose with the tilt handlers so
@@ -91,7 +99,11 @@ export function Card({
       type="button"
       className={className}
       onClick={interactive ? onClick : undefined}
-      disabled={disabled || !onClick}
+      // keep truly-inert cards disabled, but leave hoverable face-up cards
+      // enabled so they still receive the pointer events that drive the hover
+      // animation; keep those out of the tab order since they do nothing on click
+      disabled={disabled || (!onClick && !hoverable)}
+      tabIndex={interactive ? undefined : -1}
       aria-label={label}
       title={faceDown ? undefined : def?.title}
       data-type={def?.type}

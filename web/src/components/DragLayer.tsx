@@ -164,7 +164,7 @@ function DragCard({ drag }: { drag: DragInfo }) {
           transform: `translate(-50%, -50%) translateY(${-lift}px) scale(${scale}) rotate(${drag.tilt}deg)`,
         }}
       >
-        <Card kind={drag.kind} size="md" showName={false} />
+        <Card kind={drag.kind} size="md" showName={false} noHover />
       </div>
     </div>
   )
