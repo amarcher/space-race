@@ -13,6 +13,7 @@ import {
 import { cardVideo } from '../game/cardArt'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
+import { Icon, type IconName } from './Icon'
 import { HyperwarpTakeover } from './HyperwarpTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
@@ -28,14 +29,14 @@ const SLINGSHOT_MS = 2800
 
 // Icon vocabulary — the UI leans on pictures so a non-reader can follow along.
 const AVATAR = { you: '🧑‍🚀', cpu: '🤖' }
-const LOG_ICON: Record<string, string> = {
-  hazard: '💥',
-  remedy: '🔧',
-  safety: '🛡️',
-  distance: '🚀',
-  coup: '⚡',
-  win: '🏆',
-  info: '·',
+const LOG_ICON: Record<string, IconName> = {
+  hazard: 'burst',
+  remedy: 'wrench',
+  safety: 'shield',
+  distance: 'thrust',
+  coup: 'bolt',
+  win: 'trophy',
+  info: 'dot',
 }
 
 // Screen-space rect of the .card inside an anchor element (deck/discard pile).
@@ -412,7 +413,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           impact={impact?.seat === opp.seat ? impact.tone : null}
         />
         {drop.opp && (
-          <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack">💥</span>
+          <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
         )}
       </div>
 
@@ -470,7 +471,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           active={yourTurn}
           impact={impact?.seat === human.seat ? impact.tone : null}
         />
-        {drop.self && <span className="dropzone__tag" aria-label="Drop to play">✅</span>}
+        {drop.self && <span className="dropzone__tag" aria-label="Drop to play"><Icon name="check" /></span>}
       </div>
       </div>
 
@@ -496,7 +497,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
            {recentLog.map((e) => (
              <li key={e.id} className={`log__line log__line--${e.kind}`} title={e.text}>
                {e.seat >= 0 && <span className="log__who">{e.seat === 0 ? AVATAR.you : AVATAR.cpu}</span>}
-               <span className="log__icon">{LOG_ICON[e.kind]}</span>
+               <span className="log__icon"><Icon name={LOG_ICON[e.kind] ?? 'dot'} /></span>
              </li>
            ))}
          </ul>
@@ -518,7 +519,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
                title={playLabel}
                aria-label={playLabel}
              >
-               {selectedDef.type === 'hazard' ? '💥' : '▶️'}
+               <Icon name={selectedDef.type === 'hazard' ? 'burst' : 'play'} />
              </button>
              <button
                className="btn btn--discard btn--bigicon"
@@ -526,7 +527,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
                title="Discard"
                aria-label="Discard"
              >
-               🗑️
+               <Icon name="bin" />
              </button>
            </>
          )}

@@ -1,0 +1,9 @@
+/* Inline-SVG icons inherit color via currentColor and size via font-size (1em).
+   block display avoids the inline-SVG baseline gap so they centre cleanly in
+   flex rows, pills and buttons. */
+.icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
