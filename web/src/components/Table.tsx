@@ -145,6 +145,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // pops a gold burst.
   const firePlayEffect = (move: Extract<Move, { type: 'play' }>) => {
     const actor = state.turn
+    const isPlayer = actor === 0
     const card = state.players[actor].hand.find((c) => c.uid === move.uid)
     const def = card ? CARD_DEFS[card.kind] : undefined
     if (!card || !def) return
@@ -158,9 +159,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
     if (def.type === 'distance') {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
-      // the big 200-ly jump earns a full-screen hyperwarp hero moment + whoosh
+      // the big 200-ly jump earns a full-screen hyperwarp hero moment + whoosh —
+      // but only for YOUR jump; the AI just moving isn't your cinematic moment
       if (def.value === 200) {
-        fireTakeover('warp')
+        if (isPlayer) fireTakeover('warp')
         playSfx('warp')
       } else {
         playSfx('distance')
@@ -175,14 +177,16 @@ export function Table({ onExit }: { onExit?: () => void }) {
     }
     if (def.type === 'hazard') {
       triggerHit(victimSeat)
-      fireTakeover('hazard')
+      // takeover for YOUR hazard, or for the AI hazarding YOU (getting hit is the
+      // player's moment) — but NOT the AI's other plays
+      if (isPlayer || victimSeat === 0) fireTakeover('hazard')
       playSfx('hazard')
     } else if (def.type === 'remedy') {
       setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
-      fireTakeover('remedy')
+      if (isPlayer) fireTakeover('remedy') // the AI fixing its own ship isn't your moment
       playSfx('remedy')
     } else if (def.type === 'safety') {
-      fireTakeover('safety')
+      if (isPlayer) fireTakeover('safety')
       playSfx('safety')
     }
   }
@@ -289,7 +293,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
   // ---- automated turn loop: deal/draw + AI moves ----
   useEffect(() => {
-    if (state.phase === 'roundOver' || animating) return // hold the loop during animations
+    // hold the loop during flights/slingshot (animating) AND while a full-screen
+    // takeover is on screen, so the AI never moves until the clip concludes
+    if (state.phase === 'roundOver' || animating || takeover) return
     let action: (() => void) | null = null
     let delay = 0
 
@@ -304,12 +310,16 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (!action) return
     const t = setTimeout(action, delay)
     return () => clearTimeout(t)
-  }, [state, cur.isAI, animating])
+  }, [state, cur.isAI, animating, takeover])
 
   // ---- Slingshot hero animation: play it, and pause the loop while it runs ----
   useEffect(() => {
     const ev = state.lastSlingshot
     if (!ev || ev.id === lastSlingId.current) return
+    // if the triggering hazard's full-screen takeover is still on screen, wait —
+    // this effect re-runs when `takeover` clears, so the slingshot plays AFTER
+    // the hazard moment, clearly sequential (never overlapping)
+    if (takeover) return
     lastSlingId.current = ev.id
     setSlingshot(ev)
     setAnimating(true)
@@ -319,7 +329,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
       setAnimating(false)
     }, SLINGSHOT_MS)
     return () => clearTimeout(t)
-  }, [state.lastSlingshot])
+  }, [state.lastSlingshot, takeover])
 
   // clear stale selection when it stops being your move
   useEffect(() => {
