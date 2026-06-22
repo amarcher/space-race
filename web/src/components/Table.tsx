@@ -420,7 +420,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   useEffect(() => () => window.clearTimeout(drawNudgeTimer.current), [])
 
   return (
-    <div className={`table ${shaking ? 'table--shake' : ''} ${selectedUid && yourTurn ? 'table--committing' : ''}`}>
+    <div className={`table ${shaking ? 'table--shake' : ''}`}>
       <header className="table__bar">
         <h1>1000 Light-Years</h1>
         <div className="table__bar-actions">

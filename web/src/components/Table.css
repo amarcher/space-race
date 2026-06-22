@@ -655,31 +655,28 @@
   /* the hand fan never needs the whole bottom — leave a band for the action bar */
   .hand { min-height: 0; }
 
-  /* no gutter on phones — the commit bar is a SLIM single row pinned to the very
-     bottom (thumb + the two big buttons), so it reads clearly and, paired with
-     the reserved band below, never buries the hand */
+  /* no gutter on phones — the commit control is a compact FLOATING pill (thumb +
+     the two big buttons) that overlays the board just ABOVE the hand fan. It's
+     position:fixed, so selecting a card NEVER reflows/jumps the rest of the UI
+     (no reserved band). The tap-outside scrim still deselects. */
   .actionbar {
     position: fixed;
     left: 50%;
     right: auto;
     top: auto;
-    bottom: 8px;
-    max-width: none;
+    bottom: clamp(146px, 18.5vh, 178px); /* float just above the hand */
+    max-width: calc(100% - 24px);
+    width: auto;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    width: calc(100% - 16px);
     gap: 10px;
     padding: 8px 12px;
     transform: translate(-50%, 14px);
   }
   .actionbar--show { transform: translate(-50%, 0); }
   .actionbar__thumb { flex: 0 0 auto; justify-content: center; }
-  .actionbar__thumb .card { width: 44px; }
-  .actionbar .btn { flex: 1 1 auto; width: auto; }
-  .actionbar .btn--bigicon { font-size: 22px; padding: 8px 14px; }
-
-  /* while committing, reserve the action-bar band so the hand lifts clear of it
-     (the centre flexes to absorb the shift — boards + hand never overlap it) */
-  .table--committing .table__body { padding-bottom: 64px; }
+  .actionbar__thumb .card { width: 40px; }
+  .actionbar .btn { flex: 0 0 auto; width: auto; }
+  .actionbar .btn--bigicon { font-size: 22px; padding: 8px 20px; }
 }

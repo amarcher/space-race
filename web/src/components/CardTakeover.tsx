@@ -37,6 +37,13 @@ export function CardTakeover({
     // start the clip FRESH from the beginning (never resume a prior position)
     const v = videoRef.current
     if (v) {
+      // CRITICAL for mobile autoplay: React's `muted` JSX attribute does NOT
+      // reliably set the DOM `.muted` PROPERTY, so iOS/Android treat the clip as
+      // non-muted and BLOCK autoplay when the AI (no user gesture) triggers a
+      // takeover — surfacing a native play button. Force the property here so a
+      // muted + playsInline clip autoplays gesture-free.
+      v.muted = true
+      v.defaultMuted = true
       try {
         v.currentTime = 0
       } catch {
