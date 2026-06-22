@@ -10,6 +10,7 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
+import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
@@ -77,6 +78,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const oppHandRef = useRef<HTMLDivElement>(null)
 
   const { flights, fly } = useFlights()
+  const { ref: burstRef, fire: fireBurst } = useBurstLayer()
 
   const human = state.players[0]
   const opp = state.players[1]
@@ -89,12 +91,33 @@ export function Table({ onExit }: { onExit?: () => void }) {
     [moves],
   )
 
+  // Visceral "effect when played" for a play move: a distance hop jumps the
+  // starfield into a hyperspace warp (length scaled to the light-years), while
+  // remedy/hazard/safety pop a type-coloured particle burst on the board it
+  // lands on (the victim's board for a hazard, the player's own otherwise).
+  const firePlayEffect = (move: Extract<Move, { type: 'play' }>) => {
+    const actor = state.turn
+    const card = state.players[actor].hand.find((c) => c.uid === move.uid)
+    const def = card ? CARD_DEFS[card.kind] : undefined
+    if (!def) return
+    if (def.type === 'distance') {
+      window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
+      return
+    }
+    const victimSeat = def.type === 'hazard' ? move.targetSeat : actor
+    const el = document.querySelector<HTMLElement>(victimSeat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    fireBurst(r.left + r.width / 2, r.top + r.height / 2, def.type as BurstType)
+  }
+
   // Apply a move, but first fly the card between pile and hand so draws/discards
   // read as motion. Only draw/discard touch the piles — plays/passes commit
   // instantly. Honours reduced-motion by committing immediately.
   // `fromOverride` lets a crane-drop hand off the floating card's exact position.
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
     if (prefersReducedMotion() || (move.type !== 'draw' && move.type !== 'discard')) {
+      if (move.type === 'play') firePlayEffect(move)
       setState((s) => applyMove(s, move))
       return
     }
@@ -450,6 +473,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
       <FlightLayer flights={flights} />
       <DragLayer drag={drag} />
+      <canvas ref={burstRef} className="burst-layer" aria-hidden />
 
       {toast && <div className="toast">{toast}</div>}
 

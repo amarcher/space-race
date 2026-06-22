@@ -41,6 +41,8 @@ export function Starfield() {
     let py = 0
     let tx = 0 // target
     let ty = 0
+    let warp = 0 // current hyperspace intensity (0..1)
+    let warpTarget = 0 // a jump sets this; it ramps warp up then decays away
 
     const build = () => {
       const n = Math.min(160, Math.round((w * h) / 13000))
@@ -61,23 +63,68 @@ export function Starfield() {
     const paint = (t: number, drift: number) => {
       px += (tx - px) * 0.05
       py += (ty - py) * 0.05
+      // ramp warp up toward the jump's target, then let the target decay so the
+      // streaks bloom fast and ease back to the calm drift (a hyperspace jump).
+      warp += (warpTarget - warp) * 0.3
+      warpTarget *= 0.9
+      if (warp < 0.004 && warpTarget < 0.004) warp = warpTarget = 0
+      const streaking = warp > 0.06
+      // vanishing point the streaks radiate from (matches the tunnel card art)
+      const cx = w / 2
+      const cy = h * 0.45
+
       ctx.clearRect(0, 0, w, h)
-      ctx.fillStyle = '#dfe6ff'
+      ctx.lineCap = 'round'
       for (const s of stars) {
-        s.y -= (4 + s.z * 14) * drift
-        if (s.y < -2) {
-          s.y = h + 2
-          s.x = Math.random() * w
+        if (streaking) {
+          // hyperspace: fly outward from the vanishing point and trail a line
+          // back toward it — longer/faster the nearer the star and bigger the jump.
+          const dx = s.x - cx
+          const dy = s.y - cy
+          const dist = Math.hypot(dx, dy) || 1
+          const ux = dx / dist
+          const uy = dy / dist
+          const spd = (dist * 0.05 + 4) * warp * (0.6 + s.z)
+          s.x += ux * spd
+          s.y += uy * spd
+          if (s.x < -30 || s.x > w + 30 || s.y < -30 || s.y > h + 30) {
+            const a = Math.random() * Math.PI * 2
+            const rr = Math.random() * 50
+            s.x = cx + Math.cos(a) * rr
+            s.y = cy + Math.sin(a) * rr
+          }
+          const len = Math.min(dist, warp * (24 + s.z * 90))
+          ctx.globalAlpha = Math.min(1, 0.5 + warp * 0.5)
+          ctx.strokeStyle = '#eaf0ff'
+          ctx.lineWidth = Math.max(0.6, s.r * 1.2)
+          ctx.beginPath()
+          ctx.moveTo(s.x - ux * len, s.y - uy * len)
+          ctx.lineTo(s.x, s.y)
+          ctx.stroke()
+        } else {
+          s.y -= (4 + s.z * 14) * drift
+          if (s.y < -2) {
+            s.y = h + 2
+            s.x = Math.random() * w
+          }
+          const ox = px * (6 + s.z * 30)
+          const oy = py * (6 + s.z * 30)
+          const twinkle = reduced ? 1 : 0.7 + 0.3 * Math.sin((t / 1000) * s.tw + s.ph)
+          ctx.globalAlpha = s.a * twinkle
+          ctx.fillStyle = '#dfe6ff'
+          ctx.beginPath()
+          ctx.arc(s.x + ox, s.y + oy, s.r, 0, Math.PI * 2)
+          ctx.fill()
         }
-        const ox = px * (6 + s.z * 30)
-        const oy = py * (6 + s.z * 30)
-        const twinkle = reduced ? 1 : 0.7 + 0.3 * Math.sin((t / 1000) * s.tw + s.ph)
-        ctx.globalAlpha = s.a * twinkle
-        ctx.beginPath()
-        ctx.arc(s.x + ox, s.y + oy, s.r, 0, Math.PI * 2)
-        ctx.fill()
       }
       ctx.globalAlpha = 1
+    }
+
+    // a distance play asks the field to jump forward; intensity scales with the
+    // light-years travelled (a 25 hop is a flicker, a 200 hop is a full streak).
+    const onWarp = (e: Event) => {
+      const ly = (e as CustomEvent<{ ly: number }>).detail?.ly ?? 50
+      warpTarget = Math.max(warpTarget, 0.4 + Math.min(1, ly / 200) * 0.6)
     }
 
     const frame = (t: number) => {
@@ -119,6 +166,7 @@ export function Starfield() {
     window.addEventListener('resize', resize)
     if (!reduced) {
       window.addEventListener('pointermove', onPointer, { passive: true })
+      window.addEventListener('spacerace:warp', onWarp)
       document.addEventListener('visibilitychange', onVisibility)
       raf = requestAnimationFrame(frame)
     }
@@ -128,6 +176,7 @@ export function Starfield() {
       cancelAnimationFrame(raf)
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointermove', onPointer)
+      window.removeEventListener('spacerace:warp', onWarp)
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
