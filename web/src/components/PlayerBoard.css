@@ -9,9 +9,15 @@
   backdrop-filter: blur(6px);
   transition: border-color 200ms ease, box-shadow 200ms ease, filter 320ms ease;
 }
+/* the active player's board breathes a violet glow — the primary, word-free
+   "whose turn is it" cue (paired with the avatar bob below) */
 .board--active {
-  border-color: rgba(139, 123, 255, 0.55);
-  box-shadow: 0 0 0 1px rgba(139, 123, 255, 0.35), 0 0 30px rgba(139, 123, 255, 0.18);
+  border-color: rgba(139, 123, 255, 0.6);
+  animation: activePulse 2.4s ease-in-out infinite;
+}
+@keyframes activePulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(139, 123, 255, 0.32), 0 0 22px rgba(139, 123, 255, 0.16); }
+  50%      { box-shadow: 0 0 0 1.5px rgba(139, 123, 255, 0.6), 0 0 40px rgba(139, 123, 255, 0.32); }
 }
 
 /* ── Persistent ambient state ──────────────────────────────────────────────
@@ -83,6 +89,11 @@
   /* convey the state with a steady tint instead of a pulse */
   .board--blocked::after,
   .board--limited::after { animation: none; opacity: 0.7; }
+  /* steady active glow instead of a breathing pulse */
+  .board--active {
+    animation: none;
+    box-shadow: 0 0 0 1.5px rgba(139, 123, 255, 0.5), 0 0 28px rgba(139, 123, 255, 0.22);
+  }
 }
 
 /* a hazard slams in: the ship lurches sideways with a red impact glow AND a
