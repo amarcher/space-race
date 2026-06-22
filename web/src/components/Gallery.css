@@ -23,7 +23,121 @@
   background-clip: text;
   color: transparent;
 }
-.gallery__sub { margin: 6px 0 0; color: rgba(255, 255, 255, 0.55); font-size: 14px; }
+/* ---- How to Play -------------------------------------------------------- */
+.rules { margin-top: 8px; }
+.rules__heading {
+  margin: 0 0 18px;
+  font-size: clamp(18px, 2.4vw, 24px);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #eef1ff;
+}
+.rules__heading--ref {
+  margin-top: 52px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rules__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+.rules__card {
+  margin: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.rules__card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.rules__card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(233, 236, 255, 0.82);
+}
+.rules__card strong { color: #fff; font-weight: 700; }
+.rules__card em { font-style: normal; color: #ffd76a; font-weight: 600; }
+/* accent the two "special" cards with a left edge in their type colour */
+.rules__card--goal { border-left: 3px solid #6fb7ff; }
+.rules__card--slingshot { border-left: 3px solid #ffd76a; }
+
+.rules__hint {
+  font-weight: 400;
+  font-size: 13px;
+  color: rgba(233, 236, 255, 0.5);
+}
+
+/* inline pills used in the prose + scoring rows */
+.rules__chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+.rules__chip--safety { background: rgba(255, 215, 106, 0.18); color: #ffd76a; }
+.rules__chip--slingshot { background: rgba(124, 240, 255, 0.16); color: #7df0ff; }
+
+/* ---- Hazard tracks table ---- */
+.rules__tracks { margin-top: 14px; }
+.tracks { list-style: none; margin: 12px 0 0; padding: 0; }
+.tracks__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 10px 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 14px;
+  color: rgba(233, 236, 255, 0.9);
+}
+.tracks__row--head {
+  border-top: none;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(233, 236, 255, 0.55);
+  font-weight: 600;
+}
+.tracks__cell { display: flex; align-items: center; gap: 8px; }
+.tracks__row .tracks__cell:nth-child(1) { color: #ffb3bd; font-weight: 600; }
+.tracks__row .tracks__cell:nth-child(2) { color: #9beebb; }
+.tracks__row .tracks__cell:nth-child(3) { color: #ffe6a6; }
+
+/* ---- Scoring ---- */
+.rules__scoring { margin-top: 14px; }
+.rules__scores { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.rules__scores li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(233, 236, 255, 0.82);
+}
+.rules__scores strong { color: #fff; font-variant-numeric: tabular-nums; }
+
+/* on phones the 3-column track collapses to stacked labelled rows */
+@media (max-width: 560px) {
+  .tracks__row--head { display: none; }
+  .tracks__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 6px;
+  }
+  .tracks__cell::before {
+    content: attr(data-label) ': ';
+    color: rgba(233, 236, 255, 0.45);
+    font-weight: 600;
+    margin-right: 2px;
+  }
+}
 
 .gallery__toggle {
   display: inline-flex;
