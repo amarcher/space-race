@@ -17,6 +17,13 @@ export type CardArtState =
 
 /** kind → state → asset URL. Empty entries simply fall back to the static webp. */
 export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, string>>>> = {
+  // First real clip: animates on hover/select (loop) and plays once, centre-stage,
+  // when the card is committed (the `played` one-shot).
+  'warp-25': {
+    idle: '/cards/video/warp-25.mp4',
+    hover: '/cards/video/warp-25.mp4',
+    played: '/cards/video/warp-25.mp4',
+  },
   // Demo: the hyperwarp card breathes (slow push into the tunnel). Generated from
   // the static art as a placeholder — replace with the real Veo clip.
   'warp-200': { idle: '/cards/video/warp-200-idle.webm' },
