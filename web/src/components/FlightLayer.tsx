@@ -72,14 +72,14 @@ function Flight({ f }: { f: ActiveFlight }) {
         // a 3-D flip: card-back faces us at the start, the real face by the time it lands
         <div className={`flight__flip ${go ? 'flight__flip--face' : ''}`}>
           <div className="flight__face flight__face--front">
-            <Card kind={f.kind} size="md" showName={false} />
+            <Card kind={f.kind} size="md" showName={false} noHover />
           </div>
           <div className="flight__face flight__face--back">
-            <Card faceDown size="md" />
+            <Card faceDown size="md" noHover />
           </div>
         </div>
       ) : (
-        <Card kind={f.kind} faceDown={f.faceDown} size="md" showName={false} />
+        <Card kind={f.kind} faceDown={f.faceDown} size="md" showName={false} noHover />
       )}
     </div>
   )
