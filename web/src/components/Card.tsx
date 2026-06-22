@@ -21,6 +21,9 @@ interface CardProps {
   showName?: boolean
   /** the baked value numeral on distance cards (off for tiny trail thumbnails) */
   showValue?: boolean
+  /** force the looping clip to play without hover/interactivity (e.g. the
+   *  Slingshot hero cards) — static art stays the fallback */
+  ambient?: boolean
 }
 
 /**
@@ -38,25 +41,29 @@ export function Card({
   onClick,
   showName = true,
   showValue = true,
+  ambient = false,
 }: CardProps) {
   const def = kind ? CARD_DEFS[kind] : undefined
   const src = faceDown || !def ? CARD_BACK_URL : artUrl(def)
   const interactive = !!onClick && !disabled
-  const tilt = useCardTilt(interactive)
+  // a card has "living art" (hover tilt + clip swap) when it's interactive OR
+  // explicitly marked ambient (plays its clip on its own, e.g. the Slingshot)
+  const alive = interactive || ambient
+  const tilt = useCardTilt(alive)
 
-  // Animated art: a card comes alive while it's hovered or selected — we swap to
-  // a looping clip (if the manifest has one for this kind) over the static art,
-  // which stays as the poster/fallback. Only ~the hovered + selected cards ever
-  // run video, so concurrency stays low on tablets. Static art needs no JS.
+  // Animated art: a card comes alive while hovered/selected (or always, when
+  // ambient) — we swap to a looping clip (if the manifest has one) over the
+  // static art, which stays as the poster/fallback. Hover-only cards keep
+  // concurrency low; ambient is reserved for the few hero cards. No JS for static.
   const [hovered, setHovered] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
-  const lively = interactive && !faceDown && (hovered || selected) && !prefersReducedMotion()
+  const lively = alive && !faceDown && !prefersReducedMotion() && (ambient || hovered || selected)
   const videoSrc = lively ? cardVideo(kind, hovered ? ['hover', 'idle'] : ['idle']) : undefined
 
   // hover state drives the animated-art swap; compose with the tilt handlers so
   // both run (tilt owns pointermove + the lean-reset on leave)
-  const onPointerEnter = interactive ? () => setHovered(true) : undefined
-  const onPointerLeave = interactive
+  const onPointerEnter = alive ? () => setHovered(true) : undefined
+  const onPointerLeave = alive
     ? () => {
         setHovered(false)
         tilt.handlers?.onPointerLeave?.()
