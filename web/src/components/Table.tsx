@@ -10,7 +10,8 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
-import { cardVideo } from '../game/cardArt'
+import { cardHeroVideo, cardVideo } from '../game/cardArt'
+import { preloadHeroClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
@@ -476,6 +477,28 @@ export function Table({ onExit }: { onExit?: () => void }) {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [gameInProgress])
+
+  // Idle-warm the full-screen hero takeover clips BEFORE a takeover needs them so
+  // it plays instantly (no play-time stall). WIDE viewport only — hero clips are
+  // used only >760px. Preload: YOUR takeover-kind hand cards (any kind shipping a
+  // hero clip — hazard / remedy / safety / warp-200) + the AI's HAZARD cards (the
+  // AI triggers a takeover only for a hazard-on-you, per the #52 scope). The key
+  // changes only when the relevant kinds change; preloadHeroClips dedupes fetches.
+  const heroPreloadKey = useMemo(() => {
+    const mine = human.hand.map((c) => c.kind)
+    const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard').map((c) => c.kind)
+    return `${mine.join(',')}|${aiHazards.join(',')}`
+  }, [human.hand, opp.hand])
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth <= 760) return // mobile → standard clip, no hero
+    const urls = [
+      ...human.hand.map((c) => cardHeroVideo(c.kind)),
+      ...opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard').map((c) => cardHeroVideo(c.kind)),
+    ]
+    preloadHeroClips(urls)
+    // human.hand/opp.hand are captured via heroPreloadKey (their relevant kinds)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroPreloadKey])
 
   const canDrawDeck = drawPhaseHuman && !animating && state.deck.length > 0
   const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0
