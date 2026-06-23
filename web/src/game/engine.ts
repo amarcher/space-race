@@ -17,7 +17,7 @@ import {
   type Lane,
 } from './cards'
 import { mulberry32, shuffle } from './rng'
-import { resolveRules, SCRY_REVEAL, type GameRules } from './rules'
+import { MOMENTUM_CAP, resolveRules, SCRY_REVEAL, type GameRules } from './rules'
 
 export interface PlayerState {
   seat: number
@@ -75,12 +75,22 @@ export interface GameState {
   /** SCRY mode: the top-of-deck cards revealed for the current player to pick one
    * of. Non-null only while `phase === 'scry'`. The mover is `state.turn`. */
   scry: CardInstance[] | null
+  /** MOMENTUM mode: each player's banked charge [seat0, seat1], 0..MOMENTUM_CAP.
+   * A clean distance play banks +1; a `burst` spends a full meter. Always present
+   * + serializable; stays at [0,0] in modes where momentum is off. */
+  momentum: [number, number]
+  /** MOMENTUM mode: the seat currently owed ONE bonus distance play (a BREAKAWAY,
+   * just spent via `burst`). While set, that seat's next distance play does NOT
+   * end the turn — it clears this flag instead, granting the free double-jump.
+   * Null whenever no breakaway is pending. */
+  breakaway: number | null
 }
 
 export type Move =
   | { type: 'draw'; source?: 'deck' | 'discard' }
   | { type: 'pick'; uid: string } // SCRY: take one of the revealed top-of-deck cards
   | { type: 'play'; uid: string; targetSeat?: number }
+  | { type: 'burst' } // MOMENTUM: spend a full meter for a BREAKAWAY (a bonus distance play)
   | { type: 'discard'; uid: string }
   | { type: 'pass' }
 
@@ -137,6 +147,31 @@ export const hazardsOn = (p: PlayerState): string[] => {
 /** Whether a Tractor Beam is throttling this player (distances capped at 50). */
 export const speedLimited = (p: PlayerState): boolean => topHazardOfLane(p, SPEED_LANE) !== null
 
+/** Whether this player could legally PLAY a distance card right now (started, not
+ * blocked, holds a card whose value clears the speed-limit / 200-cap rules). The
+ * momentum BURST is only offered when this is true, so it's never a dead button. */
+export const canPlayDistance = (p: PlayerState): boolean => {
+  if (!p.started || activeHazard(p) !== null) return false
+  const slow = speedLimited(p)
+  return p.hand.some((c) => {
+    const def = defOf(c)
+    if (def.type !== 'distance') return false
+    const v = def.value ?? 0
+    if (slow && v > SPEED_LIMIT_VALUE) return false
+    if (v === 200 && p.count200 >= MAX_200_PER_PLAYER) return false
+    return true
+  })
+}
+
+/** MOMENTUM: is this player's meter full and spendable into a BREAKAWAY burst? */
+export const canBurst = (s: GameState, seat: number): boolean =>
+  s.rules.momentum &&
+  s.phase === 'play' &&
+  s.turn === seat &&
+  s.breakaway === null &&
+  s.momentum[seat] >= MOMENTUM_CAP &&
+  canPlayDistance(s.players[seat])
+
 /** Can `attacker`'s hand hazard `target` right now? (ignores Slingshot) */
 export const canAttack = (target: PlayerState, hazardKind: string): boolean => {
   if (!target.started || isImmune(target, hazardKind) || target.distance >= WIN_DISTANCE) return false
@@ -191,6 +226,8 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     lastSlingshot: null,
     rules: resolveRules(opts.rules),
     scry: null,
+    momentum: [0, 0],
+    breakaway: null,
     log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
   }
 }
@@ -249,6 +286,10 @@ export function legalMoves(state: GameState): Move[] {
         break
     }
   }
+
+  // MOMENTUM: a full, spendable meter unlocks the BREAKAWAY burst (a bonus
+  // distance play). Offered only when there's actually a distance to follow with.
+  if (canBurst(state, state.turn)) moves.push({ type: 'burst' })
 
   for (const card of me.hand) moves.push({ type: 'discard', uid: card.uid })
   return moves
@@ -333,6 +374,17 @@ export function applyMove(state: GameState, move: Move): GameState {
     return s
   }
 
+  if (move.type === 'burst') {
+    // MOMENTUM: spend a full meter for a BREAKAWAY — drain the charge to 0 and owe
+    // this player one bonus distance play. The turn stays open (same mover) so
+    // their next distance hop is free; playing it clears `breakaway`.
+    if (!canBurst(s, s.turn)) return state
+    s.momentum[me.seat] = 0
+    s.breakaway = me.seat
+    pushLog(s, me.seat, `${me.name} hits a BREAKAWAY — momentum unleashed for a free jump!`, 'coup')
+    return s
+  }
+
   const idx = me.hand.findIndex((c) => c.uid === move.uid)
   if (idx < 0) return state
   const card = me.hand[idx]
@@ -358,6 +410,15 @@ export function applyMove(state: GameState, move: Move): GameState {
         winRound(s, me.seat)
         return s
       }
+      // MOMENTUM: a BREAKAWAY (burst just spent) keeps the turn OPEN for one bonus
+      // distance hop — this is that hop, so consume the flag and DON'T end the turn
+      // (the player gets to play again immediately → the free double-jump).
+      if (s.rules.momentum && s.breakaway === me.seat) {
+        s.breakaway = null
+        return s
+      }
+      // Otherwise a clean distance play BANKS +1 charge (capped), then the turn ends.
+      if (s.rules.momentum && s.momentum[me.seat] < MOMENTUM_CAP) s.momentum[me.seat]++
       endTurn(s)
       return s
     }

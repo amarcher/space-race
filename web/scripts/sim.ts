@@ -3,7 +3,7 @@
 // every selectable mode stays green. Run with: npx tsx scripts/sim.ts
 import { createGame, applyMove, legalMoves, scoreRound, type GameState } from '../src/game/engine'
 import { chooseMove } from '../src/game/ai'
-import { type GameRules } from '../src/game/rules'
+import { type GameRules, MOMENTUM_CAP } from '../src/game/rules'
 import { WIN_DISTANCE, MAX_200_PER_PLAYER, LANES } from '../src/game/cards'
 
 function playGame(seed: number, rules?: Partial<GameRules>): { state: GameState; turns: number } {
@@ -52,15 +52,26 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
     const { state, turns } = playGame(1000 + i, rules)
     if (state.phase !== 'roundOver') throw new Error(`[${label}] game ${i} did not finish in ${turns} turns`)
 
+    // A game ends one of two ways: someone CROSSES 1000 (a real win), or the deck
+    // is spent and the race is called by distance (winner may sit below 1000).
+    const deckCalled = state.deck.length === 0 && state.players.every((p) => p.hand.length === 0)
     for (const p of state.players) {
-      // overshoot is allowed now; the winner crosses 1000, the loser stays below it
-      if (state.winner === p.seat && p.distance < WIN_DISTANCE)
-        throw new Error(`[${label}] winner below 1000: ${p.distance}`)
+      // overshoot is allowed now; a 1000-crossing winner is over the line. Only a
+      // deck-spent call (deckCalled) may legitimately crown a sub-1000 leader.
+      if (state.winner === p.seat && p.distance < WIN_DISTANCE && !deckCalled)
+        throw new Error(`[${label}] winner below 1000 without deck-spent call: ${p.distance}`)
       if (p.count200 > MAX_200_PER_PLAYER) throw new Error(`[${label}] too many 200s: ${p.count200}`)
       if (new Set(p.safeties).size !== p.safeties.length) throw new Error(`[${label}] duplicate safety revealed`)
       coupTotal += p.coupFourres
       safetyTotal += p.safeties.length
     }
+
+    // MOMENTUM: the meter never escapes its [0, cap] bounds, and no breakaway is
+    // ever left dangling once a round ends (it must have been spent on a hop).
+    for (const m of state.momentum) {
+      if (m < 0 || m > MOMENTUM_CAP) throw new Error(`[${label}] momentum out of bounds: ${m}`)
+    }
+    if (state.breakaway !== null) throw new Error(`[${label}] dangling breakaway at round end: seat ${state.breakaway}`)
 
     // card conservation: 106 cards always accounted for (incl. the scry zone)
     const counted = countCards(state)
@@ -87,5 +98,6 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
 const N = 400
 runMode('classic', undefined, N)
 runMode('scry', { scry: true }, N)
+runMode('momentum', { momentum: true }, N)
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')

@@ -19,15 +19,28 @@ export interface GameRules {
    * falls back to a blind draw.
    */
   scry: boolean
+  /**
+   * MOMENTUM meter: each clean distance play BANKS +1 charge (per player, capped
+   * at MOMENTUM_CAP). When the meter is full and you hold a playable distance
+   * card, a `burst` move unlocks a BREAKAWAY — one bonus distance play this turn
+   * (a free double-jump) — then the meter resets to 0. Manufactures the swing the
+   * base game lacks and rewards pressing a lead. Pure additive lever: it changes
+   * only how OFTEN a roller gets to move, never deck composition.
+   */
+  momentum: boolean
 }
 
 /** Classic Mille Bornes — every mode flag off. The regression-critical baseline. */
 export const DEFAULT_RULES: GameRules = {
   scry: false,
+  momentum: false,
 }
 
 /** How many top-of-deck cards a scry draw reveals. */
 export const SCRY_REVEAL = 3
+
+/** Charges the momentum meter banks before a BREAKAWAY burst unlocks. */
+export const MOMENTUM_CAP = 3
 
 /** Resolve a partial rules override against the classic defaults. */
 export function resolveRules(partial?: Partial<GameRules>): GameRules {

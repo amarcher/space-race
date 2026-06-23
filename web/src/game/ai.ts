@@ -16,6 +16,24 @@ import {
   type PlayerState,
 } from './engine'
 
+/** How many distance cards this player could legally PLAY right now (respecting
+ * the launch / block / speed-limit / 200-cap rules). Drives the momentum BURST
+ * decision: the AI only spends its meter when it can chain a real double-jump. */
+function playableDistanceCount(p: PlayerState): number {
+  if (!p.started || activeHazard(p) !== null) return 0
+  const slow = speedLimited(p)
+  let n = 0
+  for (const c of p.hand) {
+    const def = defOf(c)
+    if (def.type !== 'distance') continue
+    const v = def.value ?? 0
+    if (slow && v > SPEED_LIMIT_VALUE) continue
+    if (v === 200 && p.count200 >= MAX_200_PER_PLAYER) continue
+    n++
+  }
+  return n
+}
+
 const HAZARD_WEIGHT: Record<string, number> = {
   'black-hole': 28,
   'tractor-beam': 22,
@@ -149,6 +167,17 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
 function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
   if (mv.type === 'pass') return -1000
   if (mv.type === 'draw') return 0
+
+  if (mv.type === 'burst') {
+    // MOMENTUM: spend the full meter only when it buys a REAL double-jump — i.e.
+    // there are ≥2 playable distance cards to chain (one for the bonus hop, one
+    // for the normal play). Score it just above a single distance play so the AI
+    // bursts first, then plays both hops. With <2 distances it's not worth the
+    // reset, so we score it below a plain distance play (the AI just hops once).
+    const n = playableDistanceCount(me)
+    if (n >= 2) return 160 // beats any single distance (max ~150) → press the lead
+    return -50 // not a real swing right now; prefer the ordinary distance play
+  }
 
   const def = defOf(cardOf(me, mv.uid))
   const hzr = activeHazard(me)

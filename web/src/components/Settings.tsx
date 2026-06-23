@@ -54,6 +54,13 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
             checked={draft.scry}
             onChange={(v) => set('scry', v)}
           />
+
+          <Toggle
+            label="Momentum meter"
+            help="Bank a charge each time you advance; spend a full meter for a free double-jump."
+            checked={draft.momentum}
+            onChange={(v) => set('momentum', v)}
+          />
         </section>
 
         {touched && (

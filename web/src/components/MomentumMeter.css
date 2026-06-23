@@ -1,0 +1,104 @@
+/* MOMENTUM gauge — a compact chevron-pip charge meter under the distance bar.
+   Charging = cool blue pips light up left→right; FULL = the row warms toward
+   gold; SPENDABLE = the whole thing ignites and pulses, inviting a tap. */
+
+.momentum {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  line-height: 0;
+  /* sits as its own row in the board header (full width under the avatar+meter) */
+}
+
+.momentum__pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.momentum__pip {
+  display: inline-block;
+  width: 11px;
+  height: 16px;
+  color: rgba(255, 255, 255, 0.18); /* empty pip — faint outline */
+  transition: color 280ms ease, filter 280ms ease, transform 280ms ease;
+}
+.momentum__pip svg { display: block; }
+
+/* a lit pip — cool cyan-blue charge, with a soft glow */
+.momentum__pip--lit {
+  color: #6fd0ff;
+  filter: drop-shadow(0 0 4px rgba(111, 208, 255, 0.7));
+  animation: pipPop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pipPop {
+  0% { transform: scale(0.3); opacity: 0.2; }
+  60% { transform: scale(1.35); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* FULL — the banked row warms to gold (charged & ready, even before it's your
+   turn to spend). Reads as "loaded". */
+.momentum--full {
+  border-color: rgba(255, 215, 106, 0.45);
+  background: rgba(60, 46, 10, 0.4);
+}
+.momentum--full .momentum__pip--lit {
+  color: #ffd76a;
+  filter: drop-shadow(0 0 5px rgba(255, 215, 106, 0.85));
+}
+
+/* SPENDABLE — your full meter, and you can chain a breakaway right now: the
+   whole gauge ignites and breathes, the burst sigil appears, and the cursor
+   invites a press. This is the word-free "GO AGAIN" affordance. */
+.momentum--spendable {
+  cursor: pointer;
+  border: 0;
+  color: #1a1208;
+  background: linear-gradient(180deg, #ffe79a, #ffce5a 70%, #ffb43a);
+  box-shadow: 0 0 0 1.5px rgba(255, 222, 120, 0.9), 0 0 22px rgba(255, 200, 80, 0.6);
+  animation: momentumReady 1.05s ease-in-out infinite;
+  padding: 3px 8px;
+}
+.momentum--spendable .momentum__pip--lit {
+  color: #3a2606;
+  filter: none;
+}
+@keyframes momentumReady {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(255, 222, 120, 0.9), 0 0 18px rgba(255, 200, 80, 0.5); transform: scale(1); }
+  50% { box-shadow: 0 0 0 2.5px rgba(255, 235, 150, 1), 0 0 40px rgba(255, 205, 90, 0.85); transform: scale(1.06); }
+}
+.momentum--spendable:hover { filter: brightness(1.08); }
+.momentum--spendable:active { transform: scale(0.97); }
+
+/* the "go again" double-chevron sigil — only present while spendable */
+.momentum__spark {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: #2a1c04;
+  animation: sparkNudge 1.05s ease-in-out infinite;
+}
+@keyframes sparkNudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+
+/* opponent gauge: same readout, dimmer + never interactive (no spend affordance
+   is ever wired for the AI; this only handles the FULL ambient glow case) */
+.momentum--opp {
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .momentum__pip--lit { animation: none; }
+  .momentum--spendable {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(255, 235, 150, 1), 0 0 24px rgba(255, 205, 90, 0.7);
+  }
+  .momentum__spark { animation: none; }
+}

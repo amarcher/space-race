@@ -178,6 +178,19 @@
   border-color: rgba(255, 90, 110, 0.7);
 }
 .dropzone--dim { opacity: 0.55; }
+/* MOMENTUM: a breakaway is armed — the player owes a FREE distance hop. The board
+   breathes gold to say "go again now" (word-free), echoing the spent gauge. */
+.dropzone--breakaway {
+  box-shadow: 0 0 0 2px rgba(255, 215, 106, 0.9), 0 0 34px rgba(255, 200, 80, 0.5);
+  animation: breakawayGlow 0.9s ease-in-out infinite;
+}
+@keyframes breakawayGlow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255, 215, 106, 0.75), 0 0 24px rgba(255, 200, 80, 0.4); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 235, 150, 1), 0 0 46px rgba(255, 205, 90, 0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropzone--breakaway { animation: none; }
+}
 /* the card is hovering a valid target — lift it toward the crane */
 .dropzone--hot {
   transform: translateY(-4px) scale(1.015);
