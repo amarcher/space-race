@@ -21,6 +21,7 @@ export type IconName =
   | 'dot' // neutral log entry
   | 'sound-on' // audio on (speaker + waves)
   | 'sound-off' // audio muted (speaker + x)
+  | 'gear' // settings
 
 interface IconProps {
   name: IconName
@@ -162,6 +163,14 @@ export function Icon({ name, size = '1em', className }: IconProps) {
         <svg {...common}>
           <path d="M4 9.5h3l4-3v11l-4-3H4z" />
           <path d="M15.5 9.5l5 5M20.5 9.5l-5 5" />
+        </svg>
+      )
+    case 'gear':
+      // a settings cog: a ring with eight teeth + a hub
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3.2" />
+          <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1" />
         </svg>
       )
     default:
