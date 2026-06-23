@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import {
   CARD_DEFS,
   DECK_COUNTS,
@@ -12,6 +11,7 @@ import {
   type CardType,
 } from '../game/cards'
 import { Card } from './Card'
+import { useCardPreview } from './useCardPreview'
 import './Gallery.css'
 
 const GROUPS: { type: CardType; label: string }[] = [
@@ -50,69 +50,24 @@ const HAZARD_TRACKS: TrackRow[] = LANES.map((lane) => {
     : null
 }).filter((t): t is TrackRow => t !== null)
 
-const POP_W = 116 // floating card preview width (px); height follows 3:4
-
-// module-scoped: the closer for whichever track preview is currently open, so a
-// newly-opened one can dismiss it (at most one preview on screen at a time)
-let activeClose: (() => void) | null = null
-
 /**
  * A hazard-track NAME that reveals its actual card — animated — on hover
- * (desktop) or press-and-hold (mobile). The preview is a fixed-position card
- * portalled to <body> and clamped to stay on-screen; `ambient` forces the clip
- * to play just like a gallery hover.
+ * (desktop) or press-and-hold (mobile), via the shared useCardPreview hook.
  */
 function TrackName({ refData, tone }: { refData: TrackRef; tone: TrackTone }) {
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
-
-  // only ONE preview shows at a time — opening one dismisses any other (guards
-  // against a missed pointerleave/up leaving a stale popover behind)
-  const close = useCallback(() => {
-    setPos(null)
-    if (activeClose === close) activeClose = null
-  }, [])
-  const open = () => {
-    const r = btnRef.current?.getBoundingClientRect()
-    if (!r) return
-    if (activeClose && activeClose !== close) activeClose()
-    activeClose = close
-    const cardH = (POP_W * 4) / 3
-    const vw = window.innerWidth
-    const left = Math.max(8, Math.min(r.left + r.width / 2 - POP_W / 2, vw - POP_W - 8))
-    // prefer above the name; flip below if there isn't room
-    const top = r.top > cardH + 18 ? r.top - cardH - 12 : r.bottom + 12
-    setPos({ left, top })
-  }
-  // tidy up if this preview is still the active one when it unmounts
-  useEffect(() => close, [close])
-
+  const { handlers, popover, open } = useCardPreview(refData.kind)
   return (
     <>
       <button
-        ref={btnRef}
         type="button"
-        className={`track-name track-name--${tone} ${pos ? 'track-name--on' : ''}`}
-        // desktop: hover. mobile: press-and-hold (mirrors the in-hand long-press)
-        onPointerEnter={(e) => e.pointerType === 'mouse' && open()}
-        onPointerLeave={(e) => e.pointerType === 'mouse' && close()}
-        onPointerDown={(e) => e.pointerType !== 'mouse' && open()}
-        onPointerUp={(e) => e.pointerType !== 'mouse' && close()}
-        onPointerCancel={close}
-        onFocus={open}
-        onBlur={close}
+        className={`track-name track-name--${tone} ${open ? 'track-name--on' : ''}`}
+        {...handlers}
         onClick={(e) => e.preventDefault()}
         aria-label={`${refData.title} card`}
       >
         {refData.title}
       </button>
-      {pos &&
-        createPortal(
-          <div className="track-pop" style={{ left: pos.left, top: pos.top, width: POP_W }} aria-hidden>
-            <Card kind={refData.kind} size="md" ambient showName={false} />
-          </div>,
-          document.body,
-        )}
+      {popover}
     </>
   )
 }

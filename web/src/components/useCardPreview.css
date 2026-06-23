@@ -1,0 +1,16 @@
+/* the floating animated card preview (portalled to <body>, position:fixed).
+   Shared by the How-to-Play hazard tracks and the game log. */
+.card-pop {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
+  animation: cardPopIn 140ms ease both;
+}
+@keyframes cardPopIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-pop { animation: none; }
+}

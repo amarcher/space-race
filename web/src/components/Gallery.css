@@ -137,22 +137,8 @@
   text-shadow: 0 0 14px currentColor;
   outline: none;
 }
-
-/* the floating animated card preview (portalled to <body>, position:fixed) */
-.track-pop {
-  position: fixed;
-  z-index: 80;
-  pointer-events: none;
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
-  animation: trackPopIn 140ms ease both;
-}
-@keyframes trackPopIn {
-  from { opacity: 0; transform: translateY(4px) scale(0.94); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .track-pop { animation: none; }
-}
+/* the floating animated card preview itself (.card-pop) lives in
+   useCardPreview.css — shared by the hazard tracks and the game log. */
 
 /* ---- Scoring ---- */
 .rules__scoring { margin-top: 14px; }

@@ -457,6 +457,15 @@
   border-radius: 8px;
 }
 .log__line:first-child { opacity: 1; background: rgba(255, 255, 255, 0.06); }
+/* rows that name a specific card are interactive — hover/press pops its art */
+.log__line--card { cursor: pointer; }
+.log__line--card:hover,
+.log__line--on {
+  opacity: 1;
+  background: rgba(125, 240, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(125, 240, 255, 0.25);
+}
+.log__line--card { touch-action: none; } /* keep a press-and-hold stable */
 .log__who { font-size: 14px; }
 .log__icon { font-size: 16px; }
 .log__line--coup .log__icon,
