@@ -19,7 +19,7 @@ const WIDE_MIN_PX = 768
 // file at the same URL leaves stale byte-ranges in the browser's media cache
 // (preloadClips warms them), which plays as "starts, then skips forward". The
 // query string makes each new export a distinct cache key, so it always loads fresh.
-const ASSET_V = '?v=3'
+const ASSET_V = '?v=4'
 
 // mobile clips (720p)
 const WIN_VIDEO_MOBILE  = `/win/win-hero.mp4${ASSET_V}`
