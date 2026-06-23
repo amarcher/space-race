@@ -117,6 +117,39 @@ function boardSlotRect(el: HTMLElement | null, width: number): Rect | null {
   return { left: b.left + b.width / 2 - width / 2, top: b.top + b.height / 2 - (width * 4) / 3 / 2, width }
 }
 
+// ── Dev preview trigger ─────────────────────────────────────────────────────
+// ?win=human  → immediately mount WinTakeover with human-wins sample data
+// ?win=ai     → immediately mount WinTakeover with AI-wins sample data
+// Inert when the param is absent; safe to leave in (it gates on the real game
+// state so it can't accidentally fire during a real round).
+function buildPreviewState(winner: 0 | 1): GameState {
+  const s = createGame()
+  s.phase = 'roundOver'
+  s.winner = winner
+  // Human: 1000 ly — 200+200+200+200+100+100 in distance pile, 2 coups, 2 safeties
+  s.players[0].distance = 1000
+  s.players[0].coupFourres = 2
+  s.players[0].safeties = ['ace-pilot', 'diamond-thruster']
+  s.players[0].distancePile = [
+    { uid: 'd1', kind: 'warp-200' }, { uid: 'd2', kind: 'warp-200' },
+    { uid: 'd3', kind: 'warp-200' }, { uid: 'd4', kind: 'warp-200' },
+    { uid: 'd5', kind: 'warp-100' }, { uid: 'd6', kind: 'warp-100' },
+  ]
+  // AI: 475 ly — 200+200+75 in pile, 0 coups
+  s.players[1].distance = 475
+  s.players[1].coupFourres = 0
+  s.players[1].safeties = []
+  s.players[1].distancePile = [
+    { uid: 'e1', kind: 'warp-200' }, { uid: 'e2', kind: 'warp-200' },
+    { uid: 'e3', kind: 'warp-75' },
+  ]
+  return s
+}
+
+const WIN_PREVIEW_PARAM = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('win')
+  : null
+
 export function Table({ onExit }: { onExit?: () => void }) {
   const [state, setState] = useState<GameState>(() => createGame())
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
@@ -126,6 +159,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [hideDiscardTop, setHideDiscardTop] = useState(false)
   // the freshly-drawn hand card stays hidden until its flight lands on it
   const [incomingUid, setIncomingUid] = useState<string | null>(null)
+  // ── preview mode: ?win=human or ?win=ai on mount ──
+  // Holds the synthetic GameState for preview; null = normal play mode.
+  const [previewState, setPreviewState] = useState<GameState | null>(null)
+
   // win takeover: shown immediately on roundOver; dismissed to start a new round.
   // If the player wants to peek at the final board first, they can use scoreboard.
   const [winTakeoverShown, setWinTakeoverShown] = useState(false)
@@ -340,6 +377,16 @@ export function Table({ onExit }: { onExit?: () => void }) {
       playSfx('win') // a cheerful chime as the round resolves
     }
   }, [state.phase])
+
+  // ?win=human / ?win=ai preview trigger — fires once on mount, only in dev
+  // (the URL param check is module-level so it's evaluated at parse time, zero runtime
+  // cost when absent). Gates on previewState===null so it only fires once even if
+  // StrictMode double-invokes the effect.
+  useEffect(() => {
+    if (!WIN_PREVIEW_PARAM) return
+    const winner = WIN_PREVIEW_PARAM === 'ai' ? 1 : 0
+    setPreviewState(buildPreviewState(winner as 0 | 1))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Esc dismisses the scoreboard so the final board is visible underneath
   useEffect(() => {
@@ -745,9 +792,21 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <SlingshotOverlay event={slingshot} who={whoFor(slingshot.seat)} />
       )}
 
+      {/* ?win=human / ?win=ai preview takeover — mounts over the live game board.
+          Dismiss clears the preview (reload to re-trigger). Never fires during a real
+          round because previewState is only set from the URL param, not from game logic. */}
+      {previewState && (
+        <WinTakeover
+          key="preview"
+          state={previewState}
+          onDone={() => setPreviewState(null)}
+          onDismiss={() => setPreviewState(null)}
+        />
+      )}
+
       {/* Win takeover: shown first on roundOver; player hits play-again to start a new round.
           Alternatively they can dismiss it and inspect the board, then open scoreboard. */}
-      {state.phase === 'roundOver' && winTakeoverShown && (
+      {!previewState && state.phase === 'roundOver' && winTakeoverShown && (
         <WinTakeover
           state={state}
           onDone={newRound}
