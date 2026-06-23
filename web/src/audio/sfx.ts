@@ -23,7 +23,9 @@ export type SfxName =
   | 'safety' // shield shimmer
   | 'warp' // hyperwarp / 200 takeover
   | 'slingshot' // coup-fourré stinger
-  | 'win' // round victory chime
+  | 'win' // round victory chime (generic / legacy)
+  | 'win-takeover' // full-screen WIN hero swell + bright hit (~3.8s hold)
+  | 'lose-takeover' // full-screen LOSS hero — dignified, soft, NOT the win chime
   | 'ui-click' // soft UI click
 
 const FILES: Record<SfxName, string> = {
@@ -35,6 +37,8 @@ const FILES: Record<SfxName, string> = {
   warp: '/sfx/warp.mp3',
   slingshot: '/sfx/slingshot.mp3',
   win: '/sfx/win.mp3',
+  'win-takeover': '/sfx/win-takeover.mp3',
+  'lose-takeover': '/sfx/lose-takeover.mp3',
   'ui-click': '/sfx/ui-click.mp3',
 }
 
@@ -49,6 +53,8 @@ const BASE_GAIN: Record<SfxName, number> = {
   warp: 0.9,
   slingshot: 0.95,
   win: 0.9,
+  'win-takeover': 0.95,
+  'lose-takeover': 0.8,
   'ui-click': 0.32,
 }
 

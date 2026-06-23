@@ -64,15 +64,41 @@ function loadKey() {
 const SFX = {
   'card-flick': { prompt: 'quick card flick swoosh, clean UI, very short', duration: 0.5 },
   distance: { prompt: 'spaceship thruster accelerate whoosh, short', duration: 1.1 },
+  // CARD-TAKEOVER cues — these now play UNDER a full-screen ~2.5s hero moment, so
+  // they earn a little more body than a routine one-shot (low-end on the hazard
+  // impact, a clean bell on remedy, a bright fanfare on safety, a big whoosh on
+  // warp) while staying short + non-fatiguing on repeat.
   hazard: {
-    prompt: 'electrical short-circuit spark, metal clank, alarm blip, sci-fi malfunction',
+    prompt:
+      'heavy sci-fi impact: deep sub-bass boom and metal crunch on the hit, then an electrical short-circuit spark and a brief malfunction alarm blip',
     duration: 1.4,
   },
-  remedy: { prompt: 'power-up restore hum, bright confirm, short', duration: 1.0 },
-  safety: { prompt: 'energy shield activate shimmer with sparkle, sci-fi', duration: 1.2 },
-  warp: { prompt: 'hyperspace jump whoosh, sci-fi, powerful', duration: 1.8 },
+  remedy: {
+    prompt: 'bright clean confirm chime, a single glassy bell ding with a warm power-restore hum underneath, hopeful, short',
+    duration: 1.0,
+  },
+  safety: {
+    prompt: 'short bright triumphant fanfare with a sparkling energy-shield shimmer rising over it, heroic sci-fi, uplifting',
+    duration: 1.2,
+  },
+  warp: { prompt: 'powerful hyperspace jump: a deep rising whoosh that launches into a fast streaking warp, big and cinematic', duration: 1.8 },
   slingshot: { prompt: 'triumphant sci-fi stinger, quick, bright', duration: 1.2 },
   win: { prompt: 'short cheerful victory chime, kids game, bright and happy', duration: 1.8 },
+  // WIN takeover — a fuller triumphant swell that lands as the tally rises over the
+  // ~3.8s hero hold: a rising orchestral/synth swell building into a bright happy
+  // hit with a sparkle tail. Bigger and more cinematic than the plain `win` chime.
+  'win-takeover': {
+    prompt:
+      'triumphant victory swell for a kids space game: a warm rising synth-and-brass crescendo that blooms into a bright cheerful chord hit with a sparkling magical tail, joyful and celebratory',
+    duration: 3.0,
+  },
+  // LOSS takeover — DISTINCT from win: dignified, soft, gentle. A calm descending
+  // pad with a single warm low tone resolving — encouraging, never harsh or sad.
+  'lose-takeover': {
+    prompt:
+      'gentle dignified end tone for a kids space game, NOT a victory chime: a soft warm descending synth pad with a single low resolving note, calm and reassuring, a graceful "good try" feeling, no harsh sounds',
+    duration: 2.6,
+  },
   'ui-click': { prompt: 'soft UI click, subtle, very short', duration: 0.5 }, // API min is 0.5s
 }
 
