@@ -23,7 +23,9 @@ import { FlightLayer, useFlights } from './FlightLayer'
 import { Hand } from './Hand'
 import { PlayerBoard } from './PlayerBoard'
 import { SlingshotOverlay } from './SlingshotOverlay'
+import { useCardPreview } from './useCardPreview'
 import { prefersReducedMotion, type Rect } from '../motion'
+import type { LogEntry } from '../game'
 import './Table.css'
 
 const DRAW_DELAY = 480
@@ -40,6 +42,50 @@ const LOG_ICON: Record<string, IconName> = {
   coup: 'bolt',
   win: 'trophy',
   info: 'dot',
+}
+
+// Resolve the specific card a log row is about, in the RENDER layer (engine.ts
+// untouched) — by matching CARD_DEFS titles/values against the entry text. Rows
+// that don't name a specific card (deck spent, launch, win) return null → no
+// preview. A line may mention two cards ("clears X with Y") — the entry's
+// LogKind picks the one actually PLAYED (remedy/hazard/safety; the revealed
+// safety for a coup); info rows (discards/takes) fall back to the named card.
+function logCardKind({ text, kind }: LogEntry): string | null {
+  if (kind === 'distance') {
+    const m = text.match(/(\d+)\s*ly/)
+    const k = m ? `warp-${m[1]}` : ''
+    return CARD_DEFS[k] ? k : null
+  }
+  const hits = Object.values(CARD_DEFS).filter((d) => text.includes(d.title))
+  if (!hits.length) return null
+  const wantType = kind === 'coup' ? 'safety' : kind // hazard | remedy | safety
+  const typed = hits.find((d) => d.type === wantType)
+  if (typed) return typed.kind
+  // info rows ("discards X" / "takes X from the discard"): the longest title hit
+  return [...hits].sort((a, b) => b.title.length - a.title.length)[0].kind
+}
+
+/** One game-log row; if it resolves to a card, hovering/pressing pops that card. */
+function LogRow({ entry, who }: { entry: LogEntry; who: (seat: number) => 'you' | 'cpu' }) {
+  const kind = logCardKind(entry)
+  const { handlers, popover, open } = useCardPreview(kind)
+  return (
+    <li
+      className={`log__line log__line--${entry.kind} ${kind ? 'log__line--card' : ''} ${open ? 'log__line--on' : ''}`}
+      title={entry.text}
+      {...handlers}
+    >
+      {entry.seat >= 0 && (
+        <span className="log__who">
+          <Avatar who={who(entry.seat)} />
+        </span>
+      )}
+      <span className="log__icon">
+        <Icon name={LOG_ICON[entry.kind] ?? 'dot'} />
+      </span>
+      {popover}
+    </li>
+  )
 }
 
 // Screen-space rect of the .card inside an anchor element (deck/discard pile).
@@ -93,6 +139,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
     null,
   )
   const lastSlingId = useRef<number>(-1)
+  // the deck size of a brand-fresh deal (captured on mount) — used to tell an
+  // untouched deal from a game actually in progress for the unload guard
+  const freshDeckLen = useRef(state.deck.length)
   // "draw first" nudge: set when you reach for a hand card before drawing — the
   // pile draw-cues blink fast for a couple seconds to pull your eye to the deck
   const [drawNudge, setDrawNudge] = useState(false)
@@ -408,6 +457,26 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const topDiscard = state.discard[state.discard.length - 1]
   const recentLog = state.log.slice(-18).reverse()
 
+  // Warn before leaving/refreshing with a game actually IN PROGRESS (state is
+  // in-memory and lost). Gate it: not over, and meaningfully touched — a card has
+  // moved off the deck, the log grew past the opening line, or someone is moving.
+  // A brand-fresh untouched deal stays silent. This effect lives in <Table>, which
+  // only mounts in the game view, so the gallery never triggers it.
+  const gameInProgress =
+    state.phase !== 'roundOver' &&
+    (state.deck.length !== freshDeckLen.current ||
+      state.log.length > 1 ||
+      state.players.some((p) => p.started || p.distance > 0 || p.safeties.length > 0))
+  useEffect(() => {
+    if (!gameInProgress) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = '' // required by some browsers to actually show the prompt
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [gameInProgress])
+
   const canDrawDeck = drawPhaseHuman && !animating && state.deck.length > 0
   const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0
   const drawFrom = (source: 'deck' | 'discard') => {
@@ -581,10 +650,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
        <aside className="table__log" aria-label="Game log">
          <ul className="log">
            {recentLog.map((e) => (
-             <li key={e.id} className={`log__line log__line--${e.kind}`} title={e.text}>
-               {e.seat >= 0 && <span className="log__who"><Avatar who={whoFor(e.seat)} /></span>}
-               <span className="log__icon"><Icon name={LOG_ICON[e.kind] ?? 'dot'} /></span>
-             </li>
+             <LogRow key={e.id} entry={e} who={whoFor} />
            ))}
          </ul>
        </aside>
