@@ -94,6 +94,7 @@ runMode('classic', undefined, N)
 runMode('scry', { scry: true }, N)
 runMode('catchUp', { catchUp: true }, N)
 runMode('momentum', { momentum: true }, N)
-runMode('all-modes', { scry: true, catchUp: true, momentum: true }, N)
+runMode('selfHeal', { selfHeal: true }, N)
+runMode('all-modes', { scry: true, catchUp: true, momentum: true, selfHeal: true }, N)
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')

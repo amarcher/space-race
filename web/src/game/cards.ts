@@ -108,6 +108,11 @@ export const CARD_BACK_URL = '/cards/card-back.webp'
 export interface CardInstance {
   uid: string
   kind: string
+  /** SELF-HEALING HAZARDS mode: how many of the victim's own turns this hazard has
+   * sat on a blocking lane. Ticks at each victim turn-start; at SELF_HEAL_N the
+   * block recovers itself and the card is swept to discard. Only ever set on the
+   * active blocking hazard of a lane (and only when the mode is on). Serializable. */
+  hazardAge?: number
 }
 
 export const defOf = (card: CardInstance): CardDef => CARD_DEFS[card.kind]

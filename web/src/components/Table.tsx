@@ -200,12 +200,38 @@ function seedMomentumPreview(charge: number): GameState {
   return s
 }
 
+// ?selfheal=demo → start a self-healing-hazards game with YOU already launched and
+// blocked by a Busted Thruster (aged so the paralysis timer reads its first tick),
+// holding warps you can't use until the lane recovers. A dev / playtest seam to
+// feel the countdown ring + the release burst instantly; inert when absent.
+const SELFHEAL_DEMO = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('selfheal') === 'demo'
+  : false
+function buildSelfHealDemoGame(): GameState {
+  const s = createGame({ rules: { selfHeal: true } })
+  const [me, opp] = s.players
+  me.started = true
+  opp.started = true
+  // a blocking hazard already on you, freshly aged to its first victim turn → the
+  // paralysis timer renders at full (3 turns left) and counts down as you discard.
+  me.battle.engine = [{ uid: 'sh-hz', kind: 'busted-thruster', hazardAge: 1 }]
+  me.hand = [
+    { uid: 'sh-w1', kind: 'warp-100' },
+    { uid: 'sh-w2', kind: 'warp-75' },
+    ...me.hand.slice(2),
+  ]
+  s.phase = 'play' // straight to your play phase — you'll have to discard while blocked
+  s.turn = 0
+  return s
+}
+
 /** Build the initial game state, honoring any dev-preview URL param (momentum
- * meter / catch-up valve demos), else a normal new game from saved rules. */
+ * meter / catch-up valve / self-heal demos), else a normal new game from saved rules. */
 function buildInitialGame(): GameState {
   if (MOMENTUM_PREVIEW_PARAM != null)
     return seedMomentumPreview(Number(MOMENTUM_PREVIEW_PARAM) || MOMENTUM_CAP)
   if (CATCHUP_DEMO) return buildCatchUpDemoGame()
+  if (SELFHEAL_DEMO) return buildSelfHealDemoGame()
   return createGame({ rules: loadRules() })
 }
 
@@ -244,6 +270,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
     null,
   )
   const lastSlingId = useRef<number>(-1)
+  const lastHealId = useRef<number>(-1)
   // the deck size of a brand-fresh deal (captured on mount) — used to tell an
   // untouched deal from a game actually in progress for the unload guard
   const freshDeckLen = useRef(state.deck.length)
@@ -534,6 +561,25 @@ export function Table({ onExit }: { onExit?: () => void }) {
     return () => clearTimeout(t)
   }, [state.lastSlingshot, takeover])
 
+  // ---- Self-healing hazards: a blocking hazard recovered on its own ----------
+  // The paralysis timer just ran out → make the RELEASE unmistakable and causal:
+  // fire the same green recovery spring + chime a real remedy plays PLUS a green
+  // "snap-free" burst right over the freed board, so it reads as "the timer
+  // expired and the lane opened," never a silent state flip.
+  useEffect(() => {
+    const ev = state.lastHeal
+    if (!ev || ev.id === lastHealId.current) return
+    lastHealId.current = ev.id
+    triggerRecover(ev.seat)
+    playSfx('remedy')
+    const el = document.querySelector<HTMLElement>(ev.seat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
+    if (el) {
+      const r = el.getBoundingClientRect()
+      fireBurst(r.left + r.width / 2, r.top + r.height / 2, 'remedy')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.lastHeal])
+
   // clear stale selection when it stops being your move
   useEffect(() => {
     if (!yourTurn) setSelectedUid(null)
@@ -785,6 +831,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           active={state.turn === 1 && state.phase !== 'roundOver'}
           impact={impact?.seat === opp.seat ? impact.tone : null}
           momentum={oppMomentum}
+          selfHeal={state.rules.selfHeal}
         />
         {drop.opp && (
           <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
@@ -841,6 +888,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           momentum={humanMomentum}
           canBurst={humanCanBurst}
           onBurst={doBurst}
+          selfHeal={state.rules.selfHeal}
         />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play"><Icon name="check" /></span>}
       </div>

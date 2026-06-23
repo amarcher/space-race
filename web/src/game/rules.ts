@@ -51,6 +51,19 @@ export interface GameRules {
    * only how OFTEN a roller gets to move, never deck composition.
    */
   momentum: boolean
+
+  /**
+   * SELF-HEALING HAZARDS: every BLOCKING hazard (collision/fuel/engine/stop — NOT
+   * the Tractor-Beam speed limit) carries a hidden age that ticks at the start of
+   * each of the VICTIM's turns. After SELF_HEAL_N of the victim's turns under it
+   * the block recovers on its own — the card sweeps to the discard pile and the
+   * lane opens — so you are never PERMANENTLY stuck on a lane. The real remedy
+   * still clears it INSTANTLY (this turn, vs waiting up to 3 turns), so remedies
+   * still matter; coup-fourré / immunity interactions are unchanged. Card
+   * conservation is preserved (healed hazards → discard). Fixes the "stuck with
+   * no agency" arc problem without changing deck composition.
+   */
+  selfHeal: boolean
 }
 
 /** Classic Mille Bornes — every mode flag off. The regression-critical baseline. */
@@ -58,6 +71,7 @@ export const DEFAULT_RULES: GameRules = {
   scry: false,
   catchUp: false,
   momentum: false,
+  selfHeal: false,
 }
 
 /** How many top-of-deck cards a scry draw reveals. */
@@ -77,6 +91,13 @@ export const CATCHUP_REVEAL_BOOST = 4
 
 /** Charges the momentum meter banks before a BREAKAWAY burst unlocks. */
 export const MOMENTUM_CAP = 3
+
+/** SELF-HEALING HAZARDS: how many of the victim's own turns a blocking hazard sits
+ * before it recovers on its own. N=4 means the block costs you 3 of your turns
+ * (countdown 3→2→1) and frees on the 4th turn-start. Tuned in the prototype sweep:
+ * lower neuters the hazard, higher barely beats the baseline; N=4 is the knee
+ * (~33% fewer dead turns) while a block still has real teeth. */
+export const SELF_HEAL_N = 4
 
 /** Resolve a partial rules override against the classic defaults. */
 export function resolveRules(partial?: Partial<GameRules>): GameRules {

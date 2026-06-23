@@ -24,6 +24,7 @@ import {
   CATCHUP_REVEAL,
   CATCHUP_REVEAL_BOOST,
   MOMENTUM_CAP,
+  SELF_HEAL_N,
   type GameRules,
 } from './rules'
 
@@ -65,6 +66,15 @@ export interface SlingshotEvent {
   safetyKind: string
 }
 
+/** SELF-HEALING HAZARDS mode: emitted the moment a blocking hazard recovers on its
+ * own (the paralysis timer ran out), so the UI can play the "lane opened" release
+ * burst. Serializable; null whenever nothing healed this transition. */
+export interface SelfHealEvent {
+  id: number
+  seat: number // the player whose lane just recovered
+  hazardKind: string
+}
+
 export interface GameState {
   deck: CardInstance[]
   discard: CardInstance[]
@@ -96,6 +106,10 @@ export interface GameState {
    * end the turn — it clears this flag instead, granting the free double-jump.
    * Null whenever no breakaway is pending. */
   breakaway: number | null
+  /** SELF-HEALING HAZARDS mode: set the instant a blocking hazard recovers on its
+   * own as control passes to its victim, so the UI can fire the release burst.
+   * Always present + serializable; stays null in modes where selfHeal is off. */
+  lastHeal: SelfHealEvent | null
 }
 
 export type Move =
@@ -158,6 +172,65 @@ export const hazardsOn = (p: PlayerState): string[] => {
 
 /** Whether a Tractor Beam is throttling this player (distances capped at 50). */
 export const speedLimited = (p: PlayerState): boolean => topHazardOfLane(p, SPEED_LANE) !== null
+
+// ---- Self-healing hazards mode -------------------------------------------
+// A blocking hazard recovers itself after the victim has sat under it for N of
+// their own turns. The speed-limit (Tractor Beam) is deliberately EXCLUDED — it
+// isn't a full stop, so you always retain agency on that lane. The real remedy
+// still matters: it clears the lane *instantly* (this turn) instead of costing
+// you up to N turns, and lets the lane be re-hazarded fresh.
+
+/** Total turns a fresh blocking hazard sits before it self-heals (UI ring max). */
+export const SELF_HEAL_MAX = SELF_HEAL_N
+
+/** Turns remaining until the active blocking hazard on `lane` self-heals, or null
+ * if self-heal is off / there's no self-healing hazard there. `selfHeal` is the
+ * rules flag (state.rules.selfHeal) — passed in so both the engine/AI and the
+ * stateless PlayerBoard can call it. The value is reported AS THE VICTIM SEES IT
+ * during their play phase: a fresh block (aged to 1 at this turn-start) reads
+ * N-1, counting down to 1, then heals on the turn it would hit N. */
+export const hazardTurnsLeft = (selfHeal: boolean, p: PlayerState, lane: Lane): number | null => {
+  if (!selfHeal || !BLOCKING_LANES.includes(lane)) return null
+  const top = topOf(p.battle[lane])
+  if (!top) return null
+  const def = defOf(top)
+  if (def.type !== 'hazard' || isImmune(p, def.kind)) return null
+  const age = top.hazardAge ?? 0
+  return Math.max(0, SELF_HEAL_N - age)
+}
+
+/** Lowest self-heal countdown across all of `p`'s blocking lanes (null = none). */
+export const minBlockTurnsLeft = (selfHeal: boolean, p: PlayerState): number | null => {
+  let best: number | null = null
+  for (const lane of BLOCKING_LANES) {
+    const t = hazardTurnsLeft(selfHeal, p, lane)
+    if (t != null && (best == null || t < best)) best = t
+  }
+  return best
+}
+
+/** Age every active blocking hazard on `p` by one of `p`'s turns, and sweep any
+ * that have now recovered to the discard pile (card conservation intact). Mutates
+ * `s`. Returns the kinds that healed this tick (for logging / the release burst).
+ * No-op unless the self-healing mode is on. */
+function ageAndHealHazards(s: GameState, p: PlayerState): string[] {
+  if (!s.rules.selfHeal) return []
+  const healed: string[] = []
+  for (const lane of BLOCKING_LANES) {
+    const top = topOf(p.battle[lane])
+    if (!top) continue
+    const def = defOf(top)
+    if (def.type !== 'hazard' || isImmune(p, def.kind)) continue
+    top.hazardAge = (top.hazardAge ?? 0) + 1
+    if (top.hazardAge >= SELF_HEAL_N) {
+      const card = p.battle[lane].pop()!
+      delete card.hazardAge // the card leaves play clean — discard holds no age
+      s.discard.push(card)
+      healed.push(def.kind)
+    }
+  }
+  return healed
+}
 
 /** CATCH-UP VALVE: is the player at `seat` trailing by more than the deficit
  * threshold right now? (Pure read of distances — drives the trailing-player edge
@@ -262,6 +335,7 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     catchUpScry: false,
     momentum: [0, 0],
     breakaway: null,
+    lastHeal: null,
     log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
   }
 }
@@ -342,6 +416,17 @@ function endTurn(s: GameState) {
   }
   s.turn = other(s.turn)
   s.phase = 'draw'
+  beginTurnFor(s, s.players[s.turn])
+}
+
+/** Hook run as control passes to a player: self-healing hazards age + recover.
+ * (No-op unless the selfHeal mode is on.) */
+function beginTurnFor(s: GameState, p: PlayerState) {
+  const healed = ageAndHealHazards(s, p)
+  for (const kind of healed) {
+    s.lastHeal = { id: s.logSeq, seat: p.seat, hazardKind: kind }
+    pushLog(s, p.seat, `${p.name}'s ${CARD_DEFS[kind].title} clears on its own — lane recovered.`, 'remedy')
+  }
 }
 
 function winRound(s: GameState, seat: number) {
@@ -541,6 +626,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         }
         s.turn = target.seat // initiative swings to the defender, who takes a turn
         s.phase = 'draw'
+        beginTurnFor(s, target) // their lanes age as control reaches them
         return s
       }
 
