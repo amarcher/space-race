@@ -156,8 +156,16 @@
 .board__head {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   margin-bottom: 8px;
+}
+/* the momentum gauge drops to its own full-width row under the avatar + distance
+   bar (the header wraps), so it never squeezes the distance meter */
+.board__head .momentum {
+  flex: 0 0 100%;
+  justify-content: flex-start;
+  align-self: flex-start;
 }
 .board__avatar {
   font-size: 30px;

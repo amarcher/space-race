@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CARD_DEFS, type CardInstance } from '../game/cards'
 import {
   applyMove,
+  canBurst,
   chooseMove,
   createGame,
+  drawReveal,
   legalMoves,
   scoreRound,
   type GameRules,
@@ -11,6 +13,7 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
+import { MOMENTUM_CAP } from '../game/rules'
 import { loadRules } from '../settings'
 import { Settings } from './Settings'
 import { cardHeroVideo, cardVideo } from '../game/cardArt'
@@ -155,11 +158,62 @@ const WIN_PREVIEW_PARAM = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search).get('win')
   : null
 
+// ?catchup=demo → start a catch-up-valve game with YOU already ~500 ly behind, so
+// your very next deck draw opens the valve (the gold "tailwind" chooser). A dev /
+// playtest seam to feel the telegraph instantly; inert when the param is absent.
+const CATCHUP_DEMO = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('catchup') === 'demo'
+  : false
+function buildCatchUpDemoGame(): GameState {
+  const s = createGame({ rules: { catchUp: true } })
+  s.players[1].distance = 500 // CPU sprints ahead → you're 500 ly behind (>200 deficit)
+  s.players[1].started = true
+  s.turn = 0
+  s.phase = 'draw' // your draw will open the valve
+  return s
+}
+
+// ── Dev preview trigger: ?momentum=N ────────────────────────────────────────
+// Starts a MOMENTUM game with the human's meter pre-charged to N, both ships
+// launched, and a couple of warp cards in hand — so the spendable gold gauge +
+// breakaway double-jump are reachable in one tap (no full game to grind first).
+// Inert unless the param is present; only seeds the human, never alters rules.
+const MOMENTUM_PREVIEW_PARAM = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('momentum')
+  : null
+
+function seedMomentumPreview(charge: number): GameState {
+  const s = createGame({ rules: { momentum: true } })
+  const [me, opp] = s.players
+  me.started = true
+  opp.started = true
+  s.momentum[0] = Math.max(0, Math.min(MOMENTUM_CAP, charge))
+  // guarantee the human holds playable warps so canBurst is satisfied
+  me.hand = [
+    { uid: 'pm-w1', kind: 'warp-75' },
+    { uid: 'pm-w2', kind: 'warp-100' },
+    { uid: 'pm-w3', kind: 'warp-75' },
+    ...me.hand.slice(3),
+  ]
+  s.phase = 'play' // skip straight to the human's play phase
+  s.turn = 0
+  return s
+}
+
+/** Build the initial game state, honoring any dev-preview URL param (momentum
+ * meter / catch-up valve demos), else a normal new game from saved rules. */
+function buildInitialGame(): GameState {
+  if (MOMENTUM_PREVIEW_PARAM != null)
+    return seedMomentumPreview(Number(MOMENTUM_PREVIEW_PARAM) || MOMENTUM_CAP)
+  if (CATCHUP_DEMO) return buildCatchUpDemoGame()
+  return createGame({ rules: loadRules() })
+}
+
 export function Table({ onExit }: { onExit?: () => void }) {
   // the persisted gameplay-mode preference; applied to NEW games (never mutated
   // mid-game — flipping a toggle takes effect on the next new round).
   const [rules, setRules] = useState<GameRules>(() => loadRules())
-  const [state, setState] = useState<GameState>(() => createGame({ rules: loadRules() }))
+  const [state, setState] = useState<GameState>(() => buildInitialGame())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
@@ -218,6 +272,13 @@ export function Table({ onExit }: { onExit?: () => void }) {
     () => new Set(moves.filter((m): m is Extract<Move, { type: 'play' }> => m.type === 'play').map((m) => m.uid)),
     [moves],
   )
+
+  // MOMENTUM mode: per-board gauge data (null = mode off → no gauge rendered).
+  // The human's gauge becomes a tappable SPEND when canBurst is true.
+  const momentumOn = state.rules.momentum
+  const humanMomentum = momentumOn ? { charge: state.momentum[0], cap: MOMENTUM_CAP } : null
+  const oppMomentum = momentumOn ? { charge: state.momentum[1], cap: MOMENTUM_CAP } : null
+  const humanCanBurst = momentumOn && yourTurn && !animating && canBurst(state, 0)
 
   // A hazard slams a ship: jolt the whole table, flash red, and recoil the
   // victim's board.
@@ -304,11 +365,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // AI's scry pick — neither has a single card to fly off a pile)
   const commit = (move: Move) => setState((s) => applyMove(s, move))
 
-  // SCRY: a deck-draw that will reveal into the chooser (not land one card in
-  // hand) just commits — there's no single flyer. The pick is the satisfying
-  // motion. Discard-source draws still fly normally (the top discard is real).
+  // SCRY / CATCH-UP: a deck-draw that will reveal into the chooser (not land one
+  // card in hand) just commits — there's no single flyer. The pick is the
+  // satisfying motion. drawReveal>1 covers BOTH plain scry and the catch-up valve
+  // opening for a trailing player. Discard-source draws still fly normally.
   const isScryDeckDraw = (move: Move) =>
-    move.type === 'draw' && (move.source ?? 'deck') === 'deck' && state.rules.scry && state.deck.length > 1
+    move.type === 'draw' &&
+    (move.source ?? 'deck') === 'deck' &&
+    state.deck.length > 1 &&
+    drawReveal(state, state.turn) > 1
 
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
     if (isScryDeckDraw(move)) {
@@ -497,6 +562,20 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (!selectedUid) return
     animateAndCommit({ type: 'discard', uid: selectedUid })
     setSelectedUid(null)
+  }
+  // MOMENTUM: spend the full meter for a BREAKAWAY. Fire a gold burst over the
+  // player's board + a sound so the spend is visceral, then commit — the turn
+  // stays open and the next distance hop is the free one.
+  const doBurst = () => {
+    if (!humanCanBurst) return
+    setSelectedUid(null)
+    const el = document.querySelector<HTMLElement>('[data-drop="self"]')
+    if (el) {
+      const r = el.getBoundingClientRect()
+      fireBurst(r.left + r.width / 2, r.top + r.height / 2, 'safety') // gold burst
+    }
+    playSfx('warp') // a charged whoosh — momentum unleashed
+    commit({ type: 'burst' })
   }
   const newRound = () => {
     setSelectedUid(null)
@@ -705,6 +784,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           who="cpu"
           active={state.turn === 1 && state.phase !== 'roundOver'}
           impact={impact?.seat === opp.seat ? impact.tone : null}
+          momentum={oppMomentum}
         />
         {drop.opp && (
           <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
@@ -750,7 +830,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
         data-drop="self"
         className={`dropzone ${dragUid ? (drop.self ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
           hoverZone === 'self' && drop.self ? 'dropzone--hot' : ''
-        }`}
+        } ${state.breakaway === 0 ? 'dropzone--breakaway' : ''}`}
       >
         <PlayerBoard
           player={human}
@@ -758,6 +838,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
           who="you"
           active={yourTurn}
           impact={impact?.seat === human.seat ? impact.tone : null}
+          momentum={humanMomentum}
+          canBurst={humanCanBurst}
+          onBurst={doBurst}
         />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play"><Icon name="check" /></span>}
       </div>
@@ -848,7 +931,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
       {/* SCRY: the human peeks the top of the deck and picks one card. */}
       {scryPhaseHuman && state.scry && (
-        <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} />
+        <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} catchUp={state.catchUpScry} />
       )}
 
       {settingsOpen && (
@@ -911,14 +994,27 @@ function ScryChooser({
   cards,
   onPick,
   disabled,
+  catchUp,
 }: {
   cards: CardInstance[]
   onPick: (uid: string) => void
   disabled: boolean
+  /** the catch-up valve opened this peek (trailing player) → word-free tailwind
+   * telegraph: a warm glow + extra revealed cards, so the boost reads as a gift. */
+  catchUp?: boolean
 }) {
+  // a soft chime the first time a catch-up peek appears, so the boost is felt
+  useEffect(() => {
+    if (catchUp) playSfx('safety', { rate: 1.15 })
+  }, [catchUp])
   return (
-    <div className="scry" role="dialog" aria-label="Choose a card from the top of the deck">
+    <div
+      className={`scry ${catchUp ? 'scry--catchup' : ''}`}
+      role="dialog"
+      aria-label="Choose a card from the top of the deck"
+    >
       <div className="scry__backdrop" aria-hidden />
+      {catchUp && <div className="scry__tailwind" aria-hidden />}
       <div className="scry__panel">
         <div className="scry__badge" aria-hidden>
           <Icon name="cards" />
