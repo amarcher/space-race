@@ -104,43 +104,22 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
     }
   }
 
-  // Hero phase: play the clip, then transition to tally after HERO_MS
+  // Hero phase: just run the phase timers. Playback is driven by the <video>
+  // `autoPlay` attribute plus a no-seek onCanPlay retry (see the element below).
+  // We deliberately do NOT call play() + currentTime=0 here: forcing a seek while
+  // the clip is still buffering — and having that effect re-run under StrictMode/HMR
+  // double-mount — is what made the clip "play a bit, then jump forward". Let it
+  // play from 0 exactly once and never seek it.
   useEffect(() => {
     if (phase !== 'hero') return
-    const v = videoRef.current
-
-    const tryPlay = () => {
-      if (!v) return
-      v.muted = true
-      const p = v.play?.()
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => {
-          v.muted = true
-          v.play?.().catch(() => setVideoError(true))
-        })
-      }
-    }
-
-    if (v) {
-      v.muted = true
-      try { v.currentTime = 0 } catch { /* not seekable yet */ }
-      tryPlay()
-      v.addEventListener('loadeddata', tryPlay)
-      v.addEventListener('canplay', tryPlay)
-    }
-
-    // Advance to tally after HERO_MS (fade starts at HERO_MS - FADE_MS)
     const fadeTimer = window.setTimeout(() => setLeaving(true), HERO_MS - FADE_MS)
     const phaseTimer = window.setTimeout(() => {
       setPhase('tally')
       setLeaving(false)
     }, HERO_MS)
-
     return () => {
       window.clearTimeout(fadeTimer)
       window.clearTimeout(phaseTimer)
-      v?.removeEventListener('loadeddata', tryPlay)
-      v?.removeEventListener('canplay', tryPlay)
     }
   }, [phase])
 
@@ -190,6 +169,14 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
               muted
               playsInline
               preload="auto"
+              onCanPlay={(e) => {
+                // mobile autoplay-gate retry only — resume if paused, never seek
+                const v = e.currentTarget
+                if (v.paused) {
+                  v.muted = true
+                  v.play?.().catch(() => {})
+                }
+              }}
               onError={() => setVideoError(true)}
             />
           )}
