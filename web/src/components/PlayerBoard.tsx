@@ -3,6 +3,7 @@ import { activeHazard, speedLimited, type PlayerState } from '../game/engine'
 import { Avatar, type Who } from './Avatar'
 import { Card } from './Card'
 import { Icon } from './Icon'
+import { MomentumMeter } from './MomentumMeter'
 import './PlayerBoard.css'
 
 interface PlayerBoardProps {
@@ -12,6 +13,12 @@ interface PlayerBoardProps {
   who: Who
   /** transient hit-recoil / recovery-spring animation, keyed so it can retrigger */
   impact?: 'hit' | 'recover' | null
+  /** MOMENTUM mode only: this player's banked charge + cap; null = mode off (no gauge) */
+  momentum?: { charge: number; cap: number } | null
+  /** MOMENTUM: the human can spend right now → the gauge becomes a tappable SPEND */
+  canBurst?: boolean
+  /** spend the meter for a breakaway (wired only when canBurst) */
+  onBurst?: () => void
 }
 
 const OFFSET = 5 // px each card peeks below the one in front of it
@@ -43,7 +50,7 @@ function Stack({
   )
 }
 
-export function PlayerBoard({ player, isOpponent, active, who, impact }: PlayerBoardProps) {
+export function PlayerBoard({ player, isOpponent, active, who, impact, momentum, canBurst, onBurst }: PlayerBoardProps) {
   const hzr = activeHazard(player)
   const slow = speedLimited(player)
   const pct = Math.min(100, (player.distance / WIN_DISTANCE) * 100)
@@ -91,6 +98,15 @@ export function PlayerBoard({ player, isOpponent, active, who, impact }: PlayerB
           <span className="board__meter-num" aria-hidden>{player.distance}</span>
           <span className="board__flag" aria-hidden><Icon name="gate" /></span>
         </div>
+        {momentum && (
+          <MomentumMeter
+            charge={momentum.charge}
+            cap={momentum.cap}
+            spendable={!!canBurst}
+            isOpponent={isOpponent}
+            onBurst={onBurst}
+          />
+        )}
       </header>
 
       <div className="board__tableau">

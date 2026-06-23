@@ -8,6 +8,7 @@ import {
   activeHazard,
   canAttack,
   hazardsOn,
+  isTrailing,
   legalMoves,
   speedLimited,
   SPEED_LIMIT_VALUE,
@@ -15,6 +16,24 @@ import {
   type Move,
   type PlayerState,
 } from './engine'
+
+/** How many distance cards this player could legally PLAY right now (respecting
+ * the launch / block / speed-limit / 200-cap rules). Drives the momentum BURST
+ * decision: the AI only spends its meter when it can chain a real double-jump. */
+function playableDistanceCount(p: PlayerState): number {
+  if (!p.started || activeHazard(p) !== null) return 0
+  const slow = speedLimited(p)
+  let n = 0
+  for (const c of p.hand) {
+    const def = defOf(c)
+    if (def.type !== 'distance') continue
+    const v = def.value ?? 0
+    if (slow && v > SPEED_LIMIT_VALUE) continue
+    if (v === 200 && p.count200 >= MAX_200_PER_PLAYER) continue
+    n++
+  }
+  return n
+}
 
 const HAZARD_WEIGHT: Record<string, number> = {
   'black-hole': 28,
@@ -141,7 +160,16 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
       def.type === 'safety' || // never pass up a safety
       (def.type === 'remedy' && def.isGo && !me.started && !haveGo) || // grab Ignition to launch
       (def.type === 'remedy' && def.fixes != null && need.includes(def.fixes) && !haveFix) // the exact remedy we need, any lane
-    if (worthIt) return fromDiscard
+    // CATCH-UP VALVE: when trailing, a deck draw opens the valve (a peek-and-pick),
+    // which is usually better than a single forced discard card — so only snatch
+    // the discard when it's a safety (irreplaceable) or the launch we lack.
+    if (worthIt) {
+      if (isTrailing(state, me.seat)) {
+        const mustGrab = def.type === 'safety' || (def.type === 'remedy' && def.isGo && !me.started && !haveGo)
+        if (!mustGrab) return moves[0] // take the deck draw to open the valve instead
+      }
+      return fromDiscard
+    }
   }
   return moves[0] // deck
 }
@@ -149,6 +177,17 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
 function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
   if (mv.type === 'pass') return -1000
   if (mv.type === 'draw') return 0
+
+  if (mv.type === 'burst') {
+    // MOMENTUM: spend the full meter only when it buys a REAL double-jump — i.e.
+    // there are ≥2 playable distance cards to chain (one for the bonus hop, one
+    // for the normal play). Score it just above a single distance play so the AI
+    // bursts first, then plays both hops. With <2 distances it's not worth the
+    // reset, so we score it below a plain distance play (the AI just hops once).
+    const n = playableDistanceCount(me)
+    if (n >= 2) return 160 // beats any single distance (max ~150) → press the lead
+    return -50 // not a real swing right now; prefer the ordinary distance play
+  }
 
   const def = defOf(cardOf(me, mv.uid))
   const hzr = activeHazard(me)

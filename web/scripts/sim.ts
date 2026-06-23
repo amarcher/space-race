@@ -52,10 +52,15 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
     const { state, turns } = playGame(1000 + i, rules)
     if (state.phase !== 'roundOver') throw new Error(`[${label}] game ${i} did not finish in ${turns} turns`)
 
+    // A winner normally crosses 1000 (overshoot allowed). The ONE legitimate
+    // exception is a STALEMATE finish — deck exhausted and both hands empty — where
+    // the engine (engine.ts) awards the round to the higher-distance player, who can
+    // be < 1000. Momentum's bursts consume cards faster, so this deck-spent finish is
+    // no longer vanishingly rare; allow it.
+    const stalemate = state.deck.length === 0 && state.players.every((pp) => pp.hand.length === 0)
     for (const p of state.players) {
-      // overshoot is allowed now; the winner crosses 1000, the loser stays below it
-      if (state.winner === p.seat && p.distance < WIN_DISTANCE)
-        throw new Error(`[${label}] winner below 1000: ${p.distance}`)
+      if (state.winner === p.seat && p.distance < WIN_DISTANCE && !stalemate)
+        throw new Error(`[${label}] winner below 1000 (not a stalemate finish): ${p.distance}`)
       if (p.count200 > MAX_200_PER_PLAYER) throw new Error(`[${label}] too many 200s: ${p.count200}`)
       if (new Set(p.safeties).size !== p.safeties.length) throw new Error(`[${label}] duplicate safety revealed`)
       coupTotal += p.coupFourres
@@ -87,5 +92,8 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
 const N = 400
 runMode('classic', undefined, N)
 runMode('scry', { scry: true }, N)
+runMode('catchUp', { catchUp: true }, N)
+runMode('momentum', { momentum: true }, N)
+runMode('all-modes', { scry: true, catchUp: true, momentum: true }, N)
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')
