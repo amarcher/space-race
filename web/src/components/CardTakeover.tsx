@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cardHeroVideo } from '../game/cardArt'
 import './CardTakeover.css'
 
 export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety'
@@ -7,6 +8,22 @@ export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety'
 // single play — we do NOT play the whole ~4s clip. Tune here.
 const PLAY_MS = 2500
 const FADE_OUT_MS = 350 // matches .takeover--leaving in the CSS
+
+// Above this viewport width we're on a desktop/wide layout (matches the 760px
+// mobile/compact CSS breakpoint used elsewhere). On wide screens the standard
+// 720×1280 clip softens when upscaled to fill the screen, so prefer the crisper
+// `<kind>.hero.mp4` when one exists; mobile (≤760) always uses the standard clip.
+const WIDE_MIN_PX = 761
+
+// Per-kind framing for the cover-cropped takeover video. The clip is
+// object-fit:cover and centred by default; a few cards put their key visual
+// off-centre, so nudge object-position to keep it in frame. Tuned by eye.
+const OBJECT_POSITION: Record<string, string> = {
+  // ignition's green "go" button sits in the LOWER quadrant — anchor bottom-ish
+  ignition: 'center 78%',
+  // repair-drone's drone/key visual sits HIGH — anchor top-ish
+  'repair-drone': 'center 28%',
+}
 
 /**
  * Full-screen hero takeover for a card play: the card's clip plays a SHORT,
@@ -19,15 +36,30 @@ const FADE_OUT_MS = 350 // matches .takeover--leaving in the CSS
  */
 export function CardTakeover({
   src,
+  kind,
   variant = 'warp',
   onDone,
 }: {
+  /** Standard `<kind>.mp4` clip — always the fallback source. */
   src: string
+  /** Card kind, used to opt into a hero clip + per-card framing. */
+  kind?: string
   variant?: TakeoverVariant
   onDone: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [leaving, setLeaving] = useState(false)
+  // Pick the source ONCE per play: on a wide viewport, prefer the crisper hero
+  // clip when the kind ships one; otherwise (mobile, or no hero asset) use the
+  // standard clip. Read width eagerly so the chosen <video src> is correct on
+  // first paint — the takeover is short-lived and doesn't need to react to
+  // mid-play resizes.
+  const [chosenSrc] = useState(() => {
+    const wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_MIN_PX
+    const hero = wide ? cardHeroVideo(kind) : undefined
+    return hero ?? src
+  })
+  const objectPosition = (kind && OBJECT_POSITION[kind]) || undefined
   // read onDone via a ref so the effect can run exactly once (the parent passes
   // a fresh closure each render — depending on it would restart the timer)
   const onDoneRef = useRef(onDone)
@@ -67,7 +99,15 @@ export function CardTakeover({
 
   return (
     <div className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''}`} aria-hidden>
-      <video ref={videoRef} className="takeover__video" src={src} autoPlay muted playsInline />
+      <video
+        ref={videoRef}
+        className="takeover__video"
+        src={chosenSrc}
+        style={objectPosition ? { objectPosition } : undefined}
+        autoPlay
+        muted
+        playsInline
+      />
       <span className="takeover__tint" />
     </div>
   )
