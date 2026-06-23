@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { scoreRound, type GameState } from '../game'
 import { preloadClips } from '../preloadHero'
+import { playSfx } from '../audio/sfx'
 import { prefersReducedMotion } from '../motion'
 import { Avatar } from './Avatar'
 import { Icon } from './Icon'
@@ -94,6 +95,25 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
   useEffect(() => {
     preloadClips([WIN_VIDEO_MOBILE, WIN_VIDEO_WIDE, LOSE_VIDEO_MOBILE, LOSE_VIDEO_WIDE])
   }, [])
+
+  // ── Takeover audio ──────────────────────────────────────────────────────────
+  // The hero video is MUTED (autoplay requires it), so the cinematic audio comes
+  // from the Web Audio SFX layer, fired ONCE on mount so it lands with the hero
+  // and swells through the ~3.8s hold as the tally rises. Win and loss get DISTINCT
+  // cues: a triumphant swell vs. a soft dignified tone (no longer the generic `win`
+  // chime, which Table.tsx used to fire for BOTH outcomes — that is now removed).
+  //
+  // playSfx() already no-ops when muted, before the first-gesture unlock, or before
+  // the buffer is decoded — so an AI-initiated loss takeover (no user gesture, the
+  // context may still be suspended) never throws; it just stays silent until the
+  // engine resumes on the next gesture. Fires once via a ref guard so StrictMode's
+  // double-mount / any re-render can't double-trigger it.
+  const audioFired = useRef(false)
+  useEffect(() => {
+    if (audioFired.current) return
+    audioFired.current = true
+    playSfx(humanWon ? 'win-takeover' : 'lose-takeover')
+  }, [humanWon])
 
   // Mute-on-create for autoplay gate (mirrors CardTakeover pattern)
   const setVideo = (el: HTMLVideoElement | null) => {

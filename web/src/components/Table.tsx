@@ -398,7 +398,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (state.phase === 'roundOver') {
       setWinTakeoverShown(true)
       setScoreboardOpen(false) // scoreboard stays hidden until takeover is done
-      playSfx('win') // a cheerful chime as the round resolves
+      // NOTE: the win/loss takeover audio is fired by WinTakeover itself on mount,
+      // by variant (win-takeover swell vs. lose-takeover tone), so win and loss
+      // sound DISTINCT. We deliberately do NOT play the generic `win` chime here —
+      // it used to fire for BOTH outcomes (win and loss sounded identical).
     }
   }, [state.phase])
 
