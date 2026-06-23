@@ -10,7 +10,7 @@ import {
   type Move,
   type SlingshotEvent,
 } from '../game'
-import { cardHeroVideo, cardVideo } from '../game/cardArt'
+import { cardVideo } from '../game/cardArt'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
@@ -89,7 +89,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [impact, setImpact] = useState<{ seat: number; tone: 'hit' | 'recover'; key: number } | null>(null)
   const impactSeq = useRef(0)
   // full-screen hero takeover for headline plays (warp-200 + hazard/remedy/safety)
-  const [takeover, setTakeover] = useState<{ src: string; variant: TakeoverVariant; key: number } | null>(null)
+  const [takeover, setTakeover] = useState<{ src: string; kind: string; variant: TakeoverVariant; key: number } | null>(
+    null,
+  )
   const lastSlingId = useRef<number>(-1)
   // "draw first" nudge: set when you reach for a hand card before drawing — the
   // pile draw-cues blink fast for a couple seconds to pull your eye to the deck
@@ -152,9 +154,12 @@ export function Table({ onExit }: { onExit?: () => void }) {
     // a full-screen hero takeover plays the card's clip over the board, then
     // fades to REVEAL the (already-applied) board result. The board effects below
     // still fire underneath. Skipped under reduced motion.
-    const heroClip = cardHeroVideo(card.kind) ?? cardVideo(card.kind, ['idle', 'hover'])
+    // Standard clip is the always-available fallback; CardTakeover upgrades to a
+    // crisper `<kind>.hero.mp4` itself on wide viewports when the kind ships one.
+    const standardClip = cardVideo(card.kind, ['idle', 'hover'])
     const fireTakeover = (variant: TakeoverVariant) => {
-      if (heroClip && !prefersReducedMotion()) setTakeover({ src: heroClip, variant, key: ++impactSeq.current })
+      if (standardClip && !prefersReducedMotion())
+        setTakeover({ src: standardClip, kind: card.kind, variant, key: ++impactSeq.current })
     }
 
     if (def.type === 'distance') {
@@ -620,7 +625,13 @@ export function Table({ onExit }: { onExit?: () => void }) {
       <canvas ref={burstRef} className="burst-layer" aria-hidden />
       {flash && <div key={flash.key} className={`impact-flash impact-flash--${flash.tone}`} aria-hidden />}
       {takeover && (
-        <CardTakeover key={takeover.key} src={takeover.src} variant={takeover.variant} onDone={() => setTakeover(null)} />
+        <CardTakeover
+          key={takeover.key}
+          src={takeover.src}
+          kind={takeover.kind}
+          variant={takeover.variant}
+          onDone={() => setTakeover(null)}
+        />
       )}
 
 
