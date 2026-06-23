@@ -7,6 +7,9 @@
   filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.6));
   animation: cardPopIn 140ms ease both;
 }
+/* the inner card fills the wrapper exactly, so the JS placement size is accurate
+   (the 3:4 aspect-ratio gives the height) */
+.card-pop .card { width: 100%; }
 @keyframes cardPopIn {
   from { opacity: 0; transform: translateY(4px) scale(0.94); }
   to { opacity: 1; transform: translateY(0) scale(1); }
