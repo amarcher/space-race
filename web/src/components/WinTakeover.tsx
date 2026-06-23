@@ -15,16 +15,22 @@ import './WinTakeover.css'
 //   AI wins     → lose-*
 const WIDE_MIN_PX = 768
 
+// Asset version — BUMP whenever a clip/poster is re-exported. Replacing a media
+// file at the same URL leaves stale byte-ranges in the browser's media cache
+// (preloadClips warms them), which plays as "starts, then skips forward". The
+// query string makes each new export a distinct cache key, so it always loads fresh.
+const ASSET_V = '?v=3'
+
 // mobile clips (720p)
-const WIN_VIDEO_MOBILE  = '/win/win-hero.mp4'
-const LOSE_VIDEO_MOBILE = '/win/lose-hero.mp4'
+const WIN_VIDEO_MOBILE  = `/win/win-hero.mp4${ASSET_V}`
+const LOSE_VIDEO_MOBILE = `/win/lose-hero.mp4${ASSET_V}`
 // desktop clips (1080p)
-const WIN_VIDEO_WIDE    = '/win/win-hero.hero.mp4'
-const LOSE_VIDEO_WIDE   = '/win/lose-hero.hero.mp4'
+const WIN_VIDEO_WIDE    = `/win/win-hero.hero.mp4${ASSET_V}`
+const LOSE_VIDEO_WIDE   = `/win/lose-hero.hero.mp4${ASSET_V}`
 
 // poster stills (first-frame JPEG, extracted from the 1080p clips)
-const WIN_POSTER  = '/win/win-poster.jpg'
-const LOSE_POSTER = '/win/lose-poster.jpg'
+const WIN_POSTER  = `/win/win-poster.jpg${ASSET_V}`
+const LOSE_POSTER = `/win/lose-poster.jpg${ASSET_V}`
 
 /**
  * Pick the best src for the current viewport — evaluated once at mount so the
