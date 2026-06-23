@@ -11,7 +11,7 @@ import {
   type SlingshotEvent,
 } from '../game'
 import { cardHeroVideo, cardVideo } from '../game/cardArt'
-import { preloadHeroClips } from '../preloadHero'
+import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
@@ -478,24 +478,34 @@ export function Table({ onExit }: { onExit?: () => void }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [gameInProgress])
 
-  // Idle-warm the full-screen hero takeover clips BEFORE a takeover needs them so
-  // it plays instantly (no play-time stall). WIDE viewport only — hero clips are
-  // used only >760px. Preload: YOUR takeover-kind hand cards (any kind shipping a
-  // hero clip — hazard / remedy / safety / warp-200) + the AI's HAZARD cards (the
-  // AI triggers a takeover only for a hazard-on-you, per the #52 scope). The key
-  // changes only when the relevant kinds change; preloadHeroClips dedupes fetches.
+  // Idle-warm the takeover clips BEFORE a takeover needs them so it plays
+  // instantly (no cold-fetch stall / iOS play button on the gesture-less AI path).
+  // The key changes only when the relevant kinds change; preloadClips dedupes.
   const heroPreloadKey = useMemo(() => {
     const mine = human.hand.map((c) => c.kind)
     const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard').map((c) => c.kind)
     return `${mine.join(',')}|${aiHazards.join(',')}`
   }, [human.hand, opp.hand])
   useEffect(() => {
-    if (typeof window === 'undefined' || window.innerWidth <= 760) return // mobile → standard clip, no hero
-    const urls = [
-      ...human.hand.map((c) => cardHeroVideo(c.kind)),
-      ...opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard').map((c) => cardHeroVideo(c.kind)),
-    ]
-    preloadHeroClips(urls)
+    if (typeof window === 'undefined') return
+    const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard')
+    if (window.innerWidth > 760) {
+      // WIDE: the takeover upgrades to the crisp hero clip — warm those. YOUR
+      // takeover-kind hand cards (hazard/remedy/safety/warp-200) + the AI's
+      // hazards (the AI only fires a takeover for a hazard-on-you, per #52).
+      preloadClips([
+        ...human.hand.map((c) => cardHeroVideo(c.kind)),
+        ...aiHazards.map((c) => cardHeroVideo(c.kind)),
+      ])
+    } else {
+      // MOBILE: the takeover uses the STANDARD clip. The AI's hazard cards render
+      // face-down and are never hovered/selected, so their clip is NEVER cached —
+      // the gesture-less AI-hazard-on-you takeover would fetch it COLD and (on
+      // iOS) surface a native play button. Warm the AI's hazard standard clips so
+      // the takeover plays from cache. (Your own plays carry a user gesture, so
+      // their takeover autoplays even cold — no need to warm those on mobile.)
+      preloadClips(aiHazards.map((c) => cardVideo(c.kind, ['idle'])))
+    }
     // human.hand/opp.hand are captured via heroPreloadKey (their relevant kinds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroPreloadKey])
