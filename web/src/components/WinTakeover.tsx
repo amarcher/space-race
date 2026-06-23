@@ -6,19 +6,34 @@ import { Avatar } from './Avatar'
 import { Icon } from './Icon'
 import './WinTakeover.css'
 
-// ─── Asset manifest slot ────────────────────────────────────────────────────
-// Drop the real videos at these paths and they auto-activate.
-// See web/docs/win-takeover-assets.md for the exact generation spec.
-const WIN_VIDEO = '/win/win-hero.mp4'   // human wins — triumphant arrival
-const LOSE_VIDEO = '/win/lose-hero.mp4' // AI wins — dignified, not punishing
+// ─── Asset manifest ─────────────────────────────────────────────────────────
+// Responsive video selection: mirrors CardTakeover's wide/narrow split.
+//   ≥ 768 px  → 1080p hero clip  (*-hero.hero.mp4)   — crisper on big screens
+//   < 768 px  → 720p mobile clip (*-hero.mp4)         — smaller, fine on phones
+// Outcome → file root:
+//   human wins  → win-*
+//   AI wins     → lose-*
+const WIDE_MIN_PX = 768
 
-/** Returns the drop-in path for each outcome, or undefined if absent. */
-function heroVideoSrc(humanWon: boolean): string | undefined {
-  // Only use the real video if it was preloaded; otherwise the fallback
-  // Starfield + CSS effect is the intentional experience.
-  // We check by trying a sync cache lookup — if the browser has it cached
-  // from preloadClips() it'll be available; if not, we stay with the fallback.
-  return humanWon ? WIN_VIDEO : LOSE_VIDEO
+// mobile clips (720p)
+const WIN_VIDEO_MOBILE  = '/win/win-hero.mp4'
+const LOSE_VIDEO_MOBILE = '/win/lose-hero.mp4'
+// desktop clips (1080p)
+const WIN_VIDEO_WIDE    = '/win/win-hero.hero.mp4'
+const LOSE_VIDEO_WIDE   = '/win/lose-hero.hero.mp4'
+
+// poster stills (first-frame JPEG, extracted from the 1080p clips)
+const WIN_POSTER  = '/win/win-poster.jpg'
+const LOSE_POSTER = '/win/lose-poster.jpg'
+
+/**
+ * Pick the best src for the current viewport — evaluated once at mount so the
+ * element's src is correct on first paint. Same approach as CardTakeover.
+ */
+function pickVideoSrc(humanWon: boolean): string {
+  const wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_MIN_PX
+  if (humanWon) return wide ? WIN_VIDEO_WIDE  : WIN_VIDEO_MOBILE
+  return           wide ? LOSE_VIDEO_WIDE : LOSE_VIDEO_MOBILE
 }
 
 // ─── Phase timing ───────────────────────────────────────────────────────────
@@ -64,9 +79,14 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
   const onDoneRef = useRef(onDone)
   onDoneRef.current = onDone
 
-  // Preload both clips once (they're small; the real game will have them cached)
+  // Responsive src — picked once at mount so the <video src> is correct on first
+  // paint and never changes during playback (takeover is short-lived, no resize logic needed).
+  const [chosenSrc] = useState(() => pickVideoSrc(humanWon))
+  const posterSrc = humanWon ? WIN_POSTER : LOSE_POSTER
+
+  // Preload all four clips idly so they're warm when needed
   useEffect(() => {
-    preloadClips([WIN_VIDEO, LOSE_VIDEO])
+    preloadClips([WIN_VIDEO_MOBILE, WIN_VIDEO_WIDE, LOSE_VIDEO_MOBILE, LOSE_VIDEO_WIDE])
   }, [])
 
   // Mute-on-create for autoplay gate (mirrors CardTakeover pattern)
@@ -150,12 +170,16 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
           <div className="win-takeover__rays" />
           <div className={`win-takeover__arrival win-takeover__arrival--${variant}`} />
 
-          {/* Real video — covers the CSS fallback when loaded */}
+          {/* Real video — covers the CSS fallback when loaded.
+              src is the responsive pick (wide=1080p, narrow=720p).
+              poster is the extracted first-frame JPEG — shown before play starts
+              and used as the reduced-motion static image. */}
           {!videoError && (
             <video
               ref={setVideo}
               className="win-takeover__video"
-              src={heroVideoSrc(humanWon)}
+              src={chosenSrc}
+              poster={posterSrc}
               autoPlay
               muted
               playsInline

@@ -1,18 +1,52 @@
 # Win Takeover — Asset Spec
 
-**Status:** Component wired and functional with CSS fallback. Drop the real assets in and they auto-activate — no code changes needed.
+**Status:** LIVE — all four videos and two poster JPEGs are in `web/public/win/` and wired. CSS starburst fallback is still active if a file 404s.
 
 ---
 
-## Drop-in paths (exact)
+## Delivered assets (already in worktree)
 
-| File | Purpose |
-|------|---------|
-| `web/public/win/win-hero.mp4` | Hero video — human wins (triumphant arrival) |
-| `web/public/win/lose-hero.mp4` | Hero video — AI wins (dignified, not punishing) |
+| File | Resolution | Served to |
+|------|-----------|-----------|
+| `web/public/win/win-hero.mp4` | 720p (mobile) | viewports < 768 px |
+| `web/public/win/win-hero.hero.mp4` | 1080p (desktop) | viewports ≥ 768 px |
+| `web/public/win/lose-hero.mp4` | 720p (mobile) | viewports < 768 px |
+| `web/public/win/lose-hero.hero.mp4` | 1080p (desktop) | viewports ≥ 768 px |
+| `web/public/win/win-poster.jpg` | 1080p first frame | `<video poster>` + reduced-motion |
+| `web/public/win/lose-poster.jpg` | 1080p first frame | `<video poster>` + reduced-motion |
 
-> The component tries to load these paths on mount via `fetch()` (warm cache).
-> If the file is missing or fails to load, the CSS/starfield fallback plays automatically — no `404` visible to the user.
+**Responsive convention** (mirrors `CardTakeover`):
+- `WIDE_MIN_PX = 768` evaluated once at mount via `window.innerWidth`
+- Wide → `*-hero.hero.mp4`; narrow → `*-hero.mp4`
+- Outcome: human wins → `win-*`; AI wins → `lose-*`
+
+**Poster** extracted with `ffmpeg -vframes 1` from each 1080p clip.
+
+> The component preloads all four clips idly on mount. If a file is missing or errors, the CSS starburst/ray fallback activates automatically — no visible 404.
+
+---
+
+## Responsive wiring (in WinTakeover.tsx)
+
+```ts
+const WIDE_MIN_PX = 768
+// mobile (720p)
+WIN_VIDEO_MOBILE  = '/win/win-hero.mp4'
+LOSE_VIDEO_MOBILE = '/win/lose-hero.mp4'
+// desktop (1080p)
+WIN_VIDEO_WIDE    = '/win/win-hero.hero.mp4'
+LOSE_VIDEO_WIDE   = '/win/lose-hero.hero.mp4'
+
+function pickVideoSrc(humanWon: boolean): string {
+  const wide = window.innerWidth >= WIDE_MIN_PX
+  if (humanWon) return wide ? WIN_VIDEO_WIDE  : WIN_VIDEO_MOBILE
+  return           wide ? LOSE_VIDEO_WIDE : LOSE_VIDEO_MOBILE
+}
+```
+
+The `<video poster>` attribute points to `win-poster.jpg` or `lose-poster.jpg` (JPEG, ~96–98 KB each).
+
+---
 
 ---
 
@@ -70,22 +104,15 @@
 
 ---
 
-## How to add poster frames to the component
+## Poster frames (already wired)
 
-Once you have the poster images, add the `poster` attribute to the `<video>` in `WinTakeover.tsx`:
-
-```tsx
-// In WinTakeover.tsx, update heroVideoSrc to a src+poster object,
-// or simply inline the poster path:
-<video
-  ref={setVideo}
-  className="win-takeover__video"
-  src={heroVideoSrc(humanWon)}
-  poster={humanWon ? '/win/win-poster.webp' : '/win/lose-poster.webp'}
-  autoPlay muted playsInline preload="auto"
-  onError={() => setVideoError(true)}
-/>
+Posters extracted with:
+```bash
+ffmpeg -y -i web/public/win/win-hero.hero.mp4  -vframes 1 web/public/win/win-poster.jpg
+ffmpeg -y -i web/public/win/lose-hero.hero.mp4 -vframes 1 web/public/win/lose-poster.jpg
 ```
+
+The `<video>` element in `WinTakeover.tsx` already has `poster={posterSrc}` wired — no further changes needed. If you regenerate the videos, re-run the ffmpeg commands above to refresh the posters.
 
 ---
 
@@ -95,11 +122,13 @@ The existing card clips (in `web/public/cards/video/`) follow the prompts in `do
 
 ---
 
-## Quick-start checklist
+## Status — all done
 
-1. Generate `win-hero.mp4` with the Veo prompt above in Google Flow (Ultra tier, Veo 3)
-2. Generate `lose-hero.mp4` with the Veo prompt above
-3. Generate `win-poster.webp` and `lose-poster.webp` with the ChatGPT prompts (1080×1920 px)
-4. Drop all four files into `web/public/win/`
-5. Add `poster=` attribute to the `<video>` in `WinTakeover.tsx` (snippet above)
-6. Test: play a round to completion — both win and lose should show the video with poster fallback
+All assets are wired on `feature/win-takeover`:
+- 4 videos: `win-hero.mp4`, `win-hero.hero.mp4`, `lose-hero.mp4`, `lose-hero.hero.mp4`
+- 2 posters: `win-poster.jpg`, `lose-poster.jpg`
+- Responsive src selection (768px breakpoint) wired in `WinTakeover.tsx`
+- `poster=` attribute wired on `<video>`
+- Preview at `http://localhost:5184/?win=human` and `?win=ai`
+
+To replace videos with new generations: drop the new files at the same paths and re-extract posters with the ffmpeg commands above.
