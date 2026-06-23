@@ -1,7 +1,9 @@
-// Idle-warm the full-screen "hero" takeover clips into the browser/SW cache
-// BEFORE a takeover needs them, so the clip plays instantly instead of stalling
-// on a play-time fetch. The PWA service worker already runtime-caches
-// /cards/video/*.mp4 (CacheFirst), so a plain fetch() persists each clip.
+// Idle-warm takeover video clips into the browser/SW cache BEFORE a takeover
+// needs them, so the clip plays instantly instead of stalling on a play-time
+// fetch (a cold gesture-less play on iOS otherwise surfaces a native play
+// button). Used for the wide-screen HERO clips and the mobile AI-hazard STANDARD
+// clips. The PWA service worker already runtime-caches /cards/video/*.mp4
+// (CacheFirst), so a plain fetch() persists each clip.
 //
 // Pure presentation/perf: no game state, no engine coupling.
 
@@ -28,7 +30,7 @@ function onIdle(fn: () => void): void {
  * Warm the given hero-clip URLs into cache, once each, on idle. Falsy/duplicate
  * URLs are skipped. A failed fetch is un-marked so a later pass can retry.
  */
-export function preloadHeroClips(urls: ReadonlyArray<string | undefined>): void {
+export function preloadClips(urls: ReadonlyArray<string | undefined>): void {
   if (typeof window === 'undefined') return
   const fresh = Array.from(new Set(urls.filter((u): u is string => !!u && !requested.has(u))))
   if (fresh.length === 0) return
