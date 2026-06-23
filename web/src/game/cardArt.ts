@@ -45,7 +45,7 @@ const HERO_KINDS = new Set<string>([
   // hazards
   'asteroid-strike', 'empty-tank', 'busted-thruster', 'tractor-beam', 'black-hole',
   // remedies
-  'repair-drone', 'fuel-cell', 'beam-cutter', 'ignition',
+  'repair-drone', 'fuel-cell', 'new-thruster', 'beam-cutter', 'ignition',
   // safeties
   'ace-pilot', 'antimatter-fuel-cell', 'diamond-thruster', 'rescue-shuttle',
   // distance
