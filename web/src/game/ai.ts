@@ -3,11 +3,12 @@
 // rolling opponent > discard the most useless card. Safeties are hoarded for
 // Counter-Thrusts (revealed automatically by the engine) rather than spent.
 
-import { MAX_200_PER_PLAYER, WIN_DISTANCE, defOf, type CardDef, type CardInstance } from './cards'
+import { CARD_DEFS, MAX_200_PER_PLAYER, WIN_DISTANCE, defOf, type CardDef, type CardInstance } from './cards'
 import {
   activeHazard,
   canAttack,
   hazardsOn,
+  hazardTurnsLeft,
   isTrailing,
   legalMoves,
   speedLimited,
@@ -16,6 +17,16 @@ import {
   type Move,
   type PlayerState,
 } from './engine'
+
+/** SELF-HEAL-aware: turns left until the block this remedy would `fix` recovers on
+ * its own (null if self-heal is off / it isn't a self-healing blocking lane). Lets
+ * the AI avoid wasting a remedy/draw on a block that's about to clear anyway. */
+function selfHealTurnsForRemedy(state: GameState, p: PlayerState, def: CardDef): number | null {
+  if (!state.rules.selfHeal || def.fixes == null) return null
+  const lane = CARD_DEFS[def.fixes]?.lane
+  if (!lane) return null
+  return hazardTurnsLeft(state.rules.selfHeal, p, lane)
+}
 
 /** How many distance cards this player could legally PLAY right now (respecting
  * the launch / block / speed-limit / 200-cap rules). Drives the momentum BURST
@@ -156,10 +167,14 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
     // Don't grab a remedy we can already cover from hand — better to draw blind.
     const haveFix = me.hand.some((c) => defOf(c).fixes != null && defOf(c).fixes === def.fixes)
     const haveGo = me.hand.some((c) => defOf(c).isGo)
+    // SELF-HEAL: don't spend a draw grabbing a remedy for a block that recovers on
+    // its own next turn anyway — better to draw blind for something with a future.
+    const healTL = selfHealTurnsForRemedy(state, me, def)
+    const aboutToHeal = healTL != null && healTL <= 1
     const worthIt =
       def.type === 'safety' || // never pass up a safety
       (def.type === 'remedy' && def.isGo && !me.started && !haveGo) || // grab Ignition to launch
-      (def.type === 'remedy' && def.fixes != null && need.includes(def.fixes) && !haveFix) // the exact remedy we need, any lane
+      (def.type === 'remedy' && def.fixes != null && need.includes(def.fixes) && !haveFix && !aboutToHeal) // the exact remedy we need, any lane
     // CATCH-UP VALVE: when trailing, a deck draw opens the valve (a peek-and-pick),
     // which is usually better than a single forced discard card — so only snatch
     // the discard when it's a safety (irreplaceable) or the launch we lack.
@@ -233,11 +248,16 @@ function keepValue(state: GameState, me: PlayerState, uid: string): number {
       else v = 5 + dv * 0.05
       break
     }
-    case 'remedy':
-      if (def.fixes != null && myHazards.includes(def.fixes)) v = 12 // clears a hazard on me right now
-      else if (def.isGo) v = me.started ? 3 : 9
+    case 'remedy': {
+      const healTL = selfHealTurnsForRemedy(state, me, def)
+      if (def.fixes != null && myHazards.includes(def.fixes)) {
+        // Clears a hazard on me right now — but worth less to hoard if that block
+        // is about to recover on its own (the remedy then saves fewer turns).
+        v = healTL != null && healTL <= 1 ? 7 : 12
+      } else if (def.isGo) v = me.started ? 3 : 9
       else v = 6
       break
+    }
     case 'hazard':
       v = canAttack(opp, def.kind) ? 7 : 1
       break

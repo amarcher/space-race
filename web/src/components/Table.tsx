@@ -244,6 +244,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
     null,
   )
   const lastSlingId = useRef<number>(-1)
+  const lastHealId = useRef<number>(-1)
   // the deck size of a brand-fresh deal (captured on mount) — used to tell an
   // untouched deal from a game actually in progress for the unload guard
   const freshDeckLen = useRef(state.deck.length)
@@ -534,6 +535,25 @@ export function Table({ onExit }: { onExit?: () => void }) {
     return () => clearTimeout(t)
   }, [state.lastSlingshot, takeover])
 
+  // ---- Self-healing hazards: a blocking hazard recovered on its own ----------
+  // The paralysis timer just ran out → make the RELEASE unmistakable and causal:
+  // fire the same green recovery spring + chime a real remedy plays PLUS a green
+  // "snap-free" burst right over the freed board, so it reads as "the timer
+  // expired and the lane opened," never a silent state flip.
+  useEffect(() => {
+    const ev = state.lastHeal
+    if (!ev || ev.id === lastHealId.current) return
+    lastHealId.current = ev.id
+    triggerRecover(ev.seat)
+    playSfx('remedy')
+    const el = document.querySelector<HTMLElement>(ev.seat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
+    if (el) {
+      const r = el.getBoundingClientRect()
+      fireBurst(r.left + r.width / 2, r.top + r.height / 2, 'remedy')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.lastHeal])
+
   // clear stale selection when it stops being your move
   useEffect(() => {
     if (!yourTurn) setSelectedUid(null)
@@ -785,6 +805,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           active={state.turn === 1 && state.phase !== 'roundOver'}
           impact={impact?.seat === opp.seat ? impact.tone : null}
           momentum={oppMomentum}
+          selfHeal={state.rules.selfHeal}
         />
         {drop.opp && (
           <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
@@ -841,6 +862,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
           momentum={humanMomentum}
           canBurst={humanCanBurst}
           onBurst={doBurst}
+          selfHeal={state.rules.selfHeal}
         />
         {drop.self && <span className="dropzone__tag" aria-label="Drop to play"><Icon name="check" /></span>}
       </div>

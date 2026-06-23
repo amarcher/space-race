@@ -68,6 +68,13 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
             checked={draft.momentum}
             onChange={(v) => set('momentum', v)}
           />
+
+          <Toggle
+            label="Self-healing hazards"
+            help="Blocking hazards clear themselves after a few turns."
+            checked={draft.selfHeal}
+            onChange={(v) => set('selfHeal', v)}
+          />
         </section>
 
         {touched && (
