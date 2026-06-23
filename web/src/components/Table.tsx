@@ -24,6 +24,7 @@ import { FlightLayer, useFlights } from './FlightLayer'
 import { Hand } from './Hand'
 import { PlayerBoard } from './PlayerBoard'
 import { SlingshotOverlay } from './SlingshotOverlay'
+import { WinTakeover } from './WinTakeover'
 import { useCardPreview } from './useCardPreview'
 import { prefersReducedMotion, type Rect } from '../motion'
 import type { LogEntry } from '../game'
@@ -125,6 +126,9 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const [hideDiscardTop, setHideDiscardTop] = useState(false)
   // the freshly-drawn hand card stays hidden until its flight lands on it
   const [incomingUid, setIncomingUid] = useState<string | null>(null)
+  // win takeover: shown immediately on roundOver; dismissed to start a new round.
+  // If the player wants to peek at the final board first, they can use scoreboard.
+  const [winTakeoverShown, setWinTakeoverShown] = useState(false)
   // the end-of-round scoreboard can be dismissed to inspect the final board
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
   // the game log is tucked away in a dropdown, summoned from the header
@@ -328,10 +332,11 @@ export function Table({ onExit }: { onExit?: () => void }) {
     })
   }
 
-  // pop the scoreboard open each time a round ends (it can then be dismissed)
+  // pop the win takeover (and scoreboard backup) each time a round ends
   useEffect(() => {
     if (state.phase === 'roundOver') {
-      setScoreboardOpen(true)
+      setWinTakeoverShown(true)
+      setScoreboardOpen(false) // scoreboard stays hidden until takeover is done
       playSfx('win') // a cheerful chime as the round resolves
     }
   }, [state.phase])
@@ -417,6 +422,8 @@ export function Table({ onExit }: { onExit?: () => void }) {
   }
   const newRound = () => {
     setSelectedUid(null)
+    setWinTakeoverShown(false)
+    setScoreboardOpen(false)
     setState(createGame())
   }
 
@@ -738,10 +745,23 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <SlingshotOverlay event={slingshot} who={whoFor(slingshot.seat)} />
       )}
 
-      {state.phase === 'roundOver' && scoreboardOpen && (
+      {/* Win takeover: shown first on roundOver; player hits play-again to start a new round.
+          Alternatively they can dismiss it and inspect the board, then open scoreboard. */}
+      {state.phase === 'roundOver' && winTakeoverShown && (
+        <WinTakeover
+          state={state}
+          onDone={newRound}
+          onDismiss={() => {
+            setWinTakeoverShown(false)
+            setScoreboardOpen(true)
+          }}
+        />
+      )}
+      {/* Scoreboard: shown after the takeover if the player wants to inspect the board */}
+      {state.phase === 'roundOver' && !winTakeoverShown && scoreboardOpen && (
         <Scoreboard state={state} onNewRound={newRound} onClose={() => setScoreboardOpen(false)} />
       )}
-      {state.phase === 'roundOver' && !scoreboardOpen && (
+      {state.phase === 'roundOver' && !winTakeoverShown && !scoreboardOpen && (
         <button
           className="scoreboard__reopen"
           onClick={() => setScoreboardOpen(true)}
