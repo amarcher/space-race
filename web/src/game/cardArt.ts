@@ -40,8 +40,17 @@ const CLIP_KIND_SET = new Set(CLIP_KINDS)
 // Kinds that ship a higher-res, full-screen "hero" clip for the takeover moment.
 // The standard <kind>.mp4 is 720×1280 and softens when upscaled to fill a big
 // screen; drop a crisper `/cards/video/<kind>.hero.mp4` in and add the kind here
-// to opt it in. Empty for now — the takeover falls back to the standard clip.
-const HERO_KINDS = new Set<string>([])
+// to opt it in. (new-thruster has no hero clip yet → falls back to standard.)
+const HERO_KINDS = new Set<string>([
+  // hazards
+  'asteroid-strike', 'empty-tank', 'busted-thruster', 'tractor-beam', 'black-hole',
+  // remedies
+  'repair-drone', 'fuel-cell', 'beam-cutter', 'ignition',
+  // safeties
+  'ace-pilot', 'antimatter-fuel-cell', 'diamond-thruster', 'rescue-shuttle',
+  // distance
+  'warp-200',
+])
 
 /** A dedicated full-screen hero clip for a kind, if it has one (else undefined →
  *  the takeover falls back to the standard cardVideo clip). */
