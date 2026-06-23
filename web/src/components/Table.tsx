@@ -4,6 +4,7 @@ import {
   applyMove,
   chooseMove,
   createGame,
+  drawReveal,
   legalMoves,
   scoreRound,
   type GameRules,
@@ -155,11 +156,28 @@ const WIN_PREVIEW_PARAM = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search).get('win')
   : null
 
+// ?catchup=demo → start a catch-up-valve game with YOU already ~500 ly behind, so
+// your very next deck draw opens the valve (the gold "tailwind" chooser). A dev /
+// playtest seam to feel the telegraph instantly; inert when the param is absent.
+const CATCHUP_DEMO = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('catchup') === 'demo'
+  : false
+function buildCatchUpDemoGame(): GameState {
+  const s = createGame({ rules: { catchUp: true } })
+  s.players[1].distance = 500 // CPU sprints ahead → you're 500 ly behind (>200 deficit)
+  s.players[1].started = true
+  s.turn = 0
+  s.phase = 'draw' // your draw will open the valve
+  return s
+}
+
 export function Table({ onExit }: { onExit?: () => void }) {
   // the persisted gameplay-mode preference; applied to NEW games (never mutated
   // mid-game — flipping a toggle takes effect on the next new round).
   const [rules, setRules] = useState<GameRules>(() => loadRules())
-  const [state, setState] = useState<GameState>(() => createGame({ rules: loadRules() }))
+  const [state, setState] = useState<GameState>(() =>
+    CATCHUP_DEMO ? buildCatchUpDemoGame() : createGame({ rules: loadRules() }),
+  )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
@@ -304,11 +322,15 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // AI's scry pick — neither has a single card to fly off a pile)
   const commit = (move: Move) => setState((s) => applyMove(s, move))
 
-  // SCRY: a deck-draw that will reveal into the chooser (not land one card in
-  // hand) just commits — there's no single flyer. The pick is the satisfying
-  // motion. Discard-source draws still fly normally (the top discard is real).
+  // SCRY / CATCH-UP: a deck-draw that will reveal into the chooser (not land one
+  // card in hand) just commits — there's no single flyer. The pick is the
+  // satisfying motion. drawReveal>1 covers BOTH plain scry and the catch-up valve
+  // opening for a trailing player. Discard-source draws still fly normally.
   const isScryDeckDraw = (move: Move) =>
-    move.type === 'draw' && (move.source ?? 'deck') === 'deck' && state.rules.scry && state.deck.length > 1
+    move.type === 'draw' &&
+    (move.source ?? 'deck') === 'deck' &&
+    state.deck.length > 1 &&
+    drawReveal(state, state.turn) > 1
 
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
     if (isScryDeckDraw(move)) {
@@ -845,7 +867,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
       {/* SCRY: the human peeks the top of the deck and picks one card. */}
       {scryPhaseHuman && state.scry && (
-        <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} />
+        <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} catchUp={state.catchUpScry} />
       )}
 
       {settingsOpen && (
@@ -908,14 +930,27 @@ function ScryChooser({
   cards,
   onPick,
   disabled,
+  catchUp,
 }: {
   cards: CardInstance[]
   onPick: (uid: string) => void
   disabled: boolean
+  /** the catch-up valve opened this peek (trailing player) → word-free tailwind
+   * telegraph: a warm glow + extra revealed cards, so the boost reads as a gift. */
+  catchUp?: boolean
 }) {
+  // a soft chime the first time a catch-up peek appears, so the boost is felt
+  useEffect(() => {
+    if (catchUp) playSfx('safety', { rate: 1.15 })
+  }, [catchUp])
   return (
-    <div className="scry" role="dialog" aria-label="Choose a card from the top of the deck">
+    <div
+      className={`scry ${catchUp ? 'scry--catchup' : ''}`}
+      role="dialog"
+      aria-label="Choose a card from the top of the deck"
+    >
       <div className="scry__backdrop" aria-hidden />
+      {catchUp && <div className="scry__tailwind" aria-hidden />}
       <div className="scry__panel">
         <div className="scry__badge" aria-hidden>
           <Icon name="cards" />

@@ -54,6 +54,13 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
             checked={draft.scry}
             onChange={(v) => set('scry', v)}
           />
+
+          <Toggle
+            label="Catch-up valve"
+            help="When you fall far behind, your next draw lets you scout the stars and pick the card you need."
+            checked={draft.catchUp}
+            onChange={(v) => set('catchUp', v)}
+          />
         </section>
 
         {touched && (

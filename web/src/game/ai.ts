@@ -8,6 +8,7 @@ import {
   activeHazard,
   canAttack,
   hazardsOn,
+  isTrailing,
   legalMoves,
   speedLimited,
   SPEED_LIMIT_VALUE,
@@ -141,7 +142,16 @@ function chooseDraw(state: GameState, moves: Move[]): Move {
       def.type === 'safety' || // never pass up a safety
       (def.type === 'remedy' && def.isGo && !me.started && !haveGo) || // grab Ignition to launch
       (def.type === 'remedy' && def.fixes != null && need.includes(def.fixes) && !haveFix) // the exact remedy we need, any lane
-    if (worthIt) return fromDiscard
+    // CATCH-UP VALVE: when trailing, a deck draw opens the valve (a peek-and-pick),
+    // which is usually better than a single forced discard card — so only snatch
+    // the discard when it's a safety (irreplaceable) or the launch we lack.
+    if (worthIt) {
+      if (isTrailing(state, me.seat)) {
+        const mustGrab = def.type === 'safety' || (def.type === 'remedy' && def.isGo && !me.started && !haveGo)
+        if (!mustGrab) return moves[0] // take the deck draw to open the valve instead
+      }
+      return fromDiscard
+    }
   }
   return moves[0] // deck
 }

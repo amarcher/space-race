@@ -19,15 +19,50 @@ export interface GameRules {
    * falls back to a blind draw.
    */
   scry: boolean
+
+  /**
+   * CATCH-UP VALVE (rubber band): the TRAILING player gets a small, legible
+   * edge so blowouts stay live and the underdog keeps agency. When a player's
+   * distance deficit exceeds CATCHUP_DEFICIT at the start of their deck draw,
+   * that single draw becomes a mini-scry — reveal the top CATCHUP_REVEAL cards,
+   * PICK one, the rest go to the bottom. It's a BETTER-SELECTION edge (not free
+   * cards, not free mileage), so it softens the loss without erasing skill or
+   * changing deck composition. Localized at the exact same draw seam as scry.
+   *
+   * When `scry` is ALSO on the leader already scrys 3 every draw, so the valve
+   * instead bumps the trailing player's reveal to CATCHUP_REVEAL_BOOST (a wider
+   * peek) — keeping the underdog's edge meaningful even in scry mode.
+   */
+  catchUp: boolean
+
+  /** Catch-up tuning override (light-years deficit to open the valve). Optional so
+   * the metrics harness can SWEEP it; omitted → CATCHUP_DEFICIT default. */
+  catchUpDeficit?: number
+  /** Catch-up tuning override (trailing-player peek width, classic mode). Optional
+   * so the harness can sweep it; omitted → CATCHUP_REVEAL default. */
+  catchUpReveal?: number
 }
 
 /** Classic Mille Bornes — every mode flag off. The regression-critical baseline. */
 export const DEFAULT_RULES: GameRules = {
   scry: false,
+  catchUp: false,
 }
 
 /** How many top-of-deck cards a scry draw reveals. */
 export const SCRY_REVEAL = 3
+
+// ---- Catch-up Valve tuning (swept in scripts/sim-metrics.ts --sweep) ----
+/** Default distance deficit (light-years) a player must be behind by for the valve
+ * to open on their draw. ~one big jump behind. This is the SWEPT knee (see
+ * sim-metrics --sweep): at d=200/reveal=2 the mirror comeback rate jumps from
+ * 27.8%→41.6% while the strong-vs-weak skill winrate holds at 79.5% (baseline
+ * 79.0%) — i.e. it softens blowouts WITHOUT eroding skill. */
+export const CATCHUP_DEFICIT = 200
+/** Default top-of-deck cards the trailing player reveals (classic mode). */
+export const CATCHUP_REVEAL = 2
+/** When scry is also on, the trailing player's reveal widens to this. */
+export const CATCHUP_REVEAL_BOOST = 4
 
 /** Resolve a partial rules override against the classic defaults. */
 export function resolveRules(partial?: Partial<GameRules>): GameRules {

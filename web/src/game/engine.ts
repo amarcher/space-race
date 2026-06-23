@@ -17,7 +17,14 @@ import {
   type Lane,
 } from './cards'
 import { mulberry32, shuffle } from './rng'
-import { resolveRules, SCRY_REVEAL, type GameRules } from './rules'
+import {
+  resolveRules,
+  SCRY_REVEAL,
+  CATCHUP_DEFICIT,
+  CATCHUP_REVEAL,
+  CATCHUP_REVEAL_BOOST,
+  type GameRules,
+} from './rules'
 
 export interface PlayerState {
   seat: number
@@ -75,6 +82,10 @@ export interface GameState {
   /** SCRY mode: the top-of-deck cards revealed for the current player to pick one
    * of. Non-null only while `phase === 'scry'`. The mover is `state.turn`. */
   scry: CardInstance[] | null
+  /** CATCH-UP VALVE: set for one scry episode whenever the trailing player's
+   * deficit opened the valve on this draw (vs a normal scry-mode peek). Drives
+   * the word-free UI telegraph; cleared when the pick resolves. */
+  catchUpScry: boolean
 }
 
 export type Move =
@@ -137,6 +148,27 @@ export const hazardsOn = (p: PlayerState): string[] => {
 /** Whether a Tractor Beam is throttling this player (distances capped at 50). */
 export const speedLimited = (p: PlayerState): boolean => topHazardOfLane(p, SPEED_LANE) !== null
 
+/** CATCH-UP VALVE: is the player at `seat` trailing by more than the deficit
+ * threshold right now? (Pure read of distances — drives the trailing-player edge
+ * and the AI's awareness of it.) */
+export const isTrailing = (s: GameState, seat: number): boolean => {
+  if (!s.rules.catchUp) return false
+  const me = s.players[seat]
+  const opp = s.players[other(seat)]
+  return opp.distance - me.distance > (s.rules.catchUpDeficit ?? CATCHUP_DEFICIT)
+}
+
+/** How many top-of-deck cards THIS player's upcoming deck draw should reveal.
+ * 1 = a blind draw (no chooser). The single seam that fuses scry + the catch-up
+ * valve: the leader gets the base scry reveal (or 1 in classic), the trailing
+ * player gets a wider peek so the underdog keeps agency. */
+export const drawReveal = (s: GameState, seat: number): number => {
+  const trailing = isTrailing(s, seat)
+  if (s.rules.scry) return trailing ? CATCHUP_REVEAL_BOOST : SCRY_REVEAL
+  if (trailing) return s.rules.catchUpReveal ?? CATCHUP_REVEAL // classic + valve: a mini-scry for the underdog
+  return 1 // classic blind draw
+}
+
 /** Can `attacker`'s hand hazard `target` right now? (ignores Slingshot) */
 export const canAttack = (target: PlayerState, hazardKind: string): boolean => {
   if (!target.started || isImmune(target, hazardKind) || target.distance >= WIN_DISTANCE) return false
@@ -191,6 +223,7 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     lastSlingshot: null,
     rules: resolveRules(opts.rules),
     scry: null,
+    catchUpScry: false,
     log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
   }
 }
@@ -302,12 +335,15 @@ export function applyMove(state: GameState, move: Move): GameState {
       return s
     }
     if (s.deck.length > 0) {
-      // SCRY seam: reveal the top N cards and let the player pick one (resolved in
-      // the 'pick' branch). Needs ≥2 cards to be a real choice — deck ≤1 falls
-      // through to the classic blind draw.
-      if (s.rules.scry && s.deck.length > 1) {
-        const n = Math.min(SCRY_REVEAL, s.deck.length)
-        s.scry = s.deck.splice(s.deck.length - n, n).reverse() // top-of-deck first
+      // SCRY / CATCH-UP seam: reveal the top N cards and let the player pick one
+      // (resolved in the 'pick' branch). drawReveal fuses both modes — N>1 when
+      // scry is on OR the catch-up valve has opened for this trailing player.
+      // Needs ≥2 cards to be a real choice — deck ≤1 falls through to a blind draw.
+      const reveal = Math.min(drawReveal(s, me.seat), s.deck.length)
+      if (reveal > 1) {
+        // mark a catch-up episode when the valve (not plain scry) earned the peek
+        s.catchUpScry = isTrailing(s, me.seat)
+        s.scry = s.deck.splice(s.deck.length - reveal, reveal).reverse() // top-of-deck first
         s.phase = 'scry'
         return s
       }
@@ -326,9 +362,18 @@ export function applyMove(state: GameState, move: Move): GameState {
     const [picked] = s.scry.splice(pickIdx, 1)
     me.hand.push(picked)
     const leftovers = s.scry
+    const wasCatchUp = s.catchUpScry
     s.scry = null
+    s.catchUpScry = false
     if (leftovers.length) s.deck.unshift(...leftovers) // unshift = under the deck (top is array end)
-    pushLog(s, me.seat, `${me.name} scouts the stars and takes ${defOf(picked).title}.`, 'info')
+    pushLog(
+      s,
+      me.seat,
+      wasCatchUp
+        ? `${me.name} catches a tailwind and scouts the stars — takes ${defOf(picked).title}.`
+        : `${me.name} scouts the stars and takes ${defOf(picked).title}.`,
+      'info',
+    )
     s.phase = 'play'
     return s
   }

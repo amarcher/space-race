@@ -52,10 +52,15 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
     const { state, turns } = playGame(1000 + i, rules)
     if (state.phase !== 'roundOver') throw new Error(`[${label}] game ${i} did not finish in ${turns} turns`)
 
+    // A winner below 1000 is only legal as a CALLED RACE — the deck is spent and
+    // both hands are empty, so the higher distance is declared the winner
+    // (finishByDistance). A reached-1000 win must cross the line. (Rare in classic;
+    // the catch-up valve's deck cycling makes the called-race finish a touch more
+    // likely, so distinguish the two rather than forbidding sub-1000 winners.)
+    const calledRace = state.deck.length === 0 && state.players.every((p) => p.hand.length === 0)
     for (const p of state.players) {
-      // overshoot is allowed now; the winner crosses 1000, the loser stays below it
-      if (state.winner === p.seat && p.distance < WIN_DISTANCE)
-        throw new Error(`[${label}] winner below 1000: ${p.distance}`)
+      if (state.winner === p.seat && p.distance < WIN_DISTANCE && !calledRace)
+        throw new Error(`[${label}] winner below 1000 without a called race: ${p.distance}`)
       if (p.count200 > MAX_200_PER_PLAYER) throw new Error(`[${label}] too many 200s: ${p.count200}`)
       if (new Set(p.safeties).size !== p.safeties.length) throw new Error(`[${label}] duplicate safety revealed`)
       coupTotal += p.coupFourres
@@ -87,5 +92,7 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
 const N = 400
 runMode('classic', undefined, N)
 runMode('scry', { scry: true }, N)
+runMode('catchUp', { catchUp: true }, N)
+runMode('scry+catchUp', { scry: true, catchUp: true }, N)
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')
