@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CARD_DEFS } from '../game/cards'
+import { CARD_DEFS, type CardInstance } from '../game/cards'
 import {
   applyMove,
   chooseMove,
   createGame,
   legalMoves,
   scoreRound,
+  type GameRules,
   type GameState,
   type Move,
   type SlingshotEvent,
 } from '../game'
+import { loadRules } from '../settings'
+import { Settings } from './Settings'
 import { cardHeroVideo, cardVideo } from '../game/cardArt'
 import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
@@ -33,6 +36,8 @@ import './Table.css'
 const DRAW_DELAY = 480
 const AI_DELAY = 780
 const SLINGSHOT_MS = 2800
+// SCRY: the AI "reads" the revealed cards for a beat before picking one.
+const SCRY_DELAY = 620
 
 // Icon vocabulary — the UI leans on pictures so a non-reader can follow along.
 const whoFor = (seat: number): 'you' | 'cpu' => (seat === 0 ? 'you' : 'cpu')
@@ -151,7 +156,11 @@ const WIN_PREVIEW_PARAM = typeof window !== 'undefined'
   : null
 
 export function Table({ onExit }: { onExit?: () => void }) {
-  const [state, setState] = useState<GameState>(() => createGame())
+  // the persisted gameplay-mode preference; applied to NEW games (never mutated
+  // mid-game — flipping a toggle takes effect on the next new round).
+  const [rules, setRules] = useState<GameRules>(() => loadRules())
+  const [state, setState] = useState<GameState>(() => createGame({ rules: loadRules() }))
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
   const [animating, setAnimating] = useState(false)
@@ -291,7 +300,22 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // read as motion. Only draw/discard touch the piles — plays/passes commit
   // instantly. Honours reduced-motion by committing immediately.
   // `fromOverride` lets a crane-drop hand off the floating card's exact position.
+  // bare state commit, no flight (used for a scry deck-draw → chooser, and the
+  // AI's scry pick — neither has a single card to fly off a pile)
+  const commit = (move: Move) => setState((s) => applyMove(s, move))
+
+  // SCRY: a deck-draw that will reveal into the chooser (not land one card in
+  // hand) just commits — there's no single flyer. The pick is the satisfying
+  // motion. Discard-source draws still fly normally (the top discard is real).
+  const isScryDeckDraw = (move: Move) =>
+    move.type === 'draw' && (move.source ?? 'deck') === 'deck' && state.rules.scry && state.deck.length > 1
+
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
+    if (isScryDeckDraw(move)) {
+      playSfx('card-flick')
+      commit(move)
+      return
+    }
     // a card sliding off a pile (draw or discard) gets a light flick/whoosh
     if (move.type === 'draw') playSfx('card-flick')
     else if (move.type === 'discard') playSfx('card-flick', { rate: 0.9 })
@@ -406,7 +430,11 @@ export function Table({ onExit }: { onExit?: () => void }) {
     let action: (() => void) | null = null
     let delay = 0
 
-    if (state.phase === 'draw' && cur.isAI) {
+    if (state.phase === 'scry' && cur.isAI) {
+      // AI peeks and picks the card it needs (no flight — happens "in its head").
+      delay = SCRY_DELAY
+      action = () => commit(chooseMove(state) ?? { type: 'pick', uid: state.scry![0].uid })
+    } else if (state.phase === 'draw' && cur.isAI) {
       // AI draws itself (deck or top of discard, per its heuristic).
       delay = DRAW_DELAY
       action = () => animateAndCommit(chooseMove(state) ?? { type: 'draw', source: 'deck' as const })
@@ -471,7 +499,10 @@ export function Table({ onExit }: { onExit?: () => void }) {
     setSelectedUid(null)
     setWinTakeoverShown(false)
     setScoreboardOpen(false)
-    setState(createGame())
+    // re-read the persisted preference so a settings change applies to this round
+    const fresh = loadRules()
+    setRules(fresh)
+    setState(createGame({ rules: fresh }))
   }
 
   // ---- crane drag: lift a hand card to the cursor, drop it on a board or the discard ----
@@ -570,6 +601,14 @@ export function Table({ onExit }: { onExit?: () => void }) {
     if (!drawPhaseHuman || animating) return
     animateAndCommit({ type: 'draw', source })
   }
+
+  // SCRY: the human is peeking at the top of the deck and must pick one card.
+  const scryPhaseHuman = state.turn === 0 && state.phase === 'scry'
+  const pickScry = (uid: string) => {
+    if (!scryPhaseHuman || animating) return
+    playSfx('card-flick')
+    commit({ type: 'pick', uid })
+  }
   // You poked a hand card but haven't drawn yet — flash the draw cues faster for
   // a beat to point you at the deck/discard. Restart the window on every poke.
   const nudgeToDraw = () => {
@@ -605,6 +644,18 @@ export function Table({ onExit }: { onExit?: () => void }) {
             aria-pressed={logOpen}
           >
             <Icon name="log" />
+          </button>
+          <button
+            className={`btn btn--icon ${settingsOpen ? 'btn--icon-on' : ''}`}
+            onClick={() => {
+              playSfx('ui-click')
+              setSettingsOpen(true)
+            }}
+            title="Settings"
+            aria-label="Settings"
+            aria-pressed={settingsOpen}
+          >
+            <Icon name="gear" />
           </button>
           <button
             className="btn btn--icon"
@@ -792,6 +843,20 @@ export function Table({ onExit }: { onExit?: () => void }) {
         <SlingshotOverlay event={slingshot} who={whoFor(slingshot.seat)} />
       )}
 
+      {/* SCRY: the human peeks the top of the deck and picks one card. */}
+      {scryPhaseHuman && state.scry && (
+        <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} />
+      )}
+
+      {settingsOpen && (
+        <Settings
+          rules={rules}
+          onChange={setRules}
+          onClose={() => setSettingsOpen(false)}
+          gameInProgress={gameInProgress}
+        />
+      )}
+
       {/* ?win=human / ?win=ai preview takeover — mounts over the live game board.
           Dismiss clears the preview (reload to re-trigger). Never fires during a real
           round because previewState is only set from the URL param, not from game logic. */}
@@ -830,6 +895,49 @@ export function Table({ onExit }: { onExit?: () => void }) {
           <img className="scoreboard__reopen-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
         </button>
       )}
+    </div>
+  )
+}
+
+/**
+ * SCRY chooser: the top-of-deck cards revealed face-up. Tap one to take it; the
+ * rest slide back under the deck. Word-free — a scout/telescope glyph + a row of
+ * real cards + a pulsing "pick me" ring. A 5-year-old reads it as "choose one".
+ */
+function ScryChooser({
+  cards,
+  onPick,
+  disabled,
+}: {
+  cards: CardInstance[]
+  onPick: (uid: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="scry" role="dialog" aria-label="Choose a card from the top of the deck">
+      <div className="scry__backdrop" aria-hidden />
+      <div className="scry__panel">
+        <div className="scry__badge" aria-hidden>
+          <Icon name="cards" />
+        </div>
+        <div className="scry__row">
+          {cards.map((c) => (
+            <button
+              key={c.uid}
+              type="button"
+              className="scry__pick"
+              onClick={() => !disabled && onPick(c.uid)}
+              disabled={disabled}
+              aria-label={`Take ${CARD_DEFS[c.kind].title}`}
+            >
+              <Card kind={c.kind} size="md" showName={false} />
+              <span className="scry__plus" aria-hidden>
+                <Icon name="check" />
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

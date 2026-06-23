@@ -3,8 +3,18 @@
 // rolling opponent > discard the most useless card. Safeties are hoarded for
 // Counter-Thrusts (revealed automatically by the engine) rather than spent.
 
-import { WIN_DISTANCE, defOf, type CardDef, type CardInstance } from './cards'
-import { activeHazard, canAttack, hazardsOn, legalMoves, type GameState, type Move, type PlayerState } from './engine'
+import { MAX_200_PER_PLAYER, WIN_DISTANCE, defOf, type CardDef, type CardInstance } from './cards'
+import {
+  activeHazard,
+  canAttack,
+  hazardsOn,
+  legalMoves,
+  speedLimited,
+  SPEED_LIMIT_VALUE,
+  type GameState,
+  type Move,
+  type PlayerState,
+} from './engine'
 
 const HAZARD_WEIGHT: Record<string, number> = {
   'black-hole': 28,
@@ -17,6 +27,7 @@ const HAZARD_WEIGHT: Record<string, number> = {
 export function chooseMove(state: GameState): Move | null {
   const moves = legalMoves(state)
   if (moves.length === 0) return null
+  if (state.phase === 'scry') return chooseScry(state, moves)
   if (state.phase === 'draw') return chooseDraw(state, moves)
 
   const me = state.players[state.turn]
@@ -34,6 +45,85 @@ export function chooseMove(state: GameState): Move | null {
 
 function cardOf(me: PlayerState, uid: string): CardInstance {
   return me.hand.find((c) => c.uid === uid)!
+}
+
+/** SCRY: pick the revealed card that best fixes my situation right now. */
+function chooseScry(state: GameState, moves: Move[]): Move {
+  const me = state.players[state.turn]
+  let best = moves[0]
+  let bestScore = -Infinity
+  for (const mv of moves) {
+    if (mv.type !== 'pick') continue
+    const card = (state.scry ?? []).find((c) => c.uid === mv.uid)
+    if (!card) continue
+    const score = scryValue(state, me, defOf(card))
+    if (score > bestScore) {
+      bestScore = score
+      best = mv
+    }
+  }
+  return best
+}
+
+/** How badly the current player wants to draw this exact card, given the board.
+ * This is what makes scry feel smart: take the launch when stalled, the remedy
+ * when blocked, the safety always, big mileage when rolling. */
+function scryValue(state: GameState, me: PlayerState, def: CardDef): number {
+  const opp = state.players[me.seat === 0 ? 1 : 0]
+  const myHazards = hazardsOn(me) // every un-remedied hazard on me (incl. speed limit)
+  const blocked = activeHazard(me) // a hard block (collision/fuel/engine/stop)
+  const slow = speedLimited(me)
+  const haveGo = me.hand.some((c) => defOf(c).isGo)
+  const remaining = WIN_DISTANCE - me.distance
+
+  switch (def.type) {
+    case 'safety':
+      // Permanent immunity + 100 ly + Slingshot potential. Always the top grab,
+      // even more so if it covers a hazard sitting on me right now.
+      return 100 + ((def.immuneTo ?? []).some((h) => myHazards.includes(h)) ? 30 : 0)
+
+    case 'remedy': {
+      // The launch card when I haven't started, or a Black-Hole clear.
+      if (def.isGo) {
+        if (!me.started) return haveGo ? 30 : 95 // need it to move at all
+        if (blocked === 'black-hole') return 92 // dig out of a full stop
+        return 28 // nice to bank, but I can already move
+      }
+      // A remedy I need to clear a hazard on me right now is huge — it's the
+      // difference between rolling and being stuck.
+      if (def.fixes != null && myHazards.includes(def.fixes)) {
+        // clearing a hard block is worth more than lifting a speed limit
+        return def.fixes === 'tractor-beam' ? 78 : 88
+      }
+      // Hold-for-later remedy: mild value (insurance against future hazards).
+      return 24
+    }
+
+    case 'distance': {
+      const v = def.value ?? 0
+      // If I'm blocked or unlaunched, raw mileage does nothing this turn — I'd
+      // rather have dug out. Down-weight it unless nothing else helps.
+      if (!me.started || blocked) return 20 + v * 0.02
+      // Can't bank a 3rd 200 — near-worthless.
+      if (v === 200 && me.count200 >= MAX_200_PER_PLAYER) return 8
+      // Under a speed limit only small hops are legal, so big cards stall.
+      if (slow && v > SPEED_LIMIT_VALUE) return 22 + v * 0.02
+      // Exact finisher? grab it. Otherwise prefer mileage that fits what's left.
+      if (v >= remaining) return 90
+      const overshoot = Math.max(0, v - remaining)
+      return 40 + v * 0.18 - overshoot * 0.1
+    }
+
+    case 'hazard': {
+      // Offense: worth most when the opponent is rolling and I can actually land
+      // it. A hazard I can't play (opp blocked/immune) is dead weight to hold.
+      const landable = canAttack(opp, def.kind)
+      if (!landable) return 12
+      const oppThreat = opp.distance >= 600 ? 14 : opp.started ? 8 : 2
+      return 30 + (HAZARD_WEIGHT[def.kind] ?? 10) * 0.4 + oppThreat
+    }
+  }
+  return 10
 }
 
 /** Take the top of the discard pile when it's clearly worth grabbing. */

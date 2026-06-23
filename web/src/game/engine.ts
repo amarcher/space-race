@@ -17,6 +17,7 @@ import {
   type Lane,
 } from './cards'
 import { mulberry32, shuffle } from './rng'
+import { resolveRules, SCRY_REVEAL, type GameRules } from './rules'
 
 export interface PlayerState {
   seat: number
@@ -37,7 +38,7 @@ export interface PlayerState {
 const emptyBattle = (): Record<Lane, CardInstance[]> =>
   Object.fromEntries(LANES.map((l) => [l, []])) as unknown as Record<Lane, CardInstance[]>
 
-export type Phase = 'draw' | 'play' | 'roundOver'
+export type Phase = 'draw' | 'scry' | 'play' | 'roundOver'
 
 export type LogKind = 'hazard' | 'remedy' | 'safety' | 'distance' | 'coup' | 'win' | 'info'
 
@@ -67,10 +68,18 @@ export interface GameState {
   logSeq: number
   /** set the moment a Slingshot resolves, so the UI can play the hero animation */
   lastSlingshot: SlingshotEvent | null
+  /** the selected gameplay-mode rules, baked in at createGame so the state stays
+   * deterministic + serializable. ALL rule-dependent logic reads this — never a
+   * global. Classic = DEFAULT_RULES (every flag off). */
+  rules: GameRules
+  /** SCRY mode: the top-of-deck cards revealed for the current player to pick one
+   * of. Non-null only while `phase === 'scry'`. The mover is `state.turn`. */
+  scry: CardInstance[] | null
 }
 
 export type Move =
   | { type: 'draw'; source?: 'deck' | 'discard' }
+  | { type: 'pick'; uid: string } // SCRY: take one of the revealed top-of-deck cards
   | { type: 'play'; uid: string; targetSeat?: number }
   | { type: 'discard'; uid: string }
   | { type: 'pass' }
@@ -142,6 +151,8 @@ export interface NewGameOptions {
   names?: [string, string]
   aiSeats?: number[]
   seed?: number
+  /** gameplay-mode rules to bake into this game (classic if omitted). */
+  rules?: Partial<GameRules>
 }
 
 export function createGame(opts: NewGameOptions = {}): GameState {
@@ -178,6 +189,8 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     winner: null,
     logSeq: 1,
     lastSlingshot: null,
+    rules: resolveRules(opts.rules),
+    scry: null,
     log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
   }
 }
@@ -185,6 +198,11 @@ export function createGame(opts: NewGameOptions = {}): GameState {
 export function legalMoves(state: GameState): Move[] {
   if (state.phase === 'roundOver') return []
   const me = state.players[state.turn]
+
+  if (state.phase === 'scry') {
+    // SCRY: pick exactly one of the revealed top-of-deck cards.
+    return (state.scry ?? []).map((c) => ({ type: 'pick', uid: c.uid }))
+  }
 
   if (state.phase === 'draw') {
     // Draw from the deck, or take the top of the discard pile instead. Once the
@@ -276,12 +294,41 @@ export function applyMove(state: GameState, move: Move): GameState {
 
   if (move.type === 'draw') {
     if (move.source === 'discard' && s.discard.length > 0) {
+      // The top of the discard is already face-up — no scry there, just take it.
       const card = s.discard.pop()!
       me.hand.push(card)
       pushLog(s, me.seat, `${me.name} takes ${defOf(card).title} from the discard pile.`, 'info')
-    } else if (s.deck.length > 0) {
+      s.phase = 'play'
+      return s
+    }
+    if (s.deck.length > 0) {
+      // SCRY seam: reveal the top N cards and let the player pick one (resolved in
+      // the 'pick' branch). Needs ≥2 cards to be a real choice — deck ≤1 falls
+      // through to the classic blind draw.
+      if (s.rules.scry && s.deck.length > 1) {
+        const n = Math.min(SCRY_REVEAL, s.deck.length)
+        s.scry = s.deck.splice(s.deck.length - n, n).reverse() // top-of-deck first
+        s.phase = 'scry'
+        return s
+      }
       me.hand.push(s.deck.pop()!)
     }
+    s.phase = 'play'
+    return s
+  }
+
+  if (move.type === 'pick') {
+    // SCRY: take the chosen revealed card; the leftovers return to the BOTTOM of
+    // the deck (predictable cycle, no deck-composition change).
+    if (s.phase !== 'scry' || !s.scry) return state
+    const pickIdx = s.scry.findIndex((c) => c.uid === move.uid)
+    if (pickIdx < 0) return state
+    const [picked] = s.scry.splice(pickIdx, 1)
+    me.hand.push(picked)
+    const leftovers = s.scry
+    s.scry = null
+    if (leftovers.length) s.deck.unshift(...leftovers) // unshift = under the deck (top is array end)
+    pushLog(s, me.seat, `${me.name} scouts the stars and takes ${defOf(picked).title}.`, 'info')
     s.phase = 'play'
     return s
   }
