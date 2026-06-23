@@ -1,0 +1,369 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   WinTakeover — full-screen hero moment for end-of-round (win OR lose).
+   z-index 72 — above Slingshot (70) and CardTakeover (68).
+   Phase 1 (hero): non-interactive video + CSS FX fills the screen.
+   Phase 2 (tally): tally card lifts up, becomes fully interactive.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.win-takeover {
+  position: fixed;
+  inset: 0;
+  z-index: 72;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;   /* tally card anchors to the bottom */
+  background: #05050f;
+  animation: winIn 400ms ease both;
+}
+.win-takeover--leaving { animation: winOut 500ms ease forwards; }
+
+@keyframes winIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes winOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ─── HERO LAYER ────────────────────────────────────────────────────────────── */
+
+.win-takeover__hero {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Real video — covers the CSS fallback when loaded */
+.win-takeover__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 3;
+}
+
+/* ── CSS fallback: hyperspace-arrival starburst ────────────────────────────
+   A radial burst of light blooming out from the centre, as if the ship
+   just dropped out of hyperspace and reached the destination.
+   Layered: starburst (white radial) + rotating ray-spokes + outcome tint.
+   Looks intentional with zero assets. */
+
+/* central supernova bloom */
+.win-takeover__starburst {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.95) 0%, rgba(200, 220, 255, 0.5) 12%,
+      rgba(130, 180, 255, 0.25) 28%, transparent 60%);
+  animation: starburst 4s ease-out both;
+}
+@keyframes starburst {
+  0%   { transform: scale(0.1); opacity: 0; }
+  8%   { transform: scale(0.8); opacity: 1; }
+  35%  { transform: scale(1.05); opacity: 0.85; }
+  75%  { transform: scale(1.12); opacity: 0.5; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+
+/* rotating speed-ray spokes radiating outward */
+.win-takeover__rays {
+  position: absolute;
+  inset: -30%;
+  z-index: 1;
+  background:
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(200, 220, 255, 0.18) 0deg 8deg,
+      transparent 8deg 26deg
+    );
+  animation: rayspin 4s linear both;
+  border-radius: 50%;
+}
+@keyframes rayspin {
+  0%   { transform: rotate(-40deg) scale(0.5); opacity: 0; }
+  10%  { opacity: 1; }
+  40%  { transform: rotate(20deg) scale(1.1); }
+  80%  { opacity: 0.4; }
+  100% { transform: rotate(60deg) scale(1.3); opacity: 0; }
+}
+
+/* outcome-specific colour tint: gold bloom for win, soft purple for lose */
+.win-takeover__arrival {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.win-takeover__arrival--win {
+  background: radial-gradient(120% 90% at 50% 44%, rgba(255, 215, 80, 0.32) 0%, transparent 60%);
+  animation: arrivalPulse 4s ease-out both;
+}
+.win-takeover__arrival--lose {
+  background: radial-gradient(120% 90% at 50% 44%, rgba(130, 110, 220, 0.28) 0%, transparent 60%);
+  animation: arrivalPulse 4s ease-out both;
+}
+@keyframes arrivalPulse {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  75%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* vignette: focus the eye centre-screen */
+.win-takeover__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: radial-gradient(120% 95% at 50% 50%, transparent 42%, rgba(2, 3, 16, 0.88));
+  pointer-events: none;
+}
+
+/* ─── TALLY LAYER ───────────────────────────────────────────────────────────── */
+
+.win-takeover--tally {
+  /* tally mode: dim the background, no solid black */
+  background: radial-gradient(ellipse 130% 90% at 50% 100%,
+    rgba(12, 8, 32, 0.96) 0%, rgba(5, 5, 18, 0.98) 100%);
+  justify-content: center;
+  align-items: center;
+  animation: winIn 360ms ease both;
+}
+
+.win-takeover__tally {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: min(480px, 94vw);
+  padding: 32px 28px 28px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(22, 18, 56, 0.96), rgba(10, 8, 28, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  animation: tallyRise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tallyRise {
+  0%   { transform: translateY(60px) scale(0.96); opacity: 0; }
+  100% { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+/* win variant: gold rim */
+.win-takeover--win .win-takeover__tally {
+  border-color: rgba(255, 215, 80, 0.35);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    0 0 60px rgba(255, 215, 80, 0.14),
+    0 0 0 1px rgba(255, 215, 80, 0.12) inset;
+}
+/* lose variant: subtle purple rim */
+.win-takeover--lose .win-takeover__tally {
+  border-color: rgba(140, 120, 220, 0.3);
+  box-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    0 0 50px rgba(140, 120, 220, 0.12),
+    0 0 0 1px rgba(140, 120, 220, 0.1) inset;
+}
+
+/* ── close / dismiss ────────────────────────────────────────────────────── */
+.win-takeover__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+.win-takeover__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  transform: scale(1.06);
+}
+@media (prefers-reduced-motion: reduce) {
+  .win-takeover__close { transition: none; }
+}
+
+/* ── outcome trophy / icon ──────────────────────────────────────────────── */
+.win-takeover__outcome {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+}
+.win-takeover__trophy {
+  width: clamp(72px, 11vw, 100px);
+  height: clamp(72px, 11vw, 100px);
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(255, 200, 80, 0.5));
+  animation: trophyBounce 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 200ms;
+}
+@keyframes trophyBounce {
+  0%   { transform: scale(0.5) translateY(20px); opacity: 0; }
+  100% { transform: scale(1)   translateY(0);    opacity: 1; }
+}
+.win-takeover__outcome-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(72px, 11vw, 100px);
+  height: clamp(72px, 11vw, 100px);
+  color: rgba(160, 140, 240, 0.85);
+}
+.win-takeover__outcome-avatar {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(28px, 5vw, 40px);
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+/* ── score comparison ───────────────────────────────────────────────────── */
+.win-takeover__scores {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.win-takeover__scorecol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.win-takeover__scorecol--win {
+  border-color: rgba(255, 215, 80, 0.4);
+  background: rgba(255, 215, 80, 0.05);
+  box-shadow: 0 0 24px rgba(255, 215, 80, 0.14);
+}
+.win-takeover__scorecol-head {
+  display: flex;
+  justify-content: center;
+}
+.win-takeover__scorelines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.win-takeover__scoreline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+.win-takeover__scoreline b {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.win-takeover__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 6px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.win-takeover__scorecol--win .win-takeover__total { color: var(--gold, #ffd93d); }
+.win-takeover__total b {
+  color: #fff;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.win-takeover__scorecol--win .win-takeover__total b { color: var(--gold, #ffd93d); }
+
+/* vs divider */
+.win-takeover__vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.22);
+  padding: 0 2px;
+}
+
+/* ── coups / slingshots callout ─────────────────────────────────────────── */
+.win-takeover__coups {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.win-takeover__coup {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.win-takeover__coup--you { color: #7df0ff; border-color: rgba(125, 240, 255, 0.3); }
+.win-takeover__coup--cpu { color: rgba(255, 200, 110, 0.9); border-color: rgba(255, 200, 110, 0.25); }
+.win-takeover__coup b { font-variant-numeric: tabular-nums; }
+
+/* ── play-again ─────────────────────────────────────────────────────────── */
+.win-takeover__again {
+  width: 100%;
+  max-width: 280px;
+}
+
+/* ─── MOBILE ────────────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .win-takeover__tally {
+    width: calc(100vw - 24px);
+    padding: 24px 16px 20px;
+    gap: 16px;
+    border-radius: 20px;
+  }
+  .win-takeover__scores { gap: 8px; }
+  .win-takeover__scorecol { padding: 10px 8px; gap: 6px; }
+  .win-takeover__scoreline { font-size: 12px; }
+  .win-takeover__total { font-size: 13px; }
+  .win-takeover__total b { font-size: 15px; }
+}
+
+/* ─── REDUCED MOTION ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* hero video layer + all animations off; goes straight to tally */
+  .win-takeover__hero { display: none; }
+  .win-takeover { animation: none; }
+  .win-takeover--leaving { animation: none; }
+  .win-takeover__tally { animation: none; }
+  .win-takeover__trophy { animation: none; }
+  .win-takeover__starburst,
+  .win-takeover__rays,
+  .win-takeover__arrival { animation: none; }
+}
