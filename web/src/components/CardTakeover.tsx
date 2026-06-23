@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cardHeroVideo } from '../game/cardArt'
 import './CardTakeover.css'
 
@@ -125,7 +126,13 @@ export function CardTakeover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return (
+  // Portal to <body> so the fixed full-screen overlay is NEVER nested inside a
+  // transformed ancestor. A hazard play adds `.table--shake` (a CSS transform) to
+  // the `.table` wrapper; a transformed ancestor becomes the containing block for
+  // `position: fixed`, which would shrink this overlay to the (narrower) table box
+  // and jitter it, then snap back to full-screen when the shake ends. Rendering at
+  // <body> keeps `position: fixed` rooted to the viewport regardless of the shake.
+  return createPortal(
     <div className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''}`} aria-hidden>
       <video
         ref={setVideo}
@@ -138,6 +145,7 @@ export function CardTakeover({
         preload="auto"
       />
       <span className="takeover__tint" />
-    </div>
+    </div>,
+    document.body,
   )
 }
