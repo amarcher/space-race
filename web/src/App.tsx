@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { initAudio } from './audio/sfx'
 import { Gallery } from './components/Gallery'
 import { Starfield } from './components/Starfield'
@@ -13,6 +15,10 @@ export default function App() {
   return (
     <>
       <Starfield />
+      {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
+          (Core Web Vitals). No-op off Vercel; no PII, no config. */}
+      <Analytics />
+      <SpeedInsights />
       {view === 'game' ? (
         <Table onExit={() => setView('gallery')} />
       ) : (
