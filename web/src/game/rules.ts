@@ -13,12 +13,21 @@
 
 export interface GameRules {
   /**
-   * SCRY draw: a deck draw reveals the top 3 cards and the player PICKS one; the
-   * two unpicked cards go to the BOTTOM of the deck. Pure agency lever — it
-   * changes only how easily you reach cards, not deck composition. Deck ≤ 1
-   * falls back to a blind draw.
+   * SCRY draw: a deck draw reveals the top SCRY_REVEAL cards (2 by default, or 3
+   * via the Settings dial — see `scryReveal`) and the player PICKS one; the
+   * unpicked cards go to the BOTTOM of the deck. Pure agency lever — it changes
+   * only how easily you reach cards, not deck composition. Deck ≤ 1 falls back to
+   * a blind draw.
    */
   scry: boolean
+
+  /**
+   * How many top-of-deck cards a scry draw reveals to the leader — the agency
+   * dial for scry mode. 2 = a tighter, faster peek; 3 = the wider, original
+   * spread. Optional so it round-trips through persisted settings and the sim
+   * harness; omitted → SCRY_REVEAL (3). Only meaningful when `scry` is on.
+   */
+  scryReveal?: number
 
   /**
    * CATCH-UP VALVE (rubber band): the TRAILING player gets a small, legible
@@ -29,9 +38,10 @@ export interface GameRules {
    * cards, not free mileage), so it softens the loss without erasing skill or
    * changing deck composition. Localized at the exact same draw seam as scry.
    *
-   * When `scry` is ALSO on the leader already scrys 3 every draw, so the valve
+   * When `scry` is ALSO on the leader already scrys every draw, so the valve
    * instead bumps the trailing player's reveal to CATCHUP_REVEAL_BOOST (a wider
-   * peek) — keeping the underdog's edge meaningful even in scry mode.
+   * peek than the leader's base) — keeping the underdog's edge meaningful even in
+   * scry mode.
    */
   catchUp: boolean
 
@@ -74,8 +84,9 @@ export const DEFAULT_RULES: GameRules = {
   selfHeal: false,
 }
 
-/** How many top-of-deck cards a scry draw reveals. */
-export const SCRY_REVEAL = 3
+/** How many top-of-deck cards a scry draw reveals by default. 2 = the tighter,
+ * faster peek (the default); players can dial it up to 3 in Settings. */
+export const SCRY_REVEAL = 2
 
 // ---- Catch-up Valve tuning (swept in scripts/sim-metrics.ts --sweep) ----
 /** Default distance deficit (light-years) a player must be behind by for the valve

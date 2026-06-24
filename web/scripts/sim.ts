@@ -91,7 +91,8 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
 
 const N = 400
 runMode('classic', undefined, N)
-runMode('scry', { scry: true }, N)
+runMode('scry-2', { scry: true, scryReveal: 2 }, N) // the default peek width
+runMode('scry-3', { scry: true, scryReveal: 3 }, N) // the wider opt-in peek
 runMode('catchUp', { catchUp: true }, N)
 runMode('momentum', { momentum: true }, N)
 runMode('selfHeal', { selfHeal: true }, N)

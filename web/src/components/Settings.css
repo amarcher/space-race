@@ -124,6 +124,44 @@
   transform: translateX(20px);
 }
 
+/* segmented numeric selector (e.g. scry reveal count) — reads as a sub-option,
+   so it's slightly inset and its top border is dropped to bind to the row above */
+.choice {
+  cursor: default;
+  border-top: none;
+  padding-top: 0;
+  padding-left: 14px;
+}
+.choice__seg {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.choice__opt {
+  min-width: 34px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(232, 238, 252, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.choice__opt:hover {
+  color: #fff;
+}
+.choice__opt--on {
+  background: linear-gradient(90deg, rgba(80, 200, 255, 0.9), rgba(125, 240, 255, 0.95));
+  color: #06203a;
+  box-shadow: 0 0 14px rgba(125, 240, 255, 0.45);
+}
+
 .settings__note {
   display: flex;
   align-items: center;

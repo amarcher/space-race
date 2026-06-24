@@ -248,7 +248,13 @@ export const isTrailing = (s: GameState, seat: number): boolean => {
  * player gets a wider peek so the underdog keeps agency. */
 export const drawReveal = (s: GameState, seat: number): number => {
   const trailing = isTrailing(s, seat)
-  if (s.rules.scry) return trailing ? CATCHUP_REVEAL_BOOST : SCRY_REVEAL
+  if (s.rules.scry) {
+    const base = s.rules.scryReveal ?? SCRY_REVEAL
+    // Trailing player gets the generous catch-up peek (CATCHUP_REVEAL_BOOST),
+    // but always at least one card wider than the leader's base in case the base
+    // is swept above the boost in the metrics harness.
+    return trailing ? Math.max(CATCHUP_REVEAL_BOOST, base + 1) : base
+  }
   if (trailing) return s.rules.catchUpReveal ?? CATCHUP_REVEAL // classic + valve: a mini-scry for the underdog
   return 1 // classic blind draw
 }

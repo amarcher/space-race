@@ -5,7 +5,7 @@
 // the player flips a toggle mid-game, we surface a subtle "takes effect next
 // game" note rather than mutating the live rules.
 import { useState } from 'react'
-import type { GameRules } from '../game/rules'
+import { SCRY_REVEAL, type GameRules } from '../game/rules'
 import { saveRules } from '../settings'
 import { playSfx } from '../audio/sfx'
 import { Icon } from './Icon'
@@ -50,10 +50,20 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
 
           <Toggle
             label="Scry draw"
-            help="Peek at the top 3 cards and pick one."
+            help="Peek at the top cards and pick one."
             checked={draft.scry}
             onChange={(v) => set('scry', v)}
           />
+
+          {draft.scry && (
+            <Choice
+              label="Cards to peek"
+              help="How many top-of-deck cards a scry draw reveals."
+              value={draft.scryReveal ?? SCRY_REVEAL}
+              options={[2, 3]}
+              onChange={(v) => set('scryReveal', v)}
+            />
+          )}
 
           <Toggle
             label="Catch-up valve"
@@ -115,5 +125,43 @@ function Toggle({
         <span className="toggle__knob" />
       </button>
     </label>
+  )
+}
+
+/** A small segmented selector for a numeric rule dial (e.g. scry reveal: 2 / 3). */
+function Choice({
+  label,
+  help,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  help: string
+  value: number
+  options: number[]
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="toggle choice">
+      <span className="toggle__text">
+        <span className="toggle__label">{label}</span>
+        <span className="toggle__help">{help}</span>
+      </span>
+      <div className="choice__seg" role="radiogroup" aria-label={label}>
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            role="radio"
+            aria-checked={value === opt}
+            className={`choice__opt ${value === opt ? 'choice__opt--on' : ''}`}
+            onClick={() => onChange(opt)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
