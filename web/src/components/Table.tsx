@@ -487,15 +487,19 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
   // pop the win takeover (and scoreboard backup) each time a round ends
   useEffect(() => {
-    if (state.phase === 'roundOver') {
-      setWinTakeoverShown(true)
-      setScoreboardOpen(false) // scoreboard stays hidden until takeover is done
-      // NOTE: the win/loss takeover audio is fired by WinTakeover itself on mount,
-      // by variant (win-takeover swell vs. lose-takeover tone), so win and loss
-      // sound DISTINCT. We deliberately do NOT play the generic `win` chime here —
-      // it used to fire for BOTH outcomes (win and loss sounded identical).
-    }
-  }, [state.phase])
+    if (state.phase !== 'roundOver') return
+    // if the WINNING play has its own full-screen card takeover still on screen
+    // (e.g. a game-winning safety or warp-200), wait — this effect re-runs when
+    // `takeover` clears, so the win takeover plays AFTER that card animation
+    // finishes instead of cutting it off. (Mirrors the slingshot deferral below.)
+    if (takeover) return
+    setWinTakeoverShown(true)
+    setScoreboardOpen(false) // scoreboard stays hidden until takeover is done
+    // NOTE: the win/loss takeover audio is fired by WinTakeover itself on mount,
+    // by variant (win-takeover swell vs. lose-takeover tone), so win and loss
+    // sound DISTINCT. We deliberately do NOT play the generic `win` chime here —
+    // it used to fire for BOTH outcomes (win and loss sounded identical).
+  }, [state.phase, takeover])
 
   // ?win=human / ?win=ai preview trigger — fires once on mount, only in dev
   // (the URL param check is module-level so it's evaluated at parse time, zero runtime
