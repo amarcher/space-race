@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        { "type": "host", "value": "web-phi-tawny-67.vercel.app" }
+      ],
+      "destination": "https://game.spaceexplorer.tech/:path*",
+      "permanent": true
+    }
+  ]
+}
