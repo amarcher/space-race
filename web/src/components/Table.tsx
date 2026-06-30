@@ -177,7 +177,17 @@ function buildInitialGame(): GameState {
   return createGame({ rules: loadRules() })
 }
 
-export function Table({ onExit }: { onExit?: () => void }) {
+export function Table({
+  onExit,
+  onStateChange,
+}: {
+  onExit?: () => void
+  /** ADDITIVE: called with the live GameState on every change. Used ONLY by the
+   * phone (`?mode=tv-play`) to broadcast state to a spectating TV. Undefined for
+   * the normal app → the effect below is a no-op, so behaviour/appearance are
+   * byte-for-byte unchanged. */
+  onStateChange?: (game: GameState) => void
+}) {
   // the persisted gameplay-mode preference; applied to NEW games (never mutated
   // mid-game — flipping a toggle takes effect on the next new round).
   const [rules, setRules] = useState<GameRules>(() => loadRules())
@@ -241,6 +251,13 @@ export function Table({ onExit }: { onExit?: () => void }) {
     () => new Set(moves.filter((m): m is Extract<Move, { type: 'play' }> => m.type === 'play').map((m) => m.uid)),
     [moves],
   )
+
+  // ADDITIVE phone→TV broadcast: publish the live state to a spectating TV on
+  // every change. No-op (and renders nothing) when onStateChange is undefined —
+  // i.e. for the normal app — so this is byte-for-byte invisible there.
+  useEffect(() => {
+    onStateChange?.(state)
+  }, [state, onStateChange])
 
   // MOMENTUM mode: per-board gauge data (null = mode off → no gauge rendered).
   // The human's gauge becomes a tappable SPEND when canBurst is true.

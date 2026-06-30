@@ -5,7 +5,12 @@
 // `?mode=tv-stage` (the TV) and `?mode=tv-controller` (a phone) opt into the
 // second-screen build.
 
-export type TvMode = 'tv-stage' | 'tv-controller' | null
+// Two flag-gated modes (no UI entrypoint — URL only):
+//   ?mode=tv-play   the PHONE: renders the real, normal game (engine + AI) AND
+//                   broadcasts its GameState to the relay.
+//   ?mode=tv-stage  the TV: a one-way SPECTATOR that receives the phone's
+//                   GameState and renders the read-only table mirror.
+export type TvMode = 'tv-stage' | 'tv-play' | null
 
 function param(name: string): string | null {
   if (typeof window === 'undefined') return null
@@ -15,7 +20,10 @@ function param(name: string): string | null {
 /** The active TV mode, or null for the normal single-screen game. */
 export function tvMode(): TvMode {
   const m = param('mode')
-  return m === 'tv-stage' || m === 'tv-controller' ? m : null
+  if (m === 'tv-stage') return 'tv-stage'
+  // accept the legacy `tv-controller` flag as an alias for the phone mode
+  if (m === 'tv-play' || m === 'tv-controller') return 'tv-play'
+  return null
 }
 
 /**
