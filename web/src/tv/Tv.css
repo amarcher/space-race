@@ -1,0 +1,45 @@
+/* TV second-screen styles — scoped under .tv (stage) and .ctl (controller). Only
+   loaded when a ?mode= flag mounts those components, so the normal game is
+   unaffected. */
+
+/* ============================ STAGE (the TV) ============================ */
+/* The stage renders the REAL <Table> markup/CSS (Table.css). This root only
+   supplies the dark backdrop the normal app gets from <Starfield>, plus the
+   small stage-specific header meta (turn + connection) and the waiting overlay. */
+.tv-stage-root {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(120% 100% at 50% 0%, #122 0%, #07071a 60%, #04040d 100%);
+  color: #eaf2ff;
+  overflow: hidden;
+}
+/* the turn + player-count meta, pushed right in the real .table__bar */
+.tv__bar-meta {
+  align-items: center;
+}
+.tv__turn {
+  font-size: clamp(13px, 1.5vw, 22px);
+  opacity: 0.92;
+  font-weight: 600;
+}
+.tv__conn {
+  font-size: clamp(11px, 1vw, 15px);
+  padding: 0.3em 0.8em;
+  border-radius: 999px;
+  background: #ffffff14;
+}
+.tv__conn--open { color: #8effc0; }
+.tv__conn--closed, .tv__conn--connecting { color: #ffd27a; }
+
+.tv__wait {
+  position: fixed;
+  inset: 22vh 12vw auto;
+  text-align: center;
+  z-index: 59;
+  background: #000a;
+  border: 1px solid #ffffff22;
+  border-radius: 16px;
+  padding: 3vh 2vw;
+  backdrop-filter: blur(4px);
+}
+.tv__hint { opacity: 0.75; font-size: 0.95em; }

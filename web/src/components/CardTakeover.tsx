@@ -40,6 +40,7 @@ export function CardTakeover({
   kind,
   variant = 'warp',
   onDone,
+  stage = false,
 }: {
   /** Standard `<kind>.mp4` clip — always the fallback source. */
   src: string
@@ -47,9 +48,16 @@ export function CardTakeover({
   kind?: string
   variant?: TakeoverVariant
   onDone: () => void
+  /** TV-STAGE mode: letterbox the clip (object-fit: contain — the portrait clip
+   * would be massively over-zoomed cover-cropped onto a 4K landscape panel) and
+   * keep the <video> HIDDEN until it's actually PLAYING (the GTV WebView flashes a
+   * poster / play-button frame before autoplay). Both are scoped here so the
+   * desktop/mobile normal-app takeover keeps its exact current framing. */
+  stage?: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const [playing, setPlaying] = useState(false) // stage: gate visibility on real playback
   // Pick the source ONCE per play: on a wide viewport, prefer the crisper hero
   // clip when the kind ships one; otherwise (mobile, or no hero asset) use the
   // standard clip. Read width eagerly so the chosen <video src> is correct on
@@ -138,11 +146,24 @@ export function CardTakeover({
         ref={setVideo}
         className="takeover__video"
         src={chosenSrc}
-        style={objectPosition ? { objectPosition } : undefined}
+        // STAGE: same cover-crop + hero clip + per-card objectPosition the normal
+        // app uses at WIDE breakpoints (shows each clip's most interesting region
+        // filling the screen — NOT a letterbox), plus hide-until-playing so the
+        // GTV WebView never flashes a poster/play-button frame before autoplay.
+        // Scoped to `stage`; desktop/mobile normal-app takeover is unchanged.
+        style={
+          stage
+            ? { objectFit: 'cover', objectPosition, opacity: playing ? 1 : 0, transition: 'opacity 200ms ease' }
+            : objectPosition
+              ? { objectPosition }
+              : undefined
+        }
         autoPlay
         muted
         playsInline
         preload="auto"
+        onPlaying={stage ? () => setPlaying(true) : undefined}
+        onTimeUpdate={stage ? (e) => { if (e.currentTarget.currentTime > 0) setPlaying(true) } : undefined}
       />
       <span className="takeover__tint" />
     </div>,
