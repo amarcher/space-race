@@ -146,11 +146,14 @@ export function CardTakeover({
         ref={setVideo}
         className="takeover__video"
         src={chosenSrc}
-        // STAGE: letterbox + hide-until-playing (scoped to `stage`). Normal app
-        // keeps its cover-crop + per-card objectPosition nudge, unchanged.
+        // STAGE: same cover-crop + hero clip + per-card objectPosition the normal
+        // app uses at WIDE breakpoints (shows each clip's most interesting region
+        // filling the screen — NOT a letterbox), plus hide-until-playing so the
+        // GTV WebView never flashes a poster/play-button frame before autoplay.
+        // Scoped to `stage`; desktop/mobile normal-app takeover is unchanged.
         style={
           stage
-            ? { objectFit: 'contain', opacity: playing ? 1 : 0, transition: 'opacity 200ms ease' }
+            ? { objectFit: 'cover', objectPosition, opacity: playing ? 1 : 0, transition: 'opacity 200ms ease' }
             : objectPosition
               ? { objectPosition }
               : undefined
