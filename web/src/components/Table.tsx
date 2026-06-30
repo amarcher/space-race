@@ -27,13 +27,12 @@ import { Avatar } from './Avatar'
 import { CardTakeover, type TakeoverVariant } from './CardTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
+import { GameLog, whoFor } from './GameLog'
 import { Hand } from './Hand'
 import { PlayerBoard } from './PlayerBoard'
 import { SlingshotOverlay } from './SlingshotOverlay'
 import { WinTakeover } from './WinTakeover'
-import { useCardPreview } from './useCardPreview'
 import { prefersReducedMotion, type Rect } from '../motion'
-import type { LogEntry } from '../game'
 import './Table.css'
 
 const DRAW_DELAY = 480
@@ -41,62 +40,6 @@ const AI_DELAY = 780
 const SLINGSHOT_MS = 2800
 // SCRY: the AI "reads" the revealed cards for a beat before picking one.
 const SCRY_DELAY = 620
-
-// Icon vocabulary — the UI leans on pictures so a non-reader can follow along.
-const whoFor = (seat: number): 'you' | 'cpu' => (seat === 0 ? 'you' : 'cpu')
-const LOG_ICON: Record<string, IconName> = {
-  hazard: 'burst',
-  remedy: 'wrench',
-  safety: 'shield',
-  distance: 'thrust',
-  coup: 'bolt',
-  win: 'trophy',
-  info: 'dot',
-}
-
-// Resolve the specific card a log row is about, in the RENDER layer (engine.ts
-// untouched) — by matching CARD_DEFS titles/values against the entry text. Rows
-// that don't name a specific card (deck spent, launch, win) return null → no
-// preview. A line may mention two cards ("clears X with Y") — the entry's
-// LogKind picks the one actually PLAYED (remedy/hazard/safety; the revealed
-// safety for a coup); info rows (discards/takes) fall back to the named card.
-function logCardKind({ text, kind }: LogEntry): string | null {
-  if (kind === 'distance') {
-    const m = text.match(/(\d+)\s*ly/)
-    const k = m ? `warp-${m[1]}` : ''
-    return CARD_DEFS[k] ? k : null
-  }
-  const hits = Object.values(CARD_DEFS).filter((d) => text.includes(d.title))
-  if (!hits.length) return null
-  const wantType = kind === 'coup' ? 'safety' : kind // hazard | remedy | safety
-  const typed = hits.find((d) => d.type === wantType)
-  if (typed) return typed.kind
-  // info rows ("discards X" / "takes X from the discard"): the longest title hit
-  return [...hits].sort((a, b) => b.title.length - a.title.length)[0].kind
-}
-
-/** One game-log row; if it resolves to a card, hovering/pressing pops that card. */
-function LogRow({ entry, who }: { entry: LogEntry; who: (seat: number) => 'you' | 'cpu' }) {
-  const kind = logCardKind(entry)
-  const { handlers, popover, open } = useCardPreview(kind)
-  return (
-    <li
-      className={`log__line log__line--${entry.kind} ${kind ? 'log__line--card' : ''} ${open ? 'log__line--on' : ''}`}
-      title={entry.text}
-      {...handlers}
-    >
-      {entry.seat >= 0 && (
-        <span className="log__who">
-          <Avatar who={who(entry.seat)} />
-        </span>
-      )}
-      <span className="log__icon">
-        <Icon name={LOG_ICON[entry.kind] ?? 'dot'} />
-      </span>
-      {popover}
-    </li>
-  )
-}
 
 // Screen-space rect of the .card inside an anchor element (deck/discard pile).
 function cardRectOf(el: HTMLElement | null): Rect | null {
@@ -673,7 +616,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // you've drawn but hold nothing playable → must discard; invite the discard pile
   const mustDiscard = yourTurn && playableUids.size === 0
   const topDiscard = state.discard[state.discard.length - 1]
-  const recentLog = state.log.slice(-18).reverse()
 
   // Warn before leaving/refreshing with a game actually IN PROGRESS (state is
   // in-memory and lost). Gate it: not over, and meaningfully touched — a card has
@@ -924,11 +866,7 @@ export function Table({ onExit }: { onExit?: () => void }) {
 
        {logOpen && (
        <aside className="table__log" aria-label="Game log">
-         <ul className="log">
-           {recentLog.map((e) => (
-             <LogRow key={e.id} entry={e} who={whoFor} />
-           ))}
-         </ul>
+         <GameLog log={state.log} limit={18} />
        </aside>
        )}
 

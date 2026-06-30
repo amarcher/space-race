@@ -11,7 +11,7 @@
 // Reuses PlayerBoard / Card for rendering — minus the local hand interaction,
 // which now lives on the phone. With NO `?mode=` flag this file never mounts.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useCallbackRef } from './useCallbackRef'
 import {
   activeHazard,
@@ -19,7 +19,6 @@ import {
   chooseMove,
   createGame,
   legalMoves,
-  scoreRound,
   type GameState,
   type Move,
 } from '../game'
@@ -32,9 +31,11 @@ import { PlayerBoard } from '../components/PlayerBoard'
 import { Card } from '../components/Card'
 import { CardTakeover, type TakeoverVariant } from '../components/CardTakeover'
 import { WinTakeover } from '../components/WinTakeover'
+import { GameLog } from '../components/GameLog'
 import { ArcadeClient, type RelayRoomState, type RosterEntry } from './arcadeClient'
 import { arcadeHttpOrigin, arcadeOrigin } from './mode'
 import type { ControllerMsg, ControllerView } from './protocol'
+import '../components/Table.css' // reuse the REAL table layout (gutter icon log, plane tilt, piles)
 import './Tv.css'
 
 const DRAW_DELAY = 520
@@ -346,7 +347,6 @@ export function TvStage() {
   }, [game, hasController, animating, takeover])
 
   const momentumOn = game.rules.momentum
-  const recentLog = useMemo(() => game.log.slice(-14).reverse(), [game.log])
   const cur = game.players[game.turn]
   const turnLabel =
     game.phase === 'roundOver'
@@ -355,88 +355,91 @@ export function TvStage() {
         : 'Round over'
       : `${cur.name}'s turn — ${game.phase}`
 
-  const scores = game.phase === 'roundOver' ? scoreRound(game) : null
+  const topDiscard = game.discard[game.discard.length - 1]
 
   return (
-    <div className="tv">
-      <header className="tv__bar">
-        <h1 className="tv__title">1000 Light-Years</h1>
-        <div className="tv__turn">{turnLabel}</div>
-        <div className={`tv__conn tv__conn--${status}`} title={`arcade: ${arcadeOrigin()}`}>
-          {status === 'open' ? `${liveSeatSet.size} player${liveSeatSet.size === 1 ? '' : 's'}` : status}
+    // The stage renders the REAL table (Table.css): the perspective board plane,
+    // the deck/discard piles, and the icon LogRow log in its gutter panel — minus
+    // the hand + interaction (display-only; moves arrive from controllers). A
+    // wrapper supplies the backdrop the normal app gets from <Starfield>.
+    <div className="tv-stage-root">
+      <div className="table">
+        <header className="table__bar">
+          <h1>1000 Light-Years</h1>
+          <div className="table__bar-actions tv__bar-meta">
+            <span className="tv__turn">{turnLabel}</span>
+            <span className={`tv__conn tv__conn--${status}`} title={`arcade: ${arcadeOrigin()}`}>
+              {status === 'open' ? `${liveSeatSet.size} player${liveSeatSet.size === 1 ? '' : 's'}` : status}
+            </span>
+          </div>
+        </header>
+
+        <div className="table__body">
+          <div className="table__main">
+            <div className="table__plane">
+              <div className="dropzone">
+                <PlayerBoard
+                  player={game.players[1]}
+                  isOpponent
+                  who="cpu"
+                  active={game.turn === 1 && game.phase !== 'roundOver'}
+                  momentum={momentumOn ? { charge: game.momentum[1], cap: MOMENTUM_CAP } : null}
+                  selfHeal={game.rules.selfHeal}
+                />
+              </div>
+
+              <div className="table__center">
+                <div className="pile">
+                  <Card faceDown size="md" />
+                  <span className="pile__count">{game.deck.length}</span>
+                </div>
+                <div className="pile">
+                  {topDiscard ? (
+                    <Card key={topDiscard.uid} kind={topDiscard.kind} size="md" showName={false} />
+                  ) : (
+                    <div className="pile__empty" />
+                  )}
+                </div>
+              </div>
+
+              <div className="dropzone">
+                <PlayerBoard
+                  player={game.players[0]}
+                  isOpponent={false}
+                  who="you"
+                  active={game.turn === 0 && game.phase !== 'roundOver'}
+                  momentum={momentumOn ? { charge: game.momentum[0], cap: MOMENTUM_CAP } : null}
+                  selfHeal={game.rules.selfHeal}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* the REAL icon log (shared LogRow) in Table.css's gutter panel */}
+          <aside className="table__log" aria-label="Game log">
+            <GameLog log={game.log} limit={18} />
+          </aside>
         </div>
-      </header>
+      </div>
 
       {!hasController && (
         <div className="tv__wait">
           <p>Open the controller on your phone to play:</p>
-          <code className="tv__url">{arcadeHttpOrigin()}/controller.html (Space Race: add ?mode=tv-controller)</code>
-          <p className="tv__hint">Point your phone browser at the game URL with <b>?mode=tv-controller</b>.</p>
+          <p className="tv__hint">
+            Point your phone browser at the game URL with <b>?mode=tv-controller</b>.
+          </p>
         </div>
       )}
 
-      <div className="tv__boards">
-        <PlayerBoard
-          player={game.players[1]}
-          isOpponent
-          who="cpu"
-          active={game.turn === 1 && game.phase !== 'roundOver'}
-          momentum={momentumOn ? { charge: game.momentum[1], cap: MOMENTUM_CAP } : null}
-          selfHeal={game.rules.selfHeal}
-        />
-
-        <div className="tv__center">
-          <div className="tv__pile">
-            <Card faceDown size="md" />
-            <span className="tv__pilecount">{game.deck.length}</span>
-          </div>
-          <div className="tv__pile">
-            {game.discard.length > 0 ? (
-              <Card kind={game.discard[game.discard.length - 1].kind} size="md" showName={false} />
-            ) : (
-              <div className="tv__pile-empty" />
-            )}
-          </div>
-        </div>
-
-        <PlayerBoard
-          player={game.players[0]}
-          isOpponent={false}
-          who="you"
-          active={game.turn === 0 && game.phase !== 'roundOver'}
-          momentum={momentumOn ? { charge: game.momentum[0], cap: MOMENTUM_CAP } : null}
-          selfHeal={game.rules.selfHeal}
-        />
-      </div>
-
-      {scores && (
-        <div className="tv__scores">
-          {scores.map((s) => (
-            <div key={s.seat} className={`tv__score ${game.winner === s.seat ? 'tv__score--win' : ''}`}>
-              <b>{s.name}</b>
-              <span>{s.total} ly</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <aside className="tv__log" aria-label="Game log">
-        <ul>
-          {recentLog.map((e) => (
-            <li key={e.id} className={`tv__log-${e.kind}`}>
-              {e.text}
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* full-screen hero takeover for the current headline play (human or AI) */}
+      {/* full-screen hero takeover for the current headline play (human or AI).
+          `stage` letterboxes the clip + hides it until it's really playing. */}
       {takeover && (
         <CardTakeover
           key={takeover.key}
           src={takeover.src}
           kind={takeover.kind}
           variant={takeover.variant}
+          stage
           onDone={() => setTakeover(null)}
         />
       )}
