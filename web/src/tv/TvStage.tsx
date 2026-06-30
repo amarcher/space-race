@@ -24,9 +24,14 @@ import {
   type Move,
 } from '../game'
 import { MOMENTUM_CAP } from '../game/rules'
+import { CARD_DEFS } from '../game/cards'
+import { cardVideo } from '../game/cardArt'
+import { prefersReducedMotion } from '../motion'
 import { loadRules } from '../settings'
 import { PlayerBoard } from '../components/PlayerBoard'
 import { Card } from '../components/Card'
+import { CardTakeover, type TakeoverVariant } from '../components/CardTakeover'
+import { WinTakeover } from '../components/WinTakeover'
 import { ArcadeClient, type RelayRoomState, type RosterEntry } from './arcadeClient'
 import { arcadeHttpOrigin, arcadeOrigin } from './mode'
 import type { ControllerMsg, ControllerView } from './protocol'
@@ -47,6 +52,27 @@ function namesFor(owned: Set<number>): [string, string] {
 
 function makeGame(owned: Set<number>): GameState {
   return createGame({ rules: loadRules(), names: namesFor(owned), aiSeats: aiSeatsFor(owned) })
+}
+
+// Dev preview seam (mirrors Table.tsx's `?win=` preview): `?tvwin=human|ai`
+// mounts the WinTakeover on the stage with a synthetic finished game so it can be
+// verified without grinding a full round. Inert with no flag.
+const TVWIN_PARAM =
+  typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tvwin') : null
+
+function previewWinGame(winner: 0 | 1): GameState {
+  const g = makeGame(new Set())
+  g.phase = 'roundOver'
+  g.winner = winner
+  g.players[0].distance = winner === 0 ? 1000 : 600
+  g.players[1].distance = winner === 1 ? 1000 : 600
+  g.players[0].distancePile = [
+    { uid: 'pw1', kind: 'warp-200' },
+    { uid: 'pw2', kind: 'warp-200' },
+    { uid: 'pw3', kind: 'warp-200' },
+  ]
+  g.players[1].distancePile = [{ uid: 'pl1', kind: 'warp-200' }]
+  return g
 }
 
 /** Canonicalize an untrusted controller move against the current legal set, or
@@ -106,10 +132,22 @@ function viewFor(g: GameState, seat: number): ControllerView {
 }
 
 export function TvStage() {
-  const [game, setGame] = useState<GameState>(() => makeGame(new Set()))
+  const [game, setGame] = useState<GameState>(() =>
+    TVWIN_PARAM ? previewWinGame(TVWIN_PARAM === 'ai' ? 1 : 0) : makeGame(new Set()),
+  )
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
   const [bindVersion, setBindVersion] = useState(0) // bumped on any binding/liveness change
   const [animating] = useState(false) // reserved (no flight animations on the stage yet)
+  // full-screen hero takeover for a headline play (warp-200 / hazard / remedy /
+  // safety) — fired ON THE STAGE for BOTH the human's plays and the AI's. Mirrors
+  // Table.tsx's `takeover`; the AI turn loop is GATED on this being null so a clip
+  // is never cut short. (Distance < 200 / draws / discards never take over.)
+  const [takeover, setTakeover] = useState<{ src: string; kind: string; variant: TakeoverVariant; key: number } | null>(
+    null,
+  )
+  const takeoverKey = useRef(0)
+  // win/lose takeover dismissed (the player tapped to inspect the final board)
+  const [winDismissed, setWinDismissed] = useState(false)
 
   const clientRef = useRef<ArcadeClient | null>(null)
   // STABLE seat binding by persistent controller TOKEN (not the ephemeral WS id).
@@ -140,6 +178,27 @@ export function TvStage() {
     const live = liveSeats()
     const ng = makeGame(owned)
     return { ...ng, players: ng.players.map((p) => ({ ...p, isAI: !live.has(p.seat) })) }
+  }
+
+  // Fire the full-screen hero takeover for a HEADLINE play, read from the
+  // pre-apply state `g` (so we know which card + actor). Mirrors Table.tsx's
+  // variant mapping (warp only for the 200-ly jump; hazard/remedy/safety always) —
+  // but on the TV we fire for BOTH the human's and the AI's plays (it's the big
+  // shared screen). Cosmetic only; self-skips under reduced motion or no clip.
+  const maybeFireTakeover = (move: Move, g: GameState) => {
+    if (move.type !== 'play' || prefersReducedMotion()) return
+    const card = g.players[g.turn].hand.find((c) => c.uid === move.uid)
+    const def = card ? CARD_DEFS[card.kind] : undefined
+    if (!card || !def) return
+    let variant: TakeoverVariant | null = null
+    if (def.type === 'distance') variant = def.value === 200 ? 'warp' : null
+    else if (def.type === 'hazard') variant = 'hazard'
+    else if (def.type === 'remedy') variant = 'remedy'
+    else if (def.type === 'safety') variant = 'safety'
+    if (!variant) return
+    const src = cardVideo(card.kind, ['idle', 'hover']) // CardTakeover upgrades to the hero clip itself on wide screens
+    if (!src) return
+    setTakeover({ src, kind: card.kind, variant, key: ++takeoverKey.current })
   }
 
   // Reflect the current bindings into the live game: rebuild names/seats if the
@@ -198,6 +257,8 @@ export function TvStage() {
     if (msg.t === 'newRound') {
       if (gameRef.current.phase === 'roundOver') {
         setGame(buildGame())
+        setWinDismissed(false)
+        setTakeover(null)
         setBindVersion((v) => v + 1)
       }
       return
@@ -208,8 +269,14 @@ export function TvStage() {
       const token = idTokenRef.current.get(from)
       const seat = token != null ? tokenSeatRef.current.get(token) : undefined
       if (seat === undefined) return
-      // Validate AND apply inside the SAME updater so legality is checked against
-      // the exact state we mutate (no TOCTOU between findLegal and applyMove).
+      // Cosmetic takeover, decided from the CURRENT state (the same state the
+      // updater below will receive). The updater re-validates as the authority
+      // (no TOCTOU between findLegal and applyMove).
+      const g0 = gameRef.current
+      if (g0.turn === seat && g0.phase !== 'roundOver') {
+        const legal0 = findLegal(g0, msg.move)
+        if (legal0) maybeFireTakeover(legal0, g0)
+      }
       setGame((g) => {
         if (g.turn !== seat || g.phase === 'roundOver') return g
         const legal = findLegal(g, msg.move)
@@ -254,8 +321,11 @@ export function TvStage() {
   void bindVersion // bindVersion is a render trigger for the ref-derived values above
 
   // ---- AI turn loop (fills any seat with no LIVE human; paused until a phone joins) ----
+  // GATED on `takeover === null` (like Table.tsx): while a full-screen clip is on
+  // the stage the AI never moves, so the animation is never cut short — the effect
+  // re-runs when the takeover clears and the AI then proceeds.
   useEffect(() => {
-    if (!hasController || game.phase === 'roundOver' || animating) return
+    if (!hasController || game.phase === 'roundOver' || animating || takeover) return
     const cur = game.players[game.turn]
     if (!cur.isAI) return // a live human seat — wait for the controller
     let delay = AI_DELAY
@@ -267,9 +337,13 @@ export function TvStage() {
         : game.phase === 'draw'
           ? { type: 'draw', source: 'deck' }
           : { type: 'pass' }
-    const t = setTimeout(() => setGame((g) => applyMove(g, chooseMove(g) ?? fallback)), delay)
+    const t = setTimeout(() => {
+      const move = chooseMove(gameRef.current) ?? fallback
+      maybeFireTakeover(move, gameRef.current) // the AI's headline plays take over the stage too
+      setGame((g) => applyMove(g, move))
+    }, delay)
     return () => clearTimeout(t)
-  }, [game, hasController, animating])
+  }, [game, hasController, animating, takeover])
 
   const momentumOn = game.rules.momentum
   const recentLog = useMemo(() => game.log.slice(-14).reverse(), [game.log])
@@ -355,6 +429,33 @@ export function TvStage() {
           ))}
         </ul>
       </aside>
+
+      {/* full-screen hero takeover for the current headline play (human or AI) */}
+      {takeover && (
+        <CardTakeover
+          key={takeover.key}
+          src={takeover.src}
+          kind={takeover.kind}
+          variant={takeover.variant}
+          onDone={() => setTakeover(null)}
+        />
+      )}
+
+      {/* WIN/LOSE takeover at round end — deferred until any in-flight card
+          takeover (e.g. the game-winning warp/safety) has finished, mirroring
+          Table.tsx. Dismiss to inspect the final board; play-again starts a new
+          round (also reachable from the controller's "Play again"). */}
+      {game.phase === 'roundOver' && !takeover && !winDismissed && (
+        <WinTakeover
+          state={game}
+          onDone={() => {
+            setGame(buildGame())
+            setWinDismissed(false)
+            setBindVersion((v) => v + 1)
+          }}
+          onDismiss={() => setWinDismissed(true)}
+        />
+      )}
     </div>
   )
 }
