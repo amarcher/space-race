@@ -5,10 +5,24 @@ import { initAudio } from './audio/sfx'
 import { Gallery } from './components/Gallery'
 import { Starfield } from './components/Starfield'
 import { Table } from './components/Table'
+import { tvMode } from './tv/mode'
+import { TvStage } from './tv/TvStage'
+import { TvController } from './tv/TvController'
 
 type View = 'game' | 'gallery'
 
+// TV second-screen modes are FULLY GATED behind the ?mode= URL flag. With no
+// flag this is null and the app falls through to the normal game below, byte-for-
+// byte unchanged. ?mode=tv-stage = the TV table; ?mode=tv-controller = a phone.
+const TV_MODE = tvMode()
+
 export default function App() {
+  if (TV_MODE === 'tv-stage') return <TvStage />
+  if (TV_MODE === 'tv-controller') return <TvController />
+  return <NormalApp />
+}
+
+function NormalApp() {
   const [view, setView] = useState<View>('game')
   // wire the first-gesture audio unlock once (no-op until the user interacts)
   useEffect(() => initAudio(), [])
