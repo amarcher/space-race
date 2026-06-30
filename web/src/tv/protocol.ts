@@ -44,7 +44,7 @@ export interface ControllerView {
 /** controller → stage. `move` is an engine Move; the stage re-validates it against
  * legalMoves before applying (never trusts the phone). */
 export type ControllerMsg =
-  | { t: 'hello' } // ask the stage to (re)push my view
+  | { t: 'hello'; token: string } // identify (stable per-device token) + ask for my view
   | { t: 'move'; move: Move }
   | { t: 'newRound' }
 

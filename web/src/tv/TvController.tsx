@@ -15,6 +15,39 @@ import { arcadeOrigin } from './mode'
 import type { ControllerMsg, ControllerView } from './protocol'
 import './Tv.css'
 
+const TOKEN_KEY = 'spacerace_tv_token'
+
+/** A STABLE per-device identity that survives reconnects (Wi-Fi drops on phones
+ * are constant). The stage binds a seat to this token, not the ephemeral WS
+ * connection id — so a reconnect reclaims the SAME seat (and only that seat's
+ * hand) instead of being remapped onto someone else's. */
+function deviceToken(): string {
+  // Explicit override (?token=…) — lets two controllers run on ONE machine/origin
+  // (which otherwise share localStorage) and makes reconnect testing deterministic.
+  // Tokens are seat-identity, not secrets, so this grants nothing a localStorage
+  // edit wouldn't; the "occupied seat is never reassigned" rule still holds.
+  try {
+    const forced = new URLSearchParams(window.location.search).get('token')
+    if (forced) return forced.slice(0, 64)
+  } catch {
+    /* ignore */
+  }
+  try {
+    const existing = localStorage.getItem(TOKEN_KEY)
+    if (existing) return existing
+    const t =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tv-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`
+    localStorage.setItem(TOKEN_KEY, t)
+    return t
+  } catch {
+    // private-mode / no storage: fall back to a session-stable token (no reclaim
+    // across reloads, but still stable for this page's lifetime).
+    return `tv-${Math.random().toString(36).slice(2)}`
+  }
+}
+
 export function TvController() {
   const [view, setView] = useState<ControllerView | null>(null)
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
@@ -22,10 +55,12 @@ export function TvController() {
   const clientRef = useRef<ArcadeClient | null>(null)
 
   useEffect(() => {
+    const token = deviceToken()
     const c = new ArcadeClient('controller', arcadeOrigin())
     clientRef.current = c
     c.onStatus(setStatus)
-    c.onWelcome(() => c.sendToStage({ t: 'hello' } satisfies ControllerMsg))
+    // greet with the stable token on every (re)connect so the stage reclaims our seat
+    c.onWelcome(() => c.sendToStage({ t: 'hello', token } satisfies ControllerMsg))
     c.onRelay((_from, payload) => setView(payload as ControllerView))
     return () => c.close()
   }, [])

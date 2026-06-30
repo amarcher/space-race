@@ -36,19 +36,17 @@ const DRAW_DELAY = 520
 const SCRY_DELAY = 640
 const AI_DELAY = 820
 
-// AI plays any seat with no controller; a seat a phone holds is human.
-function aiSeatsFor(assign: Map<number, number>): number[] {
-  const humans = new Set(assign.values())
-  return [0, 1].filter((s) => !humans.has(s))
+// A seat OWNED by a controller token is a human seat; an unowned seat is the AI's.
+function aiSeatsFor(owned: Set<number>): number[] {
+  return [0, 1].filter((s) => !owned.has(s))
 }
 
-function namesFor(assign: Map<number, number>): [string, string] {
-  const humans = new Set(assign.values())
-  return [humans.has(0) ? 'Player 1' : 'Computer', humans.has(1) ? 'Player 2' : 'Computer']
+function namesFor(owned: Set<number>): [string, string] {
+  return [owned.has(0) ? 'Player 1' : 'Computer', owned.has(1) ? 'Player 2' : 'Computer']
 }
 
-function makeGame(assign: Map<number, number>): GameState {
-  return createGame({ rules: loadRules(), names: namesFor(assign), aiSeats: aiSeatsFor(assign) })
+function makeGame(owned: Set<number>): GameState {
+  return createGame({ rules: loadRules(), names: namesFor(owned), aiSeats: aiSeatsFor(owned) })
 }
 
 /** Canonicalize an untrusted controller move against the current legal set, or
@@ -108,64 +106,115 @@ function viewFor(g: GameState, seat: number): ControllerView {
 }
 
 export function TvStage() {
-  const [assign, setAssign] = useState<Map<number, number>>(() => new Map())
-  const [game, setGame] = useState<GameState>(() => makeGame(new Map()))
+  const [game, setGame] = useState<GameState>(() => makeGame(new Set()))
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
+  const [bindVersion, setBindVersion] = useState(0) // bumped on any binding/liveness change
   const [animating] = useState(false) // reserved (no flight animations on the stage yet)
 
   const clientRef = useRef<ArcadeClient | null>(null)
-  const assignRef = useRef(assign)
-  assignRef.current = assign
+  // STABLE seat binding by persistent controller TOKEN (not the ephemeral WS id).
+  const tokenSeatRef = useRef(new Map<string, number>()) // token -> seat (held for the whole game)
+  const idTokenRef = useRef(new Map<number, string>()) // current connection id -> its token (from hello)
+  const connectedIdsRef = useRef(new Set<number>()) // controller ids currently connected (roster)
   const gameRef = useRef(game)
   gameRef.current = game
 
-  const hasController = assign.size > 0
+  // Tokens whose connection id is currently present → the seats actually being
+  // driven by a live human right now. A bound-but-disconnected seat is NOT live
+  // (the AI fills it until that token reconnects).
+  const liveSeats = (): Set<number> => {
+    const liveTokens = new Set<string>()
+    for (const id of connectedIdsRef.current) {
+      const t = idTokenRef.current.get(id)
+      if (t) liveTokens.add(t)
+    }
+    const seats = new Set<number>()
+    for (const [tok, seat] of tokenSeatRef.current) if (liveTokens.has(tok)) seats.add(seat)
+    return seats
+  }
 
-  // Apply a validated move and let the broadcast effect repush views.
-  const apply = (move: Move) => setGame((g) => applyMove(g, move))
+  // Build a fresh game whose NAMES come from seat ownership and whose isAI comes
+  // from liveness (an owned-but-disconnected seat is played by the AI for now).
+  const buildGame = (): GameState => {
+    const owned = new Set(tokenSeatRef.current.values())
+    const live = liveSeats()
+    const ng = makeGame(owned)
+    return { ...ng, players: ng.players.map((p) => ({ ...p, isAI: !live.has(p.seat) })) }
+  }
 
-  // ---- roster → seat assignment (controllers in id order get seats 0,1) ----
-  const onRoster = (roster: RosterEntry[]) => {
-    const controllers = roster.filter((c) => c.role === 'controller').sort((a, b) => a.id - b.id)
-    const next = new Map<number, number>()
-    controllers.slice(0, 2).forEach((c, i) => next.set(c.id, i))
-    // changed?
-    const same =
-      next.size === assignRef.current.size && [...next].every(([k, v]) => assignRef.current.get(k) === v)
-    if (same) return
-    assignRef.current = next
-    setAssign(next)
-    const humans = new Set(next.values())
+  // Reflect the current bindings into the live game: rebuild names/seats if the
+  // round hasn't started, else just flip each seat's isAI to match liveness so
+  // progress is preserved. Bumps bindVersion to re-run the view-push + re-render.
+  const reflectBindings = () => {
+    const live = liveSeats()
     setGame((g) => {
-      // If the game hasn't started yet, rebuild it cleanly so seat names + which
-      // seats are AI match the new roster (e.g. the first phone joining seat 0
-      // turns "Computer vs Computer" into "Player 1 vs Computer"). Once a round is
-      // underway, only flip ownership so progress isn't lost.
       const fresh = g.log.length <= 1 && !g.players.some((p) => p.started || p.distance > 0)
-      if (fresh) return makeGame(next)
-      return { ...g, players: g.players.map((p) => ({ ...p, isAI: !humans.has(p.seat) })) }
+      if (fresh) return buildGame()
+      return { ...g, players: g.players.map((p) => ({ ...p, isAI: !live.has(p.seat) })) }
     })
+    setBindVersion((v) => v + 1)
+  }
+
+  // ---- roster → connected-id set (NOTE: never frees a seat; seats stay bound to
+  // their token for the whole game so a disconnect can't hand the hand to anyone) ----
+  const onRoster = (roster: RosterEntry[]) => {
+    const ids = new Set(roster.filter((c) => c.role === 'controller').map((c) => c.id))
+    const prev = connectedIdsRef.current
+    const same = ids.size === prev.size && [...ids].every((id) => prev.has(id))
+    if (same) return // 30 Hz roster broadcast — only act on a real join/leave
+    // drop id→token for ids that vanished (their seat stays bound to the token)
+    for (const id of [...idTokenRef.current.keys()]) if (!ids.has(id)) idTokenRef.current.delete(id)
+    connectedIdsRef.current = ids
+    reflectBindings()
   }
 
   // Handle an inbound controller message (kept in a ref so the WS callback always
-  // sees fresh state/assignment).
+  // sees fresh state/bindings).
   const handleMsg = useCallbackRef((from: number, payload: unknown) => {
     const msg = payload as ControllerMsg
     if (!msg || typeof msg !== 'object') return
-    const g = gameRef.current
-    const seat = assignRef.current.get(from)
+
     if (msg.t === 'hello') {
-      if (seat != null) clientRef.current?.sendToController(from, viewFor(g, seat))
+      const token = typeof msg.token === 'string' && msg.token ? msg.token.slice(0, 64) : null
+      if (!token) return // no token → no seat, and (critically) no view pushed
+      connectedIdsRef.current.add(from)
+      idTokenRef.current.set(from, token)
+      let seat = tokenSeatRef.current.get(token)
+      if (seat === undefined) {
+        // Brand-new token: take the lowest FREE seat. A seat already owned by
+        // another token (even one currently disconnected) is NEVER reassigned —
+        // so a 3rd device with both seats taken gets no seat (spectator).
+        const owned = new Set(tokenSeatRef.current.values())
+        const free = [0, 1].find((s) => !owned.has(s))
+        if (free === undefined) return // both seats occupied — ignore (spectator)
+        seat = free
+        tokenSeatRef.current.set(token, seat)
+      }
+      reflectBindings()
+      clientRef.current?.sendToController(from, viewFor(gameRef.current, seat))
       return
     }
+
     if (msg.t === 'newRound') {
-      if (g.phase === 'roundOver') setGame(makeGame(assignRef.current))
+      if (gameRef.current.phase === 'roundOver') {
+        setGame(buildGame())
+        setBindVersion((v) => v + 1)
+      }
       return
     }
+
     if (msg.t === 'move') {
-      if (seat == null || g.turn !== seat || g.phase === 'roundOver') return
-      const legal = findLegal(g, msg.move)
-      if (legal) apply(legal)
+      // Resolve this connection's seat via its token (never the raw id).
+      const token = idTokenRef.current.get(from)
+      const seat = token != null ? tokenSeatRef.current.get(token) : undefined
+      if (seat === undefined) return
+      // Validate AND apply inside the SAME updater so legality is checked against
+      // the exact state we mutate (no TOCTOU between findLegal and applyMove).
+      setGame((g) => {
+        if (g.turn !== seat || g.phase === 'roundOver') return g
+        const legal = findLegal(g, msg.move)
+        return legal ? applyMove(g, legal) : g
+      })
     }
   })
 
@@ -184,18 +233,31 @@ export function TvStage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ---- push each seated controller its private view on every state change ---
+  // ---- push each SEATED controller its private view on every state change ----
+  // Keyed by the controller's CURRENT id → token → seat. An id with no known
+  // token (hasn't sent hello yet) is pushed NOTHING — so a freshly-connected
+  // device can never be handed another seat's hand before it identifies itself.
   useEffect(() => {
     const c = clientRef.current
     if (!c) return
-    for (const [clientId, seat] of assign) c.sendToController(clientId, viewFor(game, seat))
-  }, [game, assign])
+    for (const id of connectedIdsRef.current) {
+      const token = idTokenRef.current.get(id)
+      const seat = token != null ? tokenSeatRef.current.get(token) : undefined
+      if (seat !== undefined) c.sendToController(id, viewFor(game, seat))
+    }
+  }, [game, bindVersion])
 
-  // ---- AI turn loop (only seats with no controller; paused until a phone joins) ----
+  // Derived each render (refs + bindVersion drive re-render): the seats with a
+  // live human, and whether any phone is connected.
+  const liveSeatSet = liveSeats()
+  const hasController = liveSeatSet.size > 0
+  void bindVersion // bindVersion is a render trigger for the ref-derived values above
+
+  // ---- AI turn loop (fills any seat with no LIVE human; paused until a phone joins) ----
   useEffect(() => {
     if (!hasController || game.phase === 'roundOver' || animating) return
     const cur = game.players[game.turn]
-    if (!cur.isAI) return // a human seat — wait for the controller
+    if (!cur.isAI) return // a live human seat — wait for the controller
     let delay = AI_DELAY
     if (game.phase === 'draw') delay = DRAW_DELAY
     else if (game.phase === 'scry') delay = SCRY_DELAY
@@ -205,7 +267,7 @@ export function TvStage() {
         : game.phase === 'draw'
           ? { type: 'draw', source: 'deck' }
           : { type: 'pass' }
-    const t = setTimeout(() => apply(chooseMove(game) ?? fallback), delay)
+    const t = setTimeout(() => setGame((g) => applyMove(g, chooseMove(g) ?? fallback)), delay)
     return () => clearTimeout(t)
   }, [game, hasController, animating])
 
@@ -227,7 +289,7 @@ export function TvStage() {
         <h1 className="tv__title">1000 Light-Years</h1>
         <div className="tv__turn">{turnLabel}</div>
         <div className={`tv__conn tv__conn--${status}`} title={`arcade: ${arcadeOrigin()}`}>
-          {status === 'open' ? `${assign.size} player${assign.size === 1 ? '' : 's'}` : status}
+          {status === 'open' ? `${liveSeatSet.size} player${liveSeatSet.size === 1 ? '' : 's'}` : status}
         </div>
       </header>
 
