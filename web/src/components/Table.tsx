@@ -27,10 +27,9 @@ import { Avatar } from './Avatar'
 import { CardTakeover, type TakeoverVariant } from './CardTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
-import { GameLog, whoFor } from './GameLog'
-import { Hand } from './Hand'
-import { PlayerBoard } from './PlayerBoard'
+import { whoFor } from './GameLog'
 import { SlingshotOverlay } from './SlingshotOverlay'
+import { TableView } from './TableView'
 import { WinTakeover } from './WinTakeover'
 import { prefersReducedMotion, type Rect } from '../motion'
 import './Table.css'
@@ -246,8 +245,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
   // MOMENTUM mode: per-board gauge data (null = mode off → no gauge rendered).
   // The human's gauge becomes a tappable SPEND when canBurst is true.
   const momentumOn = state.rules.momentum
-  const humanMomentum = momentumOn ? { charge: state.momentum[0], cap: MOMENTUM_CAP } : null
-  const oppMomentum = momentumOn ? { charge: state.momentum[1], cap: MOMENTUM_CAP } : null
   const humanCanBurst = momentumOn && yourTurn && !animating && canBurst(state, 0)
 
   // A hazard slams a ship: jolt the whole table, flash red, and recoil the
@@ -615,7 +612,6 @@ export function Table({ onExit }: { onExit?: () => void }) {
   const drawPhaseHuman = state.turn === 0 && state.phase === 'draw'
   // you've drawn but hold nothing playable → must discard; invite the discard pile
   const mustDiscard = yourTurn && playableUids.size === 0
-  const topDiscard = state.discard[state.discard.length - 1]
 
   // Warn before leaving/refreshing with a game actually IN PROGRESS (state is
   // in-memory and lost). Gate it: not over, and meaningfully touched — a card has
@@ -758,147 +754,42 @@ export function Table({ onExit }: { onExit?: () => void }) {
         </div>
       </header>
 
-      <div className="table__body">
-       <div className="table__main">
-      {/* the board recedes onto a perspective plane for depth; the hand stays
-          flat below it (outside this wrapper) so it reads face-on to the player */}
-      <div className="table__plane">
-      <div
-        data-drop="opp"
-        ref={oppHandRef}
-        className={`dropzone ${dragUid ? (drop.opp ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
-          hoverZone === 'opp' && drop.opp ? 'dropzone--hot' : ''
-        }`}
-      >
-        <PlayerBoard
-          player={opp}
-          isOpponent
-          who="cpu"
-          active={state.turn === 1 && state.phase !== 'roundOver'}
-          impact={impact?.seat === opp.seat ? impact.tone : null}
-          momentum={oppMomentum}
-          selfHeal={state.rules.selfHeal}
-        />
-        {drop.opp && (
-          <span className="dropzone__tag dropzone__tag--hazard" aria-label="Drop to attack"><Icon name="burst" /></span>
-        )}
-      </div>
-
-      <div className="table__center">
-        <div
-          ref={deckRef}
-          className={`pile ${canDrawDeck ? 'pile--draw' : ''} ${drawNudge ? 'pile--nudge' : ''}`}
-          title={canDrawDeck ? 'Tap to draw' : undefined}
-        >
-          <Card faceDown size="md" onClick={canDrawDeck ? () => drawFrom('deck') : undefined} />
-          <span className="pile__count">{state.deck.length}</span>
-          {/* drawability is shown by the bespoke pulsing ring on .pile--draw (CSS) */}
-        </div>
-        <div
-          ref={discardRef}
-          data-drop="discard"
-          className={`pile dropzone ${dragUid ? (drop.discard ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
-            hoverZone === 'discard' && drop.discard ? 'dropzone--hot' : ''
-          } ${canDrawDiscard ? 'pile--draw' : ''} ${drawNudge ? 'pile--nudge' : ''} ${
-            hideDiscardTop ? 'pile--ghost' : ''
-          } ${mustDiscard ? 'pile--invite' : ''}`}
-          title={canDrawDiscard ? 'Tap to take this card' : undefined}
-        >
-          {topDiscard ? (
-            <Card
-              key={topDiscard.uid}
-              kind={topDiscard.kind}
-              size="md"
-              showName={false}
-              onClick={canDrawDiscard ? () => drawFrom('discard') : undefined}
-            />
-          ) : (
-            <div className="pile__empty" />
-          )}
-          <span className="pile__label" aria-label="Discard pile">{canDrawDiscard ? null : <Icon name="bin" size={16} />}</span>
-        </div>
-      </div>
-
-      <div
-        data-drop="self"
-        className={`dropzone ${dragUid ? (drop.self ? 'dropzone--ok' : 'dropzone--dim') : ''} ${
-          hoverZone === 'self' && drop.self ? 'dropzone--hot' : ''
-        } ${state.breakaway === 0 ? 'dropzone--breakaway' : ''}`}
-      >
-        <PlayerBoard
-          player={human}
-          isOpponent={false}
-          who="you"
-          active={yourTurn}
-          impact={impact?.seat === human.seat ? impact.tone : null}
-          momentum={humanMomentum}
-          canBurst={humanCanBurst}
-          onBurst={doBurst}
-          selfHeal={state.rules.selfHeal}
-        />
-        {drop.self && <span className="dropzone__tag" aria-label="Drop to play"><Icon name="check" /></span>}
-      </div>
-      </div>
-
-      {/* tap-catcher: with a card selected, tapping anywhere off the card + action
-          bar returns it to the hand (clears the selection). Hidden during a drag
-          so it never intercepts the crane drop hit-test. The hand sits above it,
-          so tapping another card still re-selects, and the lifted card toggles. */}
-      {selectedUid && yourTurn && !dragUid && (
-        <div className="select-scrim" onClick={() => setSelectedUid(null)} aria-hidden />
-      )}
-
-      <div ref={handRef} className="hand-wrap" onPointerDownCapture={drawPhaseHuman ? nudgeToDraw : undefined}>
-        <Hand
-          player={human}
-          playableUids={playableUids}
-          selectedUid={selectedUid}
-          draggingUid={dragUid}
-          incomingUid={incomingUid}
-          yourTurn={yourTurn}
-          onSelect={(uid) => setSelectedUid((c) => (c === uid ? null : uid))}
-          onDragStart={(e, uid) => cardDrag.begin(e, uid, human.hand.find((c) => c.uid === uid)?.kind ?? '')}
-          wasDragged={cardDrag.wasDragged}
-        />
-      </div>
-
-       </div>
-
-       {logOpen && (
-       <aside className="table__log" aria-label="Game log">
-         <GameLog log={state.log} limit={18} />
-       </aside>
-       )}
-
-       {/* commit panel: lives in the left gutter (mirrors the log) so it stays
-           clear of a screen-bottom dictation/HUD overlay */}
-       <div className={`actionbar ${selectedUid && yourTurn ? 'actionbar--show' : ''}`}>
-         {selectedDef && selectedKind && (
-           <>
-             <span className="actionbar__thumb">
-               <Card kind={selectedKind} size="sm" showName={false} />
-             </span>
-             <button
-               className="btn btn--play btn--bigicon"
-               onClick={doPlay}
-               disabled={!selectedPlay}
-               title={playLabel}
-               aria-label={playLabel}
-             >
-               <Icon name={selectedDef.type === 'hazard' ? 'burst' : 'play'} />
-             </button>
-             <button
-               className="btn btn--discard btn--bigicon"
-               onClick={doDiscard}
-               title="Discard"
-               aria-label="Discard"
-             >
-               <Icon name="bin" />
-             </button>
-           </>
-         )}
-       </div>
-      </div>
+      <TableView
+        game={state}
+        showLog={logOpen}
+        play={{
+          oppHandRef,
+          deckRef,
+          discardRef,
+          handRef,
+          dragUid,
+          hoverZone,
+          drop,
+          impact,
+          canDrawDeck,
+          canDrawDiscard,
+          drawFrom,
+          drawNudge,
+          hideDiscardTop,
+          mustDiscard,
+          drawPhaseHuman,
+          nudgeToDraw,
+          yourTurn,
+          humanCanBurst,
+          doBurst,
+          selectedUid,
+          setSelectedUid,
+          playableUids,
+          incomingUid,
+          cardDrag,
+          selectedDef,
+          selectedKind,
+          selectedPlay,
+          playLabel,
+          doPlay,
+          doDiscard,
+        }}
+      />
 
       <FlightLayer flights={flights} />
       <DragLayer drag={drag} />

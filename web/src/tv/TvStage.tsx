@@ -22,16 +22,13 @@ import {
   type GameState,
   type Move,
 } from '../game'
-import { MOMENTUM_CAP } from '../game/rules'
 import { CARD_DEFS } from '../game/cards'
 import { cardVideo } from '../game/cardArt'
 import { prefersReducedMotion } from '../motion'
 import { loadRules } from '../settings'
-import { PlayerBoard } from '../components/PlayerBoard'
-import { Card } from '../components/Card'
 import { CardTakeover, type TakeoverVariant } from '../components/CardTakeover'
 import { WinTakeover } from '../components/WinTakeover'
-import { GameLog } from '../components/GameLog'
+import { TableView } from '../components/TableView'
 import { ArcadeClient, type RelayRoomState, type RosterEntry } from './arcadeClient'
 import { arcadeHttpOrigin, arcadeOrigin } from './mode'
 import type { ControllerMsg, ControllerView } from './protocol'
@@ -346,7 +343,6 @@ export function TvStage() {
     return () => clearTimeout(t)
   }, [game, hasController, animating, takeover])
 
-  const momentumOn = game.rules.momentum
   const cur = game.players[game.turn]
   const turnLabel =
     game.phase === 'roundOver'
@@ -355,13 +351,11 @@ export function TvStage() {
         : 'Round over'
       : `${cur.name}'s turn — ${game.phase}`
 
-  const topDiscard = game.discard[game.discard.length - 1]
-
   return (
-    // The stage renders the REAL table (Table.css): the perspective board plane,
-    // the deck/discard piles, and the icon LogRow log in its gutter panel — minus
-    // the hand + interaction (display-only; moves arrive from controllers). A
-    // wrapper supplies the backdrop the normal app gets from <Starfield>.
+    // The stage renders the REAL <TableView> (the same presenter the normal app
+    // uses) fed the relay-synced GameState, with NO `play` bundle → the hand +
+    // interaction are hidden (moves arrive from controllers). A wrapper supplies
+    // the backdrop the normal app gets from <Starfield>.
     <div className="tv-stage-root">
       <div className="table">
         <header className="table__bar">
@@ -374,52 +368,7 @@ export function TvStage() {
           </div>
         </header>
 
-        <div className="table__body">
-          <div className="table__main">
-            <div className="table__plane">
-              <div className="dropzone">
-                <PlayerBoard
-                  player={game.players[1]}
-                  isOpponent
-                  who="cpu"
-                  active={game.turn === 1 && game.phase !== 'roundOver'}
-                  momentum={momentumOn ? { charge: game.momentum[1], cap: MOMENTUM_CAP } : null}
-                  selfHeal={game.rules.selfHeal}
-                />
-              </div>
-
-              <div className="table__center">
-                <div className="pile">
-                  <Card faceDown size="md" />
-                  <span className="pile__count">{game.deck.length}</span>
-                </div>
-                <div className="pile">
-                  {topDiscard ? (
-                    <Card key={topDiscard.uid} kind={topDiscard.kind} size="md" showName={false} />
-                  ) : (
-                    <div className="pile__empty" />
-                  )}
-                </div>
-              </div>
-
-              <div className="dropzone">
-                <PlayerBoard
-                  player={game.players[0]}
-                  isOpponent={false}
-                  who="you"
-                  active={game.turn === 0 && game.phase !== 'roundOver'}
-                  momentum={momentumOn ? { charge: game.momentum[0], cap: MOMENTUM_CAP } : null}
-                  selfHeal={game.rules.selfHeal}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* the REAL icon log (shared LogRow) in Table.css's gutter panel */}
-          <aside className="table__log" aria-label="Game log">
-            <GameLog log={game.log} limit={18} />
-          </aside>
-        </div>
+        <TableView game={game} showLog />
       </div>
 
       {!hasController && (
