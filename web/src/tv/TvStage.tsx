@@ -37,7 +37,9 @@ export function TvStage() {
       ? game.winner != null
         ? `${game.players[game.winner].name} wins!`
         : 'Round over'
-      : `${game.players[game.turn].name}'s turn — ${game.phase}`
+      : game.players[game.turn].name === 'You'
+        ? `Your turn — ${game.phase}`
+        : `${game.players[game.turn].name}'s turn — ${game.phase}`
 
   return (
     <div className="tv-stage-root">
