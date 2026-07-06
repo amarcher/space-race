@@ -9,7 +9,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Manual registration (see src/main.tsx) so we can gate it OFF inside the
+      // native iOS app — Capacitor serves from disk, so Workbox caching is pure
+      // overhead there. On web the SW still registers, byte-identical in effect.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
         name: 'Space Race',
