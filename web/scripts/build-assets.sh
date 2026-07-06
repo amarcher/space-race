@@ -13,7 +13,7 @@ QUALITY=82
 
 # source-relative-to-artbin  ->  output-id
 map=(
-  "s1-07-25ly-warp_v1.jpg|warp-25"
+  "s1-07-25ly-warp_v2.jpg|warp-25"
   "s1-06-50ly-warp_v1.jpg|warp-50"
   "s1-05-75ly-warp_v1.jpg|warp-75"
   "s1-04-100ly-warp_v1.jpg|warp-100"
