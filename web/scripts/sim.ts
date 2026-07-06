@@ -1,10 +1,10 @@
 // Self-play smoke test: run many AI-vs-AI games, assert they terminate and the
 // rules hold. Runs BOTH gameplay modes — classic (DEFAULT_RULES) and scry — so
 // every selectable mode stays green. Run with: npx tsx scripts/sim.ts
-import { createGame, applyMove, legalMoves, scoreRound, type GameState } from '../src/game/engine'
+import { createGame, applyMove, legalMoves, scoreRound, activeHazard, type GameState } from '../src/game/engine'
 import { chooseMove } from '../src/game/ai'
 import { type GameRules } from '../src/game/rules'
-import { WIN_DISTANCE, MAX_200_PER_PLAYER, LANES } from '../src/game/cards'
+import { WIN_DISTANCE, MAX_200_PER_PLAYER, LANES, CARD_DEFS, type CardInstance } from '../src/game/cards'
 
 function playGame(seed: number, rules?: Partial<GameRules>): { state: GameState; turns: number } {
   let state = createGame({ aiSeats: [0, 1], seed, names: ['A', 'B'], rules })
@@ -88,6 +88,42 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
   console.log(`  Max turns in a game: ${maxTurns}`)
   console.log(`  Sample game score: ${scores.map((s) => `${s.name}=${s.total}`).join('  ')}`)
 }
+
+// A normally-played safety must sweep the matching active hazard(s) off the board
+// into the discard — all four safeties, including Rescue Shuttle's two hazards.
+// Deterministic scenario: hand-place a hazard on the victim, then play the safety.
+function checkSafetySweep() {
+  const cases: [string, string[]][] = [
+    ['ace-pilot', ['asteroid-strike']],
+    ['antimatter-fuel-cell', ['empty-tank']],
+    ['diamond-thruster', ['busted-thruster']],
+    ['rescue-shuttle', ['tractor-beam', 'black-hole']],
+  ]
+  for (const [safety, hazards] of cases) {
+    const s = createGame({ aiSeats: [], seed: 42, names: ['A', 'B'] })
+    const me = s.players[0]
+    me.started = true
+    // place each covered hazard on its lane and give the player the safety
+    for (const hk of hazards) me.battle[CARD_DEFS[hk].lane!].push({ uid: `t-${hk}`, kind: hk })
+    const safetyCard: CardInstance = { uid: `t-${safety}`, kind: safety }
+    me.hand = [safetyCard]
+    const before = s.discard.length
+    const next = applyMove(s, { type: 'play', uid: safetyCard.uid })
+    const p = next.players[0]
+    // every covered lane is clear of its hazard, and each swept card is in discard
+    for (const hk of hazards) {
+      const lane = CARD_DEFS[hk].lane!
+      if (p.battle[lane].some((c) => c.kind === hk))
+        throw new Error(`[safety-sweep] ${safety} left ${hk} on the ${lane} lane`)
+    }
+    if (next.discard.length !== before + hazards.length)
+      throw new Error(`[safety-sweep] ${safety} did not sweep ${hazards.length} hazard(s) to discard`)
+    if (activeHazard(p) !== null)
+      throw new Error(`[safety-sweep] ${safety} left a blocking hazard active`)
+  }
+  console.log(`[safety-sweep] all four safeties sweep their matching active hazard(s) to discard. ✅`)
+}
+checkSafetySweep()
 
 const N = 400
 runMode('classic', undefined, N)

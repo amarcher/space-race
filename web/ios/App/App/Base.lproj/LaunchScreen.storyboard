@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Flat #07071a launch screen. Replaces the default Capacitor "Splash" imageset
-     so the boot is continuous with the starfield (backgroundColor #07071a) — no
-     white flash, no stretched logo. A plain dark view is enough; the web layer
-     paints the starfield the instant it loads. -->
+<!-- Ace Pilot launch screen. A full-bleed aspect-fill still of the Ace Pilot over
+     the #07071a background (shows through any letterbox before the fill covers).
+     The web boot splash (src/native/BootSplash.tsx) renders the SAME still full-
+     bleed, then plays the takeover clip — so the native launch is one continuous
+     Ace-Pilot beat: storyboard still → web still → takeover motion → game table. -->
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
     <device id="retina6_12" orientation="portrait" appearance="dark"/>
     <dependencies>
@@ -19,7 +20,18 @@
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="AcePilot" translatesAutoresizingMaskIntoConstraints="NO" id="Ap1-lt-000">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                            </imageView>
+                        </subviews>
                         <color key="backgroundColor" red="0.027450980392156862" green="0.027450980392156862" blue="0.10196078431372549" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="Ap1-lt-000" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="Ap1-lt-001"/>
+                            <constraint firstItem="Ap1-lt-000" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="Ap1-lt-002"/>
+                            <constraint firstAttribute="trailing" secondItem="Ap1-lt-000" secondAttribute="trailing" id="Ap1-lt-003"/>
+                            <constraint firstAttribute="bottom" secondItem="Ap1-lt-000" secondAttribute="bottom" id="Ap1-lt-004"/>
+                        </constraints>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
                 </viewController>
@@ -28,4 +40,7 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="AcePilot" width="1290" height="1727"/>
+    </resources>
 </document>

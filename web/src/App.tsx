@@ -12,6 +12,7 @@ import { TvStage } from './tv/TvStage'
 import { usePhoneBroadcast } from './tv/usePhoneBroadcast'
 import { initStatusBar } from './native/statusBar'
 import { keepScreenAwake } from './native/keepAwake'
+import { BootSplash } from './native/BootSplash'
 
 type View = 'game' | 'gallery'
 
@@ -46,6 +47,8 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
   }, [])
   return (
     <>
+      {/* native-only Ace-Pilot boot splash, over everything until it fades (no-op on web) */}
+      <BootSplash />
       <Starfield />
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
