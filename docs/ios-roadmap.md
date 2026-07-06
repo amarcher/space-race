@@ -192,6 +192,10 @@ The card set must stay **swappable** — art and names will get another pass.
   art/name lands by replacing an asset + one definition entry, no engine
   changes. (After any swap, re-run `npx cap sync` so the bundle picks it up.)
 - **Thruster** — weakest card art; queue for regeneration in the next art pass.
+- **Warp-25 animated clip** — the still now reads as a slow drift (regenerated
+  2026-07-06, artbin s1-07-25ly-warp_v2); the card-play CLIP + poster
+  (public/cards/video/warp-25.*) still show fast streaks — regenerate to match
+  in the next art pass.
 - **Tractor Beam** — weakest *comprehension*: players don't get that it caps
   you at 50 LY per play. Fixes to explore (pick during the pass, cheap → rich):
   card-face copy ("MAX 50 LY"), a persistent "⛓ 50 LY cap" chip on the
