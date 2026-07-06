@@ -14,6 +14,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;   /* tally card anchors to the bottom */
+  /* the hero video/FX layers are position:absolute so they stay full-bleed
+     under the notch; this padding only insets the interactive tally card */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: #05050f;
   animation: winIn 400ms ease both;
 }

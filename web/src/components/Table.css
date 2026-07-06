@@ -11,7 +11,11 @@
   --play-w: min(1180px, calc(100% - 2 * (var(--log-w) + var(--gutter-gap))));
   max-width: 1520px;
   margin: 0 auto;
-  padding: 8px 18px 10px;
+  /* every edge clears the notch / Dynamic Island / home indicator / rounded
+     corners; max() keeps desktop byte-identical (insets are 0 there). The hand
+     fan is in-flow at the bottom of this element, so the bottom max() also
+     lifts it above the home indicator. */
+  padding: max(8px, var(--safe-top)) max(18px, var(--safe-right)) max(10px, var(--safe-bottom)) max(18px, var(--safe-left));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -259,8 +263,10 @@
    so the board breathes. Toggled by the 📜 button in the header. */
 .table__log {
   position: fixed;
-  top: 54px;
-  right: 16px;
+  /* the header below it is pushed down by the table's safe-top padding, so the
+     dropdown tracks it; right edge clears a landscape corner cutout */
+  top: calc(54px + var(--safe-top));
+  right: max(16px, var(--safe-right));
   width: clamp(170px, 22vw, 232px);
   max-height: 62vh;
   z-index: 58;
@@ -523,6 +529,8 @@
   z-index: 60;
   display: grid;
   place-items: center;
+  /* centre the card within the safe region (matters in notched landscape) */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: rgba(3, 3, 14, 0.72);
   backdrop-filter: blur(8px);
   animation: toastin 240ms ease;
@@ -563,8 +571,8 @@
 .scoreboard__reopen {
   position: fixed;
   z-index: 60;
-  bottom: 20px;
-  right: 20px;
+  bottom: calc(20px + var(--safe-bottom)); /* clear the home indicator */
+  right: calc(20px + var(--safe-right));
   width: 56px;
   height: 56px;
   display: grid;
@@ -636,7 +644,7 @@
        fits one non-scrolling phone screen with no overlap. */
     --play-w: 100%;
     --deck-w: clamp(72px, 12vh, 116px); /* was 19.5vh — the piles dominated */
-    padding: 8px 8px 10px;
+    padding: max(8px, var(--safe-top)) max(8px, var(--safe-right)) max(10px, var(--safe-bottom)) max(8px, var(--safe-left));
     gap: 6px;
   }
   /* single header row: title + all four icon buttons must fit one phone line, so
@@ -673,7 +681,9 @@
     left: 50%;
     right: auto;
     top: auto;
-    bottom: clamp(146px, 18.5vh, 178px); /* float just above the hand */
+    /* float just above the hand — which itself is lifted by the table's
+       safe-bottom padding, so track that lift */
+    bottom: calc(clamp(146px, 18.5vh, 178px) + var(--safe-bottom));
     max-width: calc(100% - 24px);
     width: auto;
     flex-direction: row;
@@ -701,6 +711,8 @@
   z-index: 60;
   display: grid;
   place-items: center;
+  /* the pick row is interactive — centre it within the safe region */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   animation: scryIn 0.18s ease-out;
 }
 @keyframes scryIn { from { opacity: 0; } to { opacity: 1; } }
