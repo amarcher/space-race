@@ -9,6 +9,8 @@ import { Table } from './components/Table'
 import { tvMode } from './tv/mode'
 import { TvStage } from './tv/TvStage'
 import { usePhoneBroadcast } from './tv/usePhoneBroadcast'
+import { initStatusBar } from './native/statusBar'
+import { keepScreenAwake } from './native/keepAwake'
 
 type View = 'game' | 'gallery'
 
@@ -35,6 +37,12 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
   const [view, setView] = useState<View>('game')
   // wire the first-gesture audio unlock once (no-op until the user interacts)
   useEffect(() => initAudio(), [])
+  // native-only boot: light status-bar over the dark starfield, and hold the
+  // screen on for the session (both no-op on web). See src/native/.
+  useEffect(() => {
+    initStatusBar()
+    keepScreenAwake()
+  }, [])
   return (
     <>
       <Starfield />

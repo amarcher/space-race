@@ -338,9 +338,21 @@
 .win-takeover__coup b { font-variant-numeric: tabular-nums; }
 
 /* ── play-again ─────────────────────────────────────────────────────────── */
-.win-takeover__again {
+/* the play-again + share row: play-again is the wide primary, share a compact
+   secondary that only appears on a win (see WinTakeover.tsx) */
+.win-takeover__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
   max-width: 280px;
+}
+.win-takeover__again {
+  flex: 1;
+}
+.win-takeover__share {
+  flex: 0 0 auto;
 }
 
 /* ─── MOBILE ────────────────────────────────────────────────────────────────── */

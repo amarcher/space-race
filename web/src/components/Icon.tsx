@@ -22,6 +22,7 @@ export type IconName =
   | 'sound-on' // audio on (speaker + waves)
   | 'sound-off' // audio muted (speaker + x)
   | 'gear' // settings
+  | 'share' // share the win (box + up arrow)
 
 interface IconProps {
   name: IconName
@@ -91,6 +92,14 @@ export function Icon({ name, size = '1em', className }: IconProps) {
       return (
         <svg {...common} fill="currentColor" stroke="none">
           <path d="M7 4.5l13 7.5-13 7.5z" />
+        </svg>
+      )
+    case 'share':
+      // iOS-style share: an outbox tray with a card lifting up out of it
+      return (
+        <svg {...common}>
+          <path d="M12 3v12M8.5 6.5L12 3l3.5 3.5" />
+          <path d="M7 10.5H5.5v9h13v-9H17" />
         </svg>
       )
     case 'bin':

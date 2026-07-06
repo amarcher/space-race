@@ -31,55 +31,57 @@ smoothly on modern iPhones/iPads.
       exploratory modes (catch-up, momentum, self-heal, 3-card scry) live on as
       Settings toggles.
 
-## Phase 1 — Capacitor scaffold (goal: game running on a real iPhone)
+## Phase 1 — Capacitor scaffold ✅ (done 2026-07-06, PR #82; verified in Simulator)
 
-- [ ] `cd web && npm i @capacitor/core && npm i -D @capacitor/cli && npm i @capacitor/ios`
-- [ ] `npx cap init "Space Race" <bundle-id> --web-dir dist` — pick the bundle
-      id once, it's forever (suggest `tech.spaceexplorer.spacerace`).
-- [ ] `npm run build && npx cap add ios && npx cap open ios` — first run in the
-      Simulator, then a cabled device (free personal team signing is fine for
-      this phase).
-- [ ] **Bundle all assets**: `dist/` (~101MB incl. `cards/`, `sfx/`, `ui/`,
-      `win/`) ships inside the app. Fully offline, zero server dependency.
-      Well under App Store size limits; nothing needs to stay remote.
-- [ ] **Disable the service worker in the native app** — Capacitor serves from
-      disk, Workbox caching is pure overhead there. Gate registration on
-      `Capacitor.isNativePlatform()` (keep it for web).
-- [ ] `capacitor.config.ts`: `allowsInlineMediaPlayback: true`,
-      `mediaPlaybackRequiresUserAction: false` (card-play clips and the win
-      hero autoplay), `backgroundColor: '#07071a'`.
-- [ ] Verify the AudioContext unlock-on-first-gesture path in `sfx.ts` fires in
-      WKWebView (it should — same Safari engine).
-- [ ] Add `web/ios/` to the repo; gitignore Xcode DerivedData/Pods noise.
-- [ ] Script the sync so iOS never drifts: `"ios": "npm run build && npx cap sync ios"`
-      in `package.json` (open Xcode + archive stays manual for now).
+- [x] `cd web && npm i @capacitor/core && npm i -D @capacitor/cli && npm i @capacitor/ios`
+- [x] `npx cap init "Space Race" tech.spaceexplorer.spacerace --web-dir dist`
+- [x] `npm run build && npx cap add ios` — runs in the iPhone 17 Pro Simulator
+      (Capacitor 8.4.1, SwiftPM — no CocoaPods).
+- [x] **Bundle all assets**: `dist/` ships inside the app. Fully offline, zero
+      server dependency.
+- [x] **Disable the service worker in the native app** — gated on
+      `Capacitor.isNativePlatform()` in `src/main.tsx` (kept for web).
+- [x] `capacitor.config.ts`: `backgroundColor: '#07071a'`. Inline media autoplay
+      is the WKWebView default in Capacitor (no config key needed — documented in
+      the config header).
+- [x] AudioContext unlock-on-first-gesture (`sfx.ts`) confirmed in WKWebView.
+- [x] Add `web/ios/` to the repo; DerivedData/Pods gitignored.
+- [x] `"ios": "npm run build && npx cap sync ios"` in `package.json`.
+- [x] **Self-host fonts** (offline completeness): Unbounded (500/700/900) + Inter
+      (400/500/600/700) latin woff2 in `public/fonts/`, `@font-face` in
+      `index.css`, Google Fonts `<link>`s removed, woff2 precached by the SW.
 
-**Exit criteria:** full game (deal → play → win takeover, sound on) on a
-physical iPhone, airplane mode.
+**Exit criteria:** full game (deal → play → win takeover, sound on) offline —
+met in the Simulator (device/airplane-mode pass deferred to a signed build).
 
-## Phase 2 — Make it feel native
+## Phase 2 — Make it feel native ✅ (done 2026-07-06)
 
-- [ ] **Safe areas** — the big one. `viewport-fit=cover` is already set; audit
-      every screen edge (top bar, hand fan, settings sheet, win takeover) with
-      `env(safe-area-inset-*)` padding so nothing collides with the notch /
-      Dynamic Island / home indicator. Test iPhone SE → Pro Max → iPad.
-- [ ] **Haptics** (`@capacitor/haptics`) behind a tiny `haptics.ts` shim that
-      no-ops on web: light tick on card pick-up/drop, medium on hazard hit,
-      heavy + success pattern on coup-fourré and the win moment. Cheap, and it
-      does the most for the MTG-Arena feel on a phone.
-- [ ] Launch screen: storyboard in `#07071a` with the logo — must feel
-      continuous with the starfield boot.
-- [ ] App icon set from the existing 512px art (regenerate at 1024 for the
-      store).
-- [ ] Status bar: `@capacitor/status-bar`, translucent over the game.
-- [ ] Kill webview artifacts: no rubber-band overscroll, no double-tap zoom, no
-      text selection/callout on long-press of cards (`touch-action`,
-      `-webkit-user-select`, `overscroll-behavior` audit — DragLayer especially).
-- [ ] Keep-awake plugin so the screen doesn't sleep mid-game.
-- [ ] `@capacitor/share` on the win screen — share the win clip (App Review
-      likes native integrations; players like bragging).
+- [x] **Safe areas** — audited every screen edge with `env(safe-area-inset-*)`;
+      centralised `--safe-*` custom properties in `index.css`. (PR #81.)
+- [x] **Haptics** (`@capacitor/haptics` 8.0.2) behind `src/native/haptics.ts`,
+      no-op on web: light on card pick/drop, medium on hazard hit / big
+      momentum, heavy + success ring on coup-fourré and the win. Wired at the
+      same seams as `playSfx()`, gated to player-meaningful moments (your own
+      plays + things happening to you — never buzzing on the AI's routine turns).
+- [x] Launch screen: `LaunchScreen.storyboard` is now a flat `#07071a` view
+      (default Capacitor Splash imageset dropped) — continuous with the starfield
+      boot, verified in the Simulator (dark, no white flash).
+- [x] App icon set: 1024×1024 opaque (no alpha) generated from the `favicon.svg`
+      planet mark; the Capacitor placeholder is replaced.
+- [x] Status bar: `@capacitor/status-bar` 8.0.2, `Style.Dark` (light text) over
+      the dark app, no webview overlay; set once at boot behind the native check.
+- [x] Killed webview artifacts: `overscroll-behavior: none` (no rubber-band),
+      `touch-action: manipulation` (no double-tap zoom), `-webkit-user-select`/
+      `-webkit-touch-callout: none` on the game surface (selection re-enabled on
+      the one scrollable reading view). Cards/DragLayer already covered.
+- [x] Keep-awake (`@capacitor-community/keep-awake` 8.0.1) — screen held on for
+      the session; `src/native/keepAwake.ts`, no-op on web.
+- [x] `@capacitor/share` 8.0.1 on the win screen — a share button (human win
+      only) opens the native sheet on iOS, Web Share on web; `src/native/share.ts`.
 
 **Exit criteria:** a stranger handling the phone can't tell it's a webview.
+(Haptics can't fire in the Simulator — verified by code inspection + a clean
+device build; will feel them on a cabled device in Phase 4.)
 
 ## Phase 3 — iOS-specific edges
 

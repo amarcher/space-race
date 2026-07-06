@@ -19,6 +19,7 @@ import { Settings } from './Settings'
 import { cardHeroVideo, cardVideo } from '../game/cardArt'
 import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
+import * as haptics from '../native/haptics'
 import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
@@ -314,8 +315,10 @@ export function Table({
       if (def.value === 200) {
         if (isPlayer) fireTakeover('warp')
         playSfx('warp')
+        if (isPlayer) haptics.boost()
       } else {
         playSfx('distance')
+        if (isPlayer) haptics.cardDrop()
       }
       return
     }
@@ -331,13 +334,18 @@ export function Table({
       // player's moment) — but NOT the AI's other plays
       if (isPlayer || victimSeat === 0) fireTakeover('hazard')
       playSfx('hazard')
+      // buzz for your own hit or the AI hazarding YOU — getting knocked is the
+      // moment worth feeling; the AI's unrelated plays aren't
+      if (isPlayer || victimSeat === 0) haptics.hazardHit()
     } else if (def.type === 'remedy') {
       setTimeout(() => triggerRecover(victimSeat), 150) // hit-pause beat
       if (isPlayer) fireTakeover('remedy') // the AI fixing its own ship isn't your moment
       playSfx('remedy')
+      if (isPlayer) haptics.remedyPlay()
     } else if (def.type === 'safety') {
       if (isPlayer) fireTakeover('safety')
       playSfx('safety')
+      if (isPlayer) haptics.cardDrop()
     }
   }
 
@@ -515,6 +523,7 @@ export function Table({
     setSlingshot(ev)
     setAnimating(true)
     playSfx('slingshot')
+    haptics.coupFourre() // the showiest reversal — always worth a heavy buzz
     const t = setTimeout(() => {
       setSlingshot(null)
       setAnimating(false)
@@ -533,6 +542,7 @@ export function Table({
     lastHealId.current = ev.id
     triggerRecover(ev.seat)
     playSfx('remedy')
+    if (ev.seat === 0) haptics.remedyPlay() // your lane freed itself
     const el = document.querySelector<HTMLElement>(ev.seat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
     if (el) {
       const r = el.getBoundingClientRect()
@@ -567,6 +577,7 @@ export function Table({
   }
   const doDiscard = () => {
     if (!selectedUid) return
+    haptics.cardDrop()
     animateAndCommit({ type: 'discard', uid: selectedUid })
     setSelectedUid(null)
   }
@@ -582,6 +593,7 @@ export function Table({
       fireBurst(r.left + r.width / 2, r.top + r.height / 2, 'safety') // gold burst
     }
     playSfx('warp') // a charged whoosh — momentum unleashed
+    haptics.boost()
     commit({ type: 'burst' })
   }
   const newRound = () => {
@@ -686,6 +698,7 @@ export function Table({
   const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0
   const drawFrom = (source: 'deck' | 'discard') => {
     if (!drawPhaseHuman || animating) return
+    haptics.cardPick()
     animateAndCommit({ type: 'draw', source })
   }
 
@@ -694,6 +707,7 @@ export function Table({
   const pickScry = (uid: string) => {
     if (!scryPhaseHuman || animating) return
     playSfx('card-flick')
+    haptics.cardPick()
     commit({ type: 'pick', uid })
   }
   // You poked a hand card but haven't drawn yet — flash the draw cues faster for
