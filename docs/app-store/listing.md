@@ -86,11 +86,11 @@ those. "cosmic," "galaxy," "sci-fi" are candidates if any of the above test weak
 |-------|-------|
 | **Support URL** (required) | `https://game.spaceexplorer.tech` |
 | **Marketing URL** (optional) | `https://game.spaceexplorer.tech` |
-| **Privacy Policy URL** | needed before submit — host a short policy page (see Privacy below) |
+| **Privacy Policy URL** | `https://game.spaceexplorer.tech/privacy.html` (static page in `web/public/`, ships with this PR) |
 
-> The web game at `game.spaceexplorer.tech` doubles as support + marketing. A
-> dedicated `/privacy` page (or a section on that site) satisfies the required
-> Privacy Policy URL — App Store Connect will not accept a submission without it.
+> The web game at `game.spaceexplorer.tech` doubles as support + marketing.
+> The policy page is live at `/privacy.html` (no accounts, anonymous analytics
+> only, no tracking) — App Store Connect will not accept a submission without it.
 
 ---
 
