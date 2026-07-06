@@ -25,7 +25,7 @@ export interface GameRules {
    * How many top-of-deck cards a scry draw reveals to the leader — the agency
    * dial for scry mode. 2 = a tighter, faster peek; 3 = the wider, original
    * spread. Optional so it round-trips through persisted settings and the sim
-   * harness; omitted → SCRY_REVEAL (3). Only meaningful when `scry` is on.
+   * harness; omitted → SCRY_REVEAL (2). Only meaningful when `scry` is on.
    */
   scryReveal?: number
 

@@ -1,4 +1,4 @@
-// Pure, serializable game engine for 1000 Light-Years.
+// Pure, serializable game engine for Space Race.
 // No React, no DOM — just GameState + legalMoves + applyMove + scoring.
 // Designed so the exact same state object can later cross a WebSocket.
 

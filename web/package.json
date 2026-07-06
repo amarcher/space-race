@@ -1,9 +1,9 @@
 {
-  "name": "thousand-light-years",
+  "name": "space-race",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "1000 Light-Years - browser card game (Milo's Space Race)",
+  "description": "Space Race - a cosmic card game (browser + iOS)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

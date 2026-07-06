@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>1000 Light-Years — Print &amp; Cut Sheet (106 cards)</title>
+<title>Space Race — Print &amp; Cut Sheet (106 cards)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@500;700;900&display=swap" rel="stylesheet" />
 <style>
   /* ───────────────────────────────────────────────────────────────
-     1000 Light-Years — double-sided print & cut sheet
+     Space Race — double-sided print & cut sheet
      • US Letter (8.5 × 11 in), 3 × 3 cards per page, flush (zero gap)
      • Card cell: 2.25 × 3.0 in  (3:4 portrait, same ratio as on screen)
      • Pages alternate FRONT, BACK, FRONT, BACK … for duplex printing.
@@ -343,7 +343,7 @@
     const slice = deck.slice(p * PER_PAGE, p * PER_PAGE + PER_PAGE);
 
     // FRONT page — cards in reading order, blanks pad the last page.
-    const front = makePage('1000 Light-Years — fronts · sheet ' + (p + 1) + ' / ' + totalSheets);
+    const front = makePage('Space Race — fronts · sheet ' + (p + 1) + ' / ' + totalSheets);
     for (let i = 0; i < PER_PAGE; i++) {
       front.grid.appendChild(i < slice.length ? cardFrontEl(slice[i]) : emptyEl());
     }
