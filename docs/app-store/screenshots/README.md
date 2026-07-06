@@ -25,3 +25,12 @@ Screens that need in-play interaction — a mid-race board with distance/hazards
 played, a Coup-fourré, or the win takeover — can't be reached this way. Grab
 those live during TestFlight on a real device (they're the game's showpieces and
 worth adding before the final submission).
+
+## Gameplay captures (2026-07-06, real play in iPhone 17 Pro Max sim)
+
+- `iphone-6.9-03-rescue-takeover.png` — Rescue Shuttle safety takeover, full-bleed (1320×2868)
+- `iphone-6.9-04-scry.png` — two-card scry reveal, two different cards (1320×2868)
+- `iphone-6.9-05-board-race.png` — mid-game: AI 200 vs player 150, Rescue Shuttle on board (1320×2868)
+- `../previews/app-preview-6.9.mp4` — 19s App Preview (886×1920, H.264 + silent AAC): scry reveal → Rescue Shuttle takeover → aftermath
+
+Suggested store order: rescue-takeover, scry, board-race, table, rules (first 3 appear on install sheets).
