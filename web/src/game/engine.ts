@@ -232,6 +232,29 @@ function ageAndHealHazards(s: GameState, p: PlayerState): string[] {
   return healed
 }
 
+/** A normally-played safety doesn't just grant future immunity — it clears the
+ * matching hazard currently afflicting you: the offending card is swept off its
+ * lane and into the discard (card conservation, same as a self-heal), not merely
+ * ignored. Sweeps every lane whose top card is a hazard this safety covers (so
+ * Rescue Shuttle lifts both a Tractor Beam and a Black Hole at once). Mutates `s`
+ * and returns the swept hazard kinds for logging. */
+function sweepImmunizedHazards(s: GameState, p: PlayerState, def: CardDef): string[] {
+  const covers = def.immuneTo ?? []
+  const swept: string[] = []
+  for (const lane of LANES) {
+    const top = topOf(p.battle[lane])
+    if (!top) continue
+    const tdef = defOf(top)
+    if (tdef.type === 'hazard' && covers.includes(tdef.kind)) {
+      const card = p.battle[lane].pop()!
+      delete card.hazardAge // leaves play clean — discard holds no age
+      s.discard.push(card)
+      swept.push(tdef.kind)
+    }
+  }
+  return swept
+}
+
 /** CATCH-UP VALVE: is the player at `seat` trailing by more than the deficit
  * threshold right now? (Pure read of distances — drives the trailing-player edge
  * and the AI's awareness of it.) */
@@ -584,9 +607,12 @@ export function applyMove(state: GameState, move: Move): GameState {
       // Rescue Shuttle covers the Stop lane → it doubles as a green light, so it
       // launches you even if you never fired Ignition.
       if (grantsGreenLight(def)) me.started = true
-      // immunity is now permanent; any matching hazard already on a lane simply
-      // stops blocking (activeHazard ignores immune lanes). Cards stay in play.
-      pushLog(s, me.seat, `${me.name} reveals ${def.title} — immune, +${SAFETY_MILEAGE} ly (now ${me.distance}).`, 'safety')
+      // immunity is now permanent; any matching hazard already afflicting you is
+      // swept off its lane to the discard right now (not just ignored) — the board
+      // clears the instant you're immune.
+      const swept = sweepImmunizedHazards(s, me, def)
+      const clears = swept.length ? ` Clears ${swept.map((k) => CARD_DEFS[k].title).join(' + ')}.` : ''
+      pushLog(s, me.seat, `${me.name} reveals ${def.title} — immune, +${SAFETY_MILEAGE} ly (now ${me.distance}).${clears}`, 'safety')
       if (me.distance >= WIN_DISTANCE) {
         winRound(s, me.seat)
         return s

@@ -1,0 +1,29 @@
+/* Native boot splash overlay — full-bleed Ace Pilot over the #07071a launch bg. */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #07071a; /* matches the storyboard/starfield — no flash behind cover */
+  opacity: 1;
+  transition: opacity 400ms ease;
+  /* clear of the table's pointer events for the brief moment it's up */
+  pointer-events: none;
+}
+.boot-splash--out {
+  opacity: 0;
+}
+
+/* the still and the clip share the frame; object-fit: cover mirrors the
+   storyboard's scaleAspectFill so the still→motion→table hand-off doesn't jump */
+.boot-splash__still,
+.boot-splash__clip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.boot-splash__clip {
+  /* sits on top of the still once it starts painting frames */
+  z-index: 1;
+}
