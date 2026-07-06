@@ -60,7 +60,7 @@ FEATURES
 • Beautiful, tactile cards with real haptics — feel every engine burn, hazard
   hit, and last-second reversal.
 • A "scry" peek at what's coming, so the smart play is always in reach.
-• Coup-fourré! Slap down the perfect counter the instant a hazard hits and
+• Slingshot! Slap down the perfect counter the instant a hazard hits and
   leap ahead.
 • Quick games — a full race takes just a few minutes.
 • No ads. No in-app purchases. No tracking.
