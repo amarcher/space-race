@@ -132,25 +132,54 @@ device build; will feel them on a cabled device in Phase 4.)
 
 ## Phase 4 — Ship
 
-- [ ] Apple Developer Program ($99/yr), App Store Connect app record.
-- [ ] **TestFlight first**: internal testing on family devices; this alone
-      satisfies the "on Milo's iPad" goal with no review pressure.
-- [ ] Store listing: name **Space Race** may collide with existing apps — have
-      a fallback ready ("Space Race: 1000 Light-Years" keeps the old name alive
-      as a subtitle/keyword). Screenshots (6.7", 6.1", iPad), preview video cut
-      from the win hero clip, privacy nutrition label (analytics = "Data Not
-      Linked to You"), age rating questionnaire (aim 4+, list under
-      Games → Card, **not** Kids category).
+Ship-readiness landed on branch `ios-ship-readiness` (2026-07-06): everything is
+done and verified **except** the steps that require the paid Apple account and an
+interactive signing selection. Those are flagged **👤 HUMAN** below.
+
+- [x] **Versioning**: `MARKETING_VERSION = 1.0.0`, `CURRENT_PROJECT_VERSION = 1`
+      in the Xcode project (both Debug + Release configs). Verified in the built
+      `App.app/Info.plist`.
+- [x] **Export compliance**: `ITSAppUsesNonExemptEncryption = false` in
+      `Info.plist` — app uses only standard HTTPS/ATS (grep confirmed no custom
+      crypto in `src/`). App Store Connect will skip the per-release
+      export-compliance question.
+- [x] **Privacy manifest**: `web/ios/App/App/PrivacyInfo.xcprivacy` — tracking
+      false; product-interaction analytics (GA4, not linked, no tracking);
+      UserDefaults access (CA92.1, Capacitor plugin settings). Wired into the
+      Xcode project's Resources build phase; confirmed bundled at the `.app` root
+      in the archive. (Capacitor's own framework manifests declare empty API/data
+      arrays, so the app-level one supplies both.)
+- [x] **Unsigned archive proof**: `xcodebuild … archive CODE_SIGNING_ALLOWED=NO`
+      → **ARCHIVE SUCCEEDED** for `generic/platform=iOS`. Device-arch compile +
+      archive work; only signing remains.
+- [x] **Release script**: `web/scripts/ios-release.sh` (npm `ios:archive`) —
+      vite build → cap sync → xcodebuild archive. Unsigned by default; `--signed`
+      (with `TEAM_ID=…`) does automatic signing + `-exportArchive` to an App
+      Store `.ipa`. Runs end-to-end in unsigned mode.
+- [x] **Screenshots**: `docs/app-store/screenshots/` — 6.9" iPhone (1320×2868)
+      and 13" iPad (2064×2752), table + rules for each. (simctl can't tap; the
+      rules shot used a throwaway view-default override. In-play/win shots need a
+      real device during TestFlight — see the screenshots README.)
+- [x] **Store listing draft**: `docs/app-store/listing.md` — name + fallback,
+      subtitle, promo text, description, keywords, URLs, category (Games → Card /
+      Family, **not** Kids), age rating (→ 4+), privacy nutrition label, review
+      notes, and the human submission checklist.
+- [ ] 👤 **HUMAN — Apple Developer Program** ($99/yr) + App Store Connect app
+      record (bundle id `tech.spaceexplorer.spacerace`).
+- [ ] 👤 **HUMAN — Xcode signing**: open the project, enable Automatic signing,
+      select the Team (project is already `CODE_SIGN_STYLE = Automatic`).
+- [ ] 👤 **HUMAN — upload + TestFlight**: `TEAM_ID=… ./web/scripts/ios-release.sh
+      --signed` (or Xcode Organizer) → TestFlight internal → install on family
+      devices (satisfies the "on Milo's iPad" goal with no review pressure).
+- [ ] 👤 **HUMAN — submit**: attach screenshots, host a Privacy Policy page, fill
+      the listing, submit for review.
 - [ ] **Guideline 4.2 (minimum functionality)** insurance if review pushes
       back on "web wrapper": haptics + offline + share (Phases 2–3) usually
       suffice for a polished game; **Game Center** achievements/leaderboard
       (community Capacitor plugin) is the escalation move.
-- [ ] Release cadence: script `build → cap sync → xcodebuild archive → upload`
-      (fastlane or a plain script) so every web release can ship to iOS the
-      same day.
 
 **Exit criteria:** approved App Store listing; downloading it on a fresh phone
-and winning a game with zero network.
+and winning a game with zero network. *(Blocked only on the 👤 HUMAN steps.)*
 
 ---
 
