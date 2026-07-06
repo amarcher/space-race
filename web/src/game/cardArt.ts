@@ -8,7 +8,7 @@
 //
 // Convention for asset URLs (served from web/public): `/cards/video/<kind>-<state>.<ext>`.
 // Use a web-friendly, loop-clean codec — VP9/WebM (alpha supported) or H.264/MP4.
-// Keep clips short (~2–4s), seamless, and small (these run on kids' tablets).
+// Keep clips short (~2–4s), seamless, and small (these run on low-power tablets).
 
 export type CardArtState =
   | 'idle' // ambient loop — the card is "alive" at rest

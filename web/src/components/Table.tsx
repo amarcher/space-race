@@ -709,7 +709,7 @@ export function Table({
   return (
     <div className={`table ${shaking ? 'table--shake' : ''}`}>
       <header className="table__bar">
-        <h1>1000 Light-Years</h1>
+        <h1>Space Race</h1>
         <div className="table__bar-actions">
           <button
             className="btn btn--icon"

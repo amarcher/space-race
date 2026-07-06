@@ -1,6 +1,6 @@
-# 1000 Light-Years — Web Game Plan
+# Space Race — Web Game Plan
 
-A browser version of *Milo's Space Race* (a Mille Bornes reskin). Built with
+A browser version of *Space Race* (a Mille Bornes reskin, formerly “1000 Light-Years”). Built with
 **Vite + React + TypeScript**. Cards are **pure full-bleed art** with rounded
 corners; identity surfaces on hover/selection, never baked onto the image.
 

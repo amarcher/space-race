@@ -58,7 +58,7 @@ The `<video poster>` attribute points to `win-poster.jpg` or `lose-poster.jpg` (
 - **Duration:** `4–5 s`, one-shot (no loop). The UI holds the video for 3.8 s then transitions to the tally card.
 - **End frame:** fade to near-black or to stars — the tally card slides up from the bottom over the fade.
 - **Codec / container:** H.264 MP4 (broadest mobile autoplay support). VP9/WebM optional as a sibling file.
-- **File size target:** ≤ 8 MB (these play on kids' tablets over LTE).
+- **File size target:** ≤ 8 MB (these play on phones and tablets over LTE).
 - **Audio:** none — all clips are `muted` + `playsInline`. Generate with no sound or strip audio in export.
 
 ### Shared style anchor (prepend to every prompt)
@@ -86,7 +86,7 @@ The `<video poster>` attribute points to `win-poster.jpg` or `lose-poster.jpg` (
 
 ---
 
-### `lose-hero.mp4` — AI wins (dignified, not punishing; kid-first)
+### `lose-hero.mp4` — AI wins (dignified, not punishing)
 
 **Veo text-to-video prompt (copy-paste ready):**
 

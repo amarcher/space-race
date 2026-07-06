@@ -45,7 +45,7 @@ export function TvStage() {
     <div className="tv-stage-root">
       <div className="table">
         <header className="table__bar">
-          <h1>1000 Light-Years</h1>
+          <h1>Space Race</h1>
           <div className="table__bar-actions tv__bar-meta">
             <span className="tv__turn">{turnLabel}</span>
             <span className={`tv__conn tv__conn--${status}`} title={`arcade: ${arcadeOrigin()}`}>

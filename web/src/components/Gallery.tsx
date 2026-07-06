@@ -87,7 +87,7 @@ export function Gallery() {
     <div className="gallery">
       <header className="gallery__head">
         <div>
-          <h1>1000 Light-Years</h1>
+          <h1>Space Race</h1>
         </div>
         <label className="gallery__toggle">
           <input type="checkbox" checked={showBacks} onChange={(e) => setShowBacks(e.target.checked)} />

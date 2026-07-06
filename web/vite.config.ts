@@ -12,9 +12,9 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
-        name: '1000 Light-Years',
-        short_name: '1000 LY',
-        description: 'A cosmic race to 1,000 light-years — a kid-friendly space card game.',
+        name: 'Space Race',
+        short_name: 'Space Race',
+        description: 'A cosmic race to 1,000 light-years — a free space card game.',
         theme_color: '#07071a',
         background_color: '#07071a',
         display: 'standalone',

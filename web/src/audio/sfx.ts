@@ -1,4 +1,4 @@
-// Web Audio SFX engine for 1000 Light-Years.
+// Web Audio SFX engine for Space Race.
 //
 // Design goals:
 //  - ONE AudioContext, created + resumed lazily on the first user gesture

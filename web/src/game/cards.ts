@@ -1,4 +1,4 @@
-// Card definitions for 1000 Light-Years (Milo's Space Race).
+// Card definitions for Space Race.
 // A Mille Bornes-style deck: Distances, Hazards, Remedies, Safeties.
 // Mirrors manifest.csv at the repo root.
 
