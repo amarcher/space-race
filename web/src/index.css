@@ -5,6 +5,15 @@
   /* design-system display face (from the pitch deck / tuck box branding) */
   --font-display: 'Unbounded', system-ui, sans-serif;
   --gold: #ffd93d;
+  /* iPhone notch / Dynamic Island / home-indicator / rounded-corner insets.
+     0px everywhere else (desktop, Android without cutout). Centralised as
+     custom properties so every component can `max()` against them, and so
+     DevTools can simulate a notch by overriding these four vars. Requires
+     viewport-fit=cover in index.html (set). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * { box-sizing: border-box; }
@@ -37,4 +46,9 @@ button { font-family: inherit; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  /* start content below the notch / beside the corner cutouts; scrolled content
+     may slide under them, which is standard scroll behaviour */
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }

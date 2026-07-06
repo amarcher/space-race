@@ -5,6 +5,8 @@
   z-index: 70;
   display: grid;
   place-items: center;
+  /* keep the sheet inside the notch-safe region (0 on desktop) */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: rgba(2, 6, 20, 0.6);
   backdrop-filter: blur(3px);
   animation: settingsIn 0.16s ease-out;
