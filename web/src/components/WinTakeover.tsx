@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { scoreRound, type GameState } from '../game'
 import { preloadClips } from '../preloadHero'
 import { playSfx } from '../audio/sfx'
+import { win as hapticWin } from '../native/haptics'
+import { canShare, shareContent } from '../native/share'
 import { prefersReducedMotion } from '../motion'
 import { Avatar } from './Avatar'
 import { Icon } from './Icon'
@@ -113,6 +115,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
     if (audioFired.current) return
     audioFired.current = true
     playSfx(humanWon ? 'win-takeover' : 'lose-takeover')
+    if (humanWon) hapticWin() // the victory buzz (native only; no-op on web)
   }, [humanWon])
 
   // Mute-on-create for autoplay gate (mirrors CardTakeover pattern)
@@ -146,6 +149,16 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
   const scores = scoreRound(state)
   const humanScore = scores.find((s) => s.seat === 0)
   const aiScore = scores.find((s) => s.seat === 1)
+
+  // "Share the win" — only offered on a human victory (bragging rights), and only
+  // where a share sheet actually exists (native iOS, or a browser with Web Share).
+  const showShare = humanWon && canShare()
+  const doShare = () =>
+    void shareContent({
+      title: 'Space Race',
+      text: 'I raced to 1,000 light-years in Space Race!',
+      url: 'https://game.spaceexplorer.tech',
+    })
 
   // We ALWAYS render the CSS fallback layers in the hero phase; the video sits on
   // top and covers them when loaded. If the video errors, the CSS fallback shines through.
@@ -311,16 +324,28 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
             </div>
           )}
 
-          {/* play again */}
-          <button
-            className="btn btn--play btn--bigicon btn--big win-takeover__again"
-            onClick={onDone}
-            aria-label="Play again"
-            title="Play again"
-            autoFocus
-          >
-            <Icon name="restart" size={36} />
-          </button>
+          {/* actions: play again, and (on a win) share */}
+          <div className="win-takeover__actions">
+            <button
+              className="btn btn--play btn--bigicon btn--big win-takeover__again"
+              onClick={onDone}
+              aria-label="Play again"
+              title="Play again"
+              autoFocus
+            >
+              <Icon name="restart" size={36} />
+            </button>
+            {showShare && (
+              <button
+                className="btn btn--icon btn--big win-takeover__share"
+                onClick={doShare}
+                aria-label="Share your win"
+                title="Share your win"
+              >
+                <Icon name="share" size={28} />
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -85,13 +85,9 @@
       }
     </script>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are self-hosted (latin woff2 in /public/fonts, @font-face in
+         index.css) so the app — especially the bundled iOS build — renders its
+         brand type fully offline. No Google Fonts request. -->
   </head>
   <body>
     <div id="root"></div>

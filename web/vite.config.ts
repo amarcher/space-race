@@ -13,7 +13,7 @@ export default defineConfig({
       // native iOS app — Capacitor serves from disk, so Workbox caching is pure
       // overhead there. On web the SW still registers, byte-identical in effect.
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'fonts/*.woff2'],
       manifest: {
         name: 'Space Race',
         short_name: 'Space Race',
@@ -33,7 +33,7 @@ export default defineConfig({
         // PRECACHE only the app shell + icons + manifest. Deliberately NOT the
         // heavy media (cards/video ~19MB, card art, sfx, ui rasters) so install
         // stays small/fast — those are runtime-cached on first use below.
-        globPatterns: ['**/*.{js,css,html}', 'favicon.svg', 'icon-*.png'],
+        globPatterns: ['**/*.{js,css,html,woff2}', 'favicon.svg', 'icon-*.png'],
         globIgnores: ['**/cards/**', '**/sfx/**', '**/ui/**', '**/print-sheet.html'],
         navigateFallback: '/index.html',
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
@@ -68,20 +68,8 @@ export default defineConfig({
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'ui-art', expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-css' },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
+          // (Fonts are now self-hosted + precached above — no Google Fonts
+          // runtime caching needed.)
         ],
       },
       // let the SW run in dev too, so it can be verified against the dev server
