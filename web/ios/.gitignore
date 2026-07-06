@@ -1,0 +1,21 @@
+App/build
+App/Pods
+App/output
+App/App/public
+DerivedData
+xcuserdata
+
+# SwiftPM local-package build output (Capacitor SPM template) + resolved caches
+App/CapApp-SPM/build
+App/CapApp-SPM/.build
+.swiftpm
+
+# Cordova plugins for Capacitor
+capacitor-cordova-ios-plugins
+
+# Generated Config files
+App/App/capacitor.config.json
+App/App/config.xml
+
+# SPM build products
+App/CapApp-SPM/build
