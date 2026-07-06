@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import type { GameState } from './game'
@@ -47,9 +48,16 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
     <>
       <Starfield />
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
-          (Core Web Vitals). No-op off Vercel; no PII, no config. */}
-      <Analytics />
-      <SpeedInsights />
+          (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
+          native app: it's served offline from capacitor://localhost (not Vercel),
+          so the /_vercel/insights beacons would only 404. GA4 (index.html) carries
+          the iOS platform tag instead. */}
+      {!Capacitor.isNativePlatform() && (
+        <>
+          <Analytics />
+          <SpeedInsights />
+        </>
+      )}
       {view === 'game' ? (
         <Table onExit={() => setView('gallery')} onStateChange={onStateChange} />
       ) : (
