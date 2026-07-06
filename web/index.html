@@ -63,6 +63,12 @@
       window.dataLayer = window.dataLayer || []
       function gtag() { dataLayer.push(arguments) }
       gtag('js', new Date())
+      // Split web vs iOS traffic in the app-tracker dashboard. This runs in <head>
+      // BEFORE the bundle, so Capacitor.isNativePlatform() isn't available yet — but
+      // the Capacitor 8 iOS webview serves the app from capacitor://localhost, so the
+      // page protocol is the reliable native tell (web is http:/https:). Set as a
+      // GA4 user property so it scopes every event on the session.
+      gtag('set', 'user_properties', { platform: location.protocol === 'capacitor:' ? 'ios' : 'web' })
       gtag('config', 'G-GS8HYJ69C3')
     </script>
 

@@ -83,23 +83,52 @@ met in the Simulator (device/airplane-mode pass deferred to a signed build).
 (Haptics can't fire in the Simulator — verified by code inspection + a clean
 device build; will feel them on a cabled device in Phase 4.)
 
-## Phase 3 — iOS-specific edges
+## Phase 3 — iOS-specific edges ✅ (done 2026-07-06, branch `ios-edges`)
 
-- [ ] **TV mode / arcade WebSocket** (`src/tv/arcadeClient.ts`, LAN `:8771`):
-      add `NSLocalNetworkUsageDescription` (+ Bonjour services key if needed)
-      to Info.plist — iOS prompts for Local Network permission on first
-      connect. Phone-as-controller + TV-as-stage is a *stronger* story in the
-      app; make sure the permission denial path degrades gracefully.
-- [ ] **Analytics**: GA4 + Vercel Analytics run fine in the webview, but tag
-      platform (`gtag('set', {platform: 'ios'})` or a custom dimension) so the
-      app-tracker dashboard splits web vs iOS. Add App Tracking Transparency
-      only if required — GA4 first-party config without IDFA shouldn't need it.
-- [ ] Orientation: decide phone = portrait-locked vs free; iPad = both (iPad
-      multitasking/size-classes get App Review attention).
-- [ ] Audit `localStorage` persistence (settings, mute) — fine in WKWebView,
-      but consider `@capacitor/preferences` for durability across OS cleanups.
-- [ ] External links (if any) must open in Safari (`@capacitor/browser`), not
-      the app webview.
+- [x] **TV mode / arcade WebSocket** (`src/tv/arcadeClient.ts`, LAN `:8771`):
+      added `NSLocalNetworkUsageDescription` to `Info.plist` ("Space Race
+      connects to your TV on your home network…"). **No `NSBonjourServices` key
+      needed** — that key only gates Bonjour/mDNS *service browsing*
+      (`NSNetServiceBrowser`); the client dials a concrete host:port
+      (`ws://<lan-ip>:8771`), which trips the Local Network prompt on first
+      connect and needs only the usage-description string. Denial path audited
+      and already graceful: `ArcadeClient` auto-reconnects with capped backoff
+      (250 ms → 5 s max), `TvStage` shows a non-blocking `connecting/closed`
+      badge, and the phone's `usePhoneBroadcast` `sendToAll` no-ops until the
+      socket opens. **Crucially, all of this is gated behind `?mode=` (see
+      `App.tsx`) — the shipped iOS app has no URL flag, so `tvMode()` is `null`,
+      no socket is ever opened, and the Local Network prompt never even appears
+      in normal single-player play.** No code changes required.
+- [x] **Analytics**: tagged platform as a GA4 **user property** in `index.html`
+      — `gtag('set', 'user_properties', { platform: … })` before `config`.
+      Native detection runs in `<head>` (before the bundle, so
+      `Capacitor.isNativePlatform()` is unavailable) via
+      `location.protocol === 'capacitor:'` — Capacitor 8 iOS serves the app from
+      `capacitor://localhost` (verified: sim console logged
+      `⚡️ Loading app at capacitor://localhost…`; web sends `up.platform=web`,
+      verified in DevTools network capture). No ATT added — GA4 first-party, no
+      IDFA. `@vercel/analytics` + Speed Insights now gated behind
+      `!Capacitor.isNativePlatform()` in `App.tsx` (they'd only 404 against the
+      offline `capacitor://localhost` origin; they don't throw, but there's no
+      point running them off Vercel).
+- [x] Orientation: **iPhone portrait-locked, iPad all four.** `Info.plist`
+      `UISupportedInterfaceOrientations` = `[Portrait]`;
+      `UISupportedInterfaceOrientations~ipad` keeps Portrait, PortraitUpsideDown,
+      LandscapeLeft, LandscapeRight. (TV-stage mode is a separate web build on an
+      actual TV, unaffected.)
+- [x] `localStorage` persistence (settings, mute): **kept `localStorage` as the
+      sole source of truth — did NOT add `@capacitor/preferences`.** The reads
+      (`settings.ts` `loadRules`, `sfx.ts` mute) are synchronous and fire at
+      boot / new-game time; Preferences is Promise-based, so mirroring it in
+      would force an async restore-before-first-render bootstrap and leak async
+      into game code — not the "small clean win" bar. WKWebView `localStorage`
+      is WebKit-backed and durable across launches for an installed, actively
+      used app; eviction only happens under genuine storage pressure. Revisit
+      only if real-world purging shows up.
+- [x] External links: **none exist.** Grep of `src/` for `target="_blank"`,
+      `window.open`, and `<a href`/`href=` to an external URL found nothing — the
+      only outward action is the win-screen share button (native share sheet,
+      Phase 2). Nothing to route through `@capacitor/browser`.
 
 ## Phase 4 — Ship
 
