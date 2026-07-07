@@ -23,6 +23,15 @@ const config: CapacitorConfig = {
     backgroundColor: '#07071a',
     scrollEnabled: true,
   },
+  android: {
+    backgroundColor: '#07071a',
+    // Serve the bundled app over https://localhost (Capacitor Android default).
+    // NOTE: unlike iOS (capacitor://localhost), Android has no distinct scheme,
+    // so the GA4 platform split can't sniff location.protocol — see
+    // docs/android-roadmap.md Phase 3. androidScheme stays 'https' (the default)
+    // so WebView storage/service-worker semantics match a secure origin.
+    allowMixedContent: false,
+  },
 };
 
 export default config;
