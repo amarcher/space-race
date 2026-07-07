@@ -34,3 +34,10 @@ worth adding before the final submission).
 - `../previews/app-preview-6.9.mp4` — 19s App Preview (886×1920, H.264 + silent AAC): scry reveal → Rescue Shuttle takeover → aftermath
 
 Suggested store order: rescue-takeover, scry, board-race, table, rules (first 3 appear on install sheets).
+
+## Upload-ready 6.7" set (1284×2778)
+
+App Store Connect's media manager for this app demands the 6.5"/6.7" size
+class (1242×2688 / 1284×2778) and rejects 1320×2868. The `iphone-6.7-*.png`
+files are the same five shots center-cropped to 1284×2778 — **upload these**.
+The 6.9" originals remain canonical.
