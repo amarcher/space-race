@@ -13,6 +13,8 @@ import { usePhoneBroadcast } from './tv/usePhoneBroadcast'
 import { initStatusBar } from './native/statusBar'
 import { keepScreenAwake } from './native/keepAwake'
 import { BootSplash } from './native/BootSplash'
+import { initBackButton, useBackHandler } from './native/backButton'
+import { BackExitHint } from './native/BackExitHint'
 
 type View = 'game' | 'gallery'
 
@@ -44,11 +46,20 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
   useEffect(() => {
     initStatusBar()
     keepScreenAwake()
+    initBackButton()
   }, [])
+  // Android Back closes the rules/gallery back to the game instead of exiting
+  // the app; the root game view falls through to double-tap-to-exit (backButton.ts).
+  useBackHandler(() => {
+    setView('game')
+    return true
+  }, view === 'gallery')
   return (
     <>
       {/* native-only Ace-Pilot boot splash, over everything until it fades (no-op on web) */}
       <BootSplash />
+      {/* Android "press back again to exit" toast (no-op on web) */}
+      <BackExitHint />
       <Starfield />
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
