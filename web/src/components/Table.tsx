@@ -20,6 +20,7 @@ import { cardHeroVideo, cardVideo } from '../game/cardArt'
 import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import * as haptics from '../native/haptics'
+import { useBackHandler } from '../native/backButton'
 import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
@@ -212,6 +213,14 @@ export function Table({
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
   // the game log is tucked away in a dropdown, summoned from the header
   const [logOpen, setLogOpen] = useState(false)
+
+  // Android Back closes an open menu-style overlay (settings / scoreboard / log)
+  // instead of exiting the app; each only intercepts while it's actually open, so
+  // Back falls through to the app root (double-tap-to-exit) when none are up.
+  // See src/native/backButton.ts. No-op on web/iOS.
+  useBackHandler(() => { setLogOpen(false); return true }, logOpen)
+  useBackHandler(() => { setScoreboardOpen(false); return true }, scoreboardOpen)
+  useBackHandler(() => { setSettingsOpen(false); return true }, settingsOpen)
   // transient impact feel: a screen shake, a full-screen flash, and a per-board
   // hit-recoil / recovery-spring (keyed so the same board can re-trigger)
   const [shaking, setShaking] = useState(false)

@@ -16,7 +16,14 @@
     </style>
 
 
+    <!-- Launch theme. On Android 12+ the SplashScreen API shows the planet icon on
+         the brand-dark background; postSplashScreenTheme hands off to the dark
+         no-action-bar theme so there's no white flash before the webview paints.
+         android:background (the dark splash drawable) covers pre-12 devices. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/spaceBg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <item name="android:background">@drawable/splash</item>
     </style>
 </resources>
