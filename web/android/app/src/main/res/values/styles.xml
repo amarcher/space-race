@@ -16,10 +16,12 @@
     </style>
 
 
-    <!-- Launch theme. On Android 12+ the SplashScreen API shows the planet icon on
-         the brand-dark background; postSplashScreenTheme hands off to the dark
-         no-action-bar theme so there's no white flash before the webview paints.
-         android:background (the dark splash drawable) covers pre-12 devices. -->
+    <!-- Launch theme. On Android 12+ the SplashScreen API shows the ACE PILOT
+         (@mipmap/ic_launcher_foreground, masked round) on the brand-dark
+         background; postSplashScreenTheme hands off to the dark no-action-bar
+         theme so there's no white flash before the webview paints. The pre-12
+         window background (@drawable/splash) is the full-bleed ace-pilot still.
+         The in-app full-screen takeover CLIP is src/native/BootSplash.tsx. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/spaceBg</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>

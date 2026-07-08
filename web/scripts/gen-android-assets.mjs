@@ -1,75 +1,95 @@
-// Generate the Android icon/splash SOURCE art under web/assets/ from the Space
-// Race planet mark (the favicon.svg motif), then `@capacitor/assets generate
-// --android` turns these into the full adaptive-icon + splash resource set.
+// Generate the Android launcher-icon + splash resources from the ACE PILOT art —
+// the same hero the iOS app uses for its app icon and boot takeover.
 //
-//   node scripts/gen-android-assets.mjs && npx @capacitor/assets generate --android
+//   node scripts/gen-android-assets.mjs
 //
-// We author three sources with full control (rather than letting the tool pad a
-// single logo) so the adaptive icon reads correctly under the circular/rounded/
-// squircle masks OEMs apply:
-//   assets/icon-foreground.png  — planet on transparency, inside the adaptive safe zone
-//   assets/icon-background.png  — solid #07071a brand dark
-//   assets/splash.png / -dark   — solid #07071a with a small centered planet
+// Sources (already in the repo — no external art needed):
+//   ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png  (1024² ace pilot)
+//   public/cards/video/ace-pilot.poster.webp                            (9:16 clip frame-0)
+//
+// The icon is a PHOTOGRAPHIC hero, so it goes FULL-BLEED into the adaptive icon
+// (no 16.7% safe-zone inset — that's for line-mark logos) and ships no monochrome
+// layer (a photo can't theme). The OS splash shows the same ace pilot: the
+// Android-12+ SplashScreen API uses @mipmap/ic_launcher_foreground as its animated
+// icon (wired in styles.xml), and the pre-12 window background is the full-bleed
+// still regenerated here. The in-app full-screen takeover CLIP is BootSplash.tsx.
 import sharp from 'sharp'
-import { mkdirSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const OUT = join(ROOT, 'assets')
-mkdirSync(OUT, { recursive: true })
-
+const RES = join(ROOT, 'android/app/src/main/res')
+const ICON = join(ROOT, 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png')
+const POSTER = join(ROOT, 'public/cards/video/ace-pilot.poster.webp')
 const BG = '#07071a'
 
-// The planet mark from public/favicon.svg (orbit + planet + three star dots),
-// WITHOUT the background rect, drawn on a 0 0 100 100 canvas. `scale`/`cx`/`cy`
-// place it so callers can pad it into the adaptive safe zone.
-function planetSvg({ size, scale = 1, cx = 50, cy = 50 }) {
-  // favicon coords are on a 32-box, planet centered at (16,14); recenter to (0,0)
-  // then place at (cx,cy) with `scale` (favicon planet spans ~x:5..27, y:10..27).
-  const k = (100 / 32) * scale
-  const ox = cx - 16 * k
-  const oy = cy - 16 * k
-  return Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100">
-  <g transform="translate(${ox} ${oy}) scale(${k})">
-    <ellipse cx="16" cy="14" rx="11" ry="4" fill="none" stroke="#8b7bff" stroke-width="1.4" opacity="0.9"/>
-    <circle cx="16" cy="14" r="3.4" fill="#05050f" stroke="#c9b8ff" stroke-width="1"/>
-    <circle cx="16" cy="26" r="1.3" fill="#ffd76a"/>
-    <circle cx="8" cy="22" r="0.8" fill="#6fb7ff"/>
-    <circle cx="24" cy="21" r="0.8" fill="#ff8aa0"/>
-  </g>
-</svg>`)
+// legacy square + round icon sizes, and the adaptive foreground/background size, per density
+const DENSITIES = {
+  mdpi: { legacy: 48, fg: 108 },
+  hdpi: { legacy: 72, fg: 162 },
+  xhdpi: { legacy: 96, fg: 216 },
+  xxhdpi: { legacy: 144, fg: 324 },
+  xxxhdpi: { legacy: 192, fg: 432 },
 }
 
-async function write(name, buf) {
-  await sharp(buf).png().toFile(join(OUT, name))
-  console.log('wrote assets/' + name)
+const circleMask = (size) =>
+  Buffer.from(`<svg width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="#fff"/></svg>`)
+
+async function square(size) {
+  return sharp(ICON).resize(size, size, { fit: 'cover' }).png().toBuffer()
 }
 
-const S = 1024
-// Foreground: planet at ~52% of the canvas, centered — well inside the adaptive
-// safe zone (the outer ~1/6 on every side can be masked away by the launcher).
-await write('icon-foreground.png',
-  await sharp(planetSvg({ size: S, scale: 1.5, cx: 50, cy: 52 }))
-    .png().toBuffer())
+async function gen() {
+  for (const [d, { legacy, fg }] of Object.entries(DENSITIES)) {
+    const dir = join(RES, `mipmap-${d}`)
+    // legacy square icon (older launchers / notifications)
+    await sharp(await square(legacy)).toFile(join(dir, 'ic_launcher.png'))
+    // round icon (launchers that request the round variant)
+    await sharp(await square(legacy))
+      .composite([{ input: circleMask(legacy), blend: 'dest-in' }])
+      .png().toFile(join(dir, 'ic_launcher_round.png'))
+    // adaptive FOREGROUND — full-bleed ace pilot (opaque, so it covers the bg)
+    await sharp(await square(fg)).toFile(join(dir, 'ic_launcher_foreground.png'))
+    // adaptive BACKGROUND — solid brand dark (only shows at the masked corners)
+    await sharp({ create: { width: fg, height: fg, channels: 4, background: BG } })
+      .png().toFile(join(dir, 'ic_launcher_background.png'))
+    console.log(`icons: mipmap-${d}`)
+  }
 
-// Solid brand-dark background layer.
-const solid = (size) => sharp({
-  create: { width: size, height: size, channels: 4, background: BG },
-}).png()
-await write('icon-background.png', await solid(S).toBuffer())
+  // Adaptive-icon XML: full-bleed (NO inset), no monochrome (photographic hero).
+  const adaptiveXml = `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
+`
+  const anydpi = join(RES, 'mipmap-anydpi-v26')
+  const { writeFileSync } = await import('node:fs')
+  for (const name of ['ic_launcher.xml', 'ic_launcher_round.xml']) {
+    writeFileSync(join(anydpi, name), adaptiveXml)
+    console.log(`adaptive xml: ${name}`)
+  }
 
-// A full opaque icon too (legacy launchers / any single-image consumer).
-await write('icon-only.png',
-  await solid(S).composite([{ input: planetSvg({ size: S, scale: 1.5, cx: 50, cy: 52 }) }]).toBuffer())
+  // Splash: overwrite every generated splash.png variant at its existing size with
+  // the ace-pilot poster, covering a brand-dark field (full-bleed, matches the
+  // iOS launch still and the BootSplash frame-0).
+  let n = 0
+  for (const entry of readdirSync(RES)) {
+    if (!entry.startsWith('drawable')) continue
+    const dir = join(RES, entry)
+    const splash = join(dir, 'splash.png')
+    let meta
+    try { meta = await sharp(splash).metadata() } catch { continue }
+    const { width, height } = meta
+    const cover = await sharp(POSTER).resize(width, height, { fit: 'cover', position: 'top' }).png().toBuffer()
+    await sharp({ create: { width, height, channels: 4, background: BG } })
+      .composite([{ input: cover }])
+      .png().toFile(splash)
+    n++
+  }
+  console.log(`splash: ${n} variants regenerated`)
+  console.log('done')
+}
 
-// Splash: dark field, small centered planet (~28%), matching the iOS flat launch.
-const SP = 2732
-const splash = await sharp({
-  create: { width: SP, height: SP, channels: 4, background: BG },
-}).composite([{ input: planetSvg({ size: SP, scale: 0.85, cx: 50, cy: 50 }) }]).png().toBuffer()
-await write('splash.png', splash)
-await write('splash-dark.png', splash)
-
-console.log('done — now run: npx @capacitor/assets generate --android')
+gen()

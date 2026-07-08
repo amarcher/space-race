@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Space Race brand dark — the starfield boot color. Used for the Android 12+
-         splash background and the launcher adaptive-icon background layer, so the
-         launch is continuous with the in-app starfield (no white flash). -->
+         splash background, so the launch (ace-pilot on this field) is continuous
+         with the in-app BootSplash and starfield (no white flash). -->
     <color name="spaceBg">#07071a</color>
 </resources>
