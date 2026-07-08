@@ -562,7 +562,9 @@ export function Table({
     playSfx('slingshot')
     haptics.coupFourre() // the showiest reversal — always worth a heavy buzz
 
-    const cinematic = cardSlingshotVideo(ev.safetyKind)
+    // prefer a hazard-specific clip (Rescue Shuttle dodges Tractor Beam AND Black
+    // Hole) — falls back to the safety's generic Slingshot clip when absent
+    const cinematic = cardSlingshotVideo(ev.safetyKind, ev.hazardKind)
     const youDodged = ev.seat === 0
     const safetyClip = cardVideo(ev.safetyKind, ['idle', 'hover'])
     if (youDodged && cinematic && safetyClip && !prefersReducedMotion()) {
@@ -570,7 +572,7 @@ export function Table({
       const key = ++impactSeq.current
       setTakeover({
         src: cinematic,
-        heroSrc: cardSlingshotHeroVideo(ev.safetyKind),
+        heroSrc: cardSlingshotHeroVideo(ev.safetyKind, ev.hazardKind),
         kind: ev.safetyKind,
         variant: 'slingshot',
         holdMs: SLINGSHOT_CINEMATIC_MS,

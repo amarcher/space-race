@@ -72,17 +72,36 @@ export function cardHeroVideo(kind: string | undefined): string | undefined {
 // fall back to the built-in DOM Slingshot overlay.
 const SLINGSHOT_CLIP_KINDS = new Set<string>(['ace-pilot'])
 
-/** The standard-res (720×1280, mobile) Slingshot cinematic for a safety kind, if
- *  it ships one — else undefined (→ caller falls back to the DOM overlay). */
-export function cardSlingshotVideo(kind: string | undefined): string | undefined {
-  if (!kind || !SLINGSHOT_CLIP_KINDS.has(kind)) return undefined
-  return `/cards/video/${kind}.slingshot.mp4`
+// A safety that dodges MORE than one hazard (Rescue Shuttle → Tractor Beam +
+// Black Hole) can ship a HAZARD-SPECIFIC clip that's preferred over the generic
+// one when that exact hazard was dodged. Key `${safety}:${hazard}`; the asset is
+// `<safety>.vs-<hazard>.slingshot.mp4` (+ `.slingshot.hero.mp4`). Falls back to
+// the generic `<safety>.slingshot.*` (SLINGSHOT_CLIP_KINDS) when absent.
+const SLINGSHOT_HAZARD_CLIPS = new Set<string>([
+  // e.g. 'rescue-shuttle:black-hole', 'rescue-shuttle:tractor-beam',
+])
+
+/** Resolve the asset basename for a Slingshot clip: prefer a hazard-specific
+ *  `<safety>.vs-<hazard>.slingshot`, else the generic `<safety>.slingshot`, else
+ *  undefined (→ caller falls back to the DOM overlay). */
+function slingshotBase(safety: string | undefined, hazard?: string): string | undefined {
+  if (safety && hazard && SLINGSHOT_HAZARD_CLIPS.has(`${safety}:${hazard}`))
+    return `${safety}.vs-${hazard}.slingshot`
+  if (safety && SLINGSHOT_CLIP_KINDS.has(safety)) return `${safety}.slingshot`
+  return undefined
 }
 
-/** The crisp hero-res (1080×1920, wide) Slingshot cinematic for a safety kind. */
-export function cardSlingshotHeroVideo(kind: string | undefined): string | undefined {
-  if (!kind || !SLINGSHOT_CLIP_KINDS.has(kind)) return undefined
-  return `/cards/video/${kind}.slingshot.hero.mp4`
+/** The standard-res (720×1280, mobile) Slingshot cinematic for a safety dodging
+ *  `hazard`, if one ships — else undefined (→ caller falls back to the overlay). */
+export function cardSlingshotVideo(safety: string | undefined, hazard?: string): string | undefined {
+  const base = slingshotBase(safety, hazard)
+  return base ? `/cards/video/${base}.mp4` : undefined
+}
+
+/** The crisp hero-res (1080×1920, wide) Slingshot cinematic for the pairing. */
+export function cardSlingshotHeroVideo(safety: string | undefined, hazard?: string): string | undefined {
+  const base = slingshotBase(safety, hazard)
+  return base ? `/cards/video/${base}.hero.mp4` : undefined
 }
 
 /**
