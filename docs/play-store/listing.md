@@ -72,9 +72,9 @@ audience is set to 13+ below.)
 
 | Asset | Spec | Source |
 |-------|------|--------|
-| **App icon** | 512 × 512 PNG, 32-bit, ≤1 MB | planet mark, same as the iOS/adaptive icon |
-| **Feature graphic** | **1024 × 500** PNG/JPG (REQUIRED by Play) | new — a Space Race banner (title + a card/starfield). No equivalent existed for iOS. |
-| **Phone screenshots** | 2–8, PNG/JPG, 16:9 or 9:16, each side 320–3840 px | reuse `docs/app-store/screenshots/` table/rescue/scry/board captures (portrait) |
+| **App icon** | 512 × 512 PNG, 32-bit, ≤1 MB | **`assets/play-icon-512.png`** — the Ace Pilot hero, same as the iOS/adaptive launcher icon |
+| **Feature graphic** | **1024 × 500** PNG/JPG (REQUIRED by Play) | **`assets/feature-graphic.png`** (or `.jpg`) — Ace Pilot banner with the "SPACE RACE" wordmark + tagline on the brand-dark starfield. Generated this session. |
+| **Phone screenshots** | 2–8, PNG/JPG, 16:9 or 9:16, each side 320–3840 px | reuse `docs/app-store/screenshots/iphone-6.9-*` (1320×2868) and `iphone-6.7-*` (1284×2778) table/rescue/scry/board captures (portrait; within Play's 320–3840 bounds, 9:16-ish) |
 | **7" tablet screenshots** | up to 8 (recommended for tablet quality) | iPad captures re-shot on an Android tablet emulator, or Android tablet during internal testing |
 | **10" tablet screenshots** | up to 8 | same |
 | **Promo video** (optional) | YouTube URL | the existing win-hero / app-preview clip, uploaded to YouTube |
