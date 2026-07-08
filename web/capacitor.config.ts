@@ -25,12 +25,14 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#07071a',
-    // Serve the bundled app over https://localhost (Capacitor Android default).
-    // NOTE: unlike iOS (capacitor://localhost), Android has no distinct scheme,
-    // so the GA4 platform split can't sniff location.protocol — see
-    // docs/android-roadmap.md Phase 3. androidScheme stays 'https' (the default)
-    // so WebView storage/service-worker semantics match a secure origin.
+    // Serve the bundled app over https://localhost (Capacitor Android default;
+    // androidScheme 'https' keeps WebView storage/secure-context semantics).
     allowMixedContent: false,
+    // Android has no distinct URL scheme (iOS uses capacitor://localhost), so the
+    // GA4 platform split in index.html can't sniff location.protocol. Append a UA
+    // marker instead — it's set at WebView creation, so navigator.userAgent already
+    // carries it when the <head> analytics snippet runs. See docs/android-roadmap.md.
+    appendUserAgentString: 'SpaceRaceAndroid',
   },
 };
 

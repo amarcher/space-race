@@ -133,39 +133,36 @@ testing, or a cabled device). Same posture as the iOS "device pass deferred."
 **Exit criteria:** a stranger handling the phone can't tell it's a webview, and
 Back behaves like a native app. *(Code complete; on-device confirmation pending.)*
 
-## Phase 3 — Android-specific edges
+## Phase 3 — Android-specific edges ✅ (done 2026-07-07)
 
-- [ ] **Analytics platform split — the key gotcha.** iOS tags the GA4 `platform`
-      user property in `<head>` via `location.protocol === 'capacitor:'`. **This
-      check fails on Android** — Capacitor Android serves from
-      `https://localhost`, so the current code would mislabel Android sessions as
-      `web`. Fix options (pick one, then verify in the emulator via a GA4
-      DebugView / network capture, exactly as iOS was verified):
-      1. **UA marker (recommended):** set `appendUserAgentString: "SpaceRaceAndroid"`
-         in the `android` config block and sniff `navigator.userAgent` in `<head>`.
-         Robust, pre-bundle, and disambiguates from `localhost` dev servers.
-      2. Move the platform tag into the bundle and use `Capacitor.getPlatform()`
-         (`'ios' | 'android' | 'web'`), sending the GA4 user property after
-         `config` instead of in `<head>`.
-      Keep the iOS `capacitor:` branch; add an Android branch beside it. Also gate
-      `@vercel/analytics`/Speed Insights off Android (already gated behind
-      `!Capacitor.isNativePlatform()`, which covers it).
-- [ ] **Orientation** — mirror iOS: **phone portrait-locked, tablet unrestricted.**
-      Android has no `~ipad` split, so lock portrait in the manifest and relax it
-      at runtime when `smallestScreenWidthDp >= 600` (tablet), or use a
-      `values`/`values-sw600dp` bool resource read in `MainActivity`.
-- [ ] **TV mode / LAN WebSocket** — same as iOS, this is gated behind a `?mode=`
-      URL flag the shipped app never sets, so no socket ever opens and **no extra
-      permission is needed** for normal play. If TV mode is ever enabled on
-      Android, note that Android 9+ blocks **cleartext** traffic by default:
-      `ws://<lan-ip>:8771` would need a `network_security_config.xml` allowing
-      cleartext to local addresses. Not required for the shipped build.
-- [ ] **localStorage persistence** — keep `localStorage` as the sole store (same
-      decision as iOS; WebView localStorage is durable for an installed app).
-      Do **not** add `@capacitor/preferences` unless real-world eviction appears.
+- [x] **Analytics platform split — the key gotcha.** iOS tags the GA4 `platform`
+      user property in `<head>` via `location.protocol === 'capacitor:'`, which
+      would mislabel Android as `web` (Android serves from `https://localhost`).
+      **Fixed with a UA marker:** `appendUserAgentString: 'SpaceRaceAndroid'` in
+      the `android` config block (set at WebView creation, so it's present when the
+      `<head>` snippet runs), and `index.html` now branches
+      `capacitor:` → ios / `/SpaceRaceAndroid/` UA → android / else web. Verified
+      the marker lands in the synced native `capacitor.config.json`. `@vercel/analytics`
+      + Speed Insights stay gated off native via `!Capacitor.isNativePlatform()`.
+      *On-device confirmation (GA4 DebugView shows `platform=android`) pending the
+      real-device pass.*
+- [x] **Orientation** — mirrors iOS: **phone portrait-locked, tablet unrestricted.**
+      `MainActivity.onCreate` branches at runtime on `smallestScreenWidthDp >= 600`
+      (tablet → `SCREEN_ORIENTATION_UNSPECIFIED`, phone → `..._PORTRAIT`) — Android
+      has no manifest `~ipad` split.
+- [x] **TV mode / LAN WebSocket** — no change needed. Same as iOS: gated behind a
+      `?mode=` URL flag the shipped app never sets, so no socket opens and no extra
+      permission is required for normal play. *(If TV mode is ever enabled on
+      Android, `ws://<lan-ip>:8771` cleartext would need a `network_security_config.xml`
+      allowing cleartext to local addresses — Android 9+ blocks it by default.)*
+- [x] **localStorage persistence** — kept as the sole store (same decision as iOS;
+      WebView localStorage is durable for an installed app). Did **not** add
+      `@capacitor/preferences`.
 
 **Exit criteria:** analytics correctly split `android` vs `ios` vs `web`;
-orientation matches iOS; no permission prompts in normal play.
+orientation matches iOS; no permission prompts in normal play. *(Code complete;
+the `platform=android` split wants the same on-device GA4 confirmation as the rest
+of the on-device pass.)*
 
 ## Phase 4 — Ship to Google Play
 
