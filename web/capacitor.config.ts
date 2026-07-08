@@ -32,7 +32,9 @@ const config: CapacitorConfig = {
     // GA4 platform split in index.html can't sniff location.protocol. Append a UA
     // marker instead — it's set at WebView creation, so navigator.userAgent already
     // carries it when the <head> analytics snippet runs. See docs/android-roadmap.md.
-    appendUserAgentString: 'SpaceRaceAndroid',
+    // NB: the config key is `appendUserAgent` (Capacitor reads android.appendUserAgent
+    // per CapConfig.java) — NOT `appendUserAgentString`, which Capacitor silently ignores.
+    appendUserAgent: 'SpaceRaceAndroid',
   },
 };
 
