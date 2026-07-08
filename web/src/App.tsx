@@ -63,9 +63,9 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
       <Starfield />
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
-          native app: it's served offline from capacitor://localhost (not Vercel),
-          so the /_vercel/insights beacons would only 404. GA4 (index.html) carries
-          the iOS platform tag instead. */}
+          native apps: they're served offline from localhost (iOS capacitor://,
+          Android https://) not Vercel, so the /_vercel/insights beacons would only
+          404. GA4 (index.html) carries the ios/android platform tag instead. */}
       {!Capacitor.isNativePlatform() && (
         <>
           <Analytics />

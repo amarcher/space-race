@@ -63,12 +63,17 @@
       window.dataLayer = window.dataLayer || []
       function gtag() { dataLayer.push(arguments) }
       gtag('js', new Date())
-      // Split web vs iOS traffic in the app-tracker dashboard. This runs in <head>
-      // BEFORE the bundle, so Capacitor.isNativePlatform() isn't available yet — but
-      // the Capacitor 8 iOS webview serves the app from capacitor://localhost, so the
-      // page protocol is the reliable native tell (web is http:/https:). Set as a
-      // GA4 user property so it scopes every event on the session.
-      gtag('set', 'user_properties', { platform: location.protocol === 'capacitor:' ? 'ios' : 'web' })
+      // Split web vs iOS vs Android traffic in the app-tracker dashboard. This runs
+      // in <head> BEFORE the bundle, so Capacitor.isNativePlatform() isn't available
+      // yet — so we use two pre-bundle native tells: the Capacitor iOS webview serves
+      // from capacitor://localhost (protocol), and the Android webview carries a
+      // 'SpaceRaceAndroid' UA marker (capacitor.config appendUserAgentString), since
+      // Android serves from https://localhost with no distinct protocol. Set as a GA4
+      // user property so it scopes every event on the session.
+      var platform = location.protocol === 'capacitor:' ? 'ios'
+        : /SpaceRaceAndroid/.test(navigator.userAgent) ? 'android'
+        : 'web'
+      gtag('set', 'user_properties', { platform: platform })
       gtag('config', 'G-GS8HYJ69C3')
     </script>
 
