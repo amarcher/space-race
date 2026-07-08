@@ -1,12 +1,14 @@
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cardHeroVideo } from '../game/cardArt'
 import './CardTakeover.css'
 
-export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety'
+export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety' | 'slingshot'
 
 // How long a takeover holds before it dismisses. A SHORT, fresh, time-capped
-// single play — we do NOT play the whole ~4s clip. Tune here.
+// single play — we do NOT play the whole ~4s clip. Tune here. (The slingshot
+// cinematic overrides this via `holdMs` to play its full ~8s length.)
 const PLAY_MS = 2500
 const FADE_OUT_MS = 350 // matches .takeover--leaving in the CSS
 
@@ -39,6 +41,9 @@ export function CardTakeover({
   src,
   kind,
   variant = 'warp',
+  heroSrc,
+  holdMs,
+  caption,
   onDone,
   stage = false,
 }: {
@@ -47,6 +52,17 @@ export function CardTakeover({
   /** Card kind, used to opt into a hero clip + per-card framing. */
   kind?: string
   variant?: TakeoverVariant
+  /** Explicit wide-viewport hero clip. When set it wins over the kind-based
+   *  `cardHeroVideo(kind)` lookup — used by the Slingshot cinematic, whose hero
+   *  clip is `<kind>.slingshot.hero.mp4`, not `<kind>.hero.mp4`. */
+  heroSrc?: string
+  /** Override the dismiss window (ms). The Slingshot cinematic passes its full
+   *  ~8s so the whole "you dodged it" moment plays; also auto-dismisses on the
+   *  video's own `ended` event, whichever comes first. */
+  holdMs?: number
+  /** Optional overlay laid over the clip (e.g. the "SLINGSHOT! / +200 ly"
+   *  caption). Rendered non-interactive, above the tint. */
+  caption?: ReactNode
   onDone: () => void
   /** TV-STAGE mode: letterbox the clip (object-fit: contain — the portrait clip
    * would be massively over-zoomed cover-cropped onto a 4K landscape panel) and
@@ -65,7 +81,7 @@ export function CardTakeover({
   // mid-play resizes.
   const [chosenSrc] = useState(() => {
     const wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_MIN_PX
-    const hero = wide ? cardHeroVideo(kind) : undefined
+    const hero = wide ? (heroSrc ?? cardHeroVideo(kind)) : undefined
     return hero ?? src
   })
   const objectPosition = (kind && OBJECT_POSITION[kind]) || undefined
@@ -116,7 +132,9 @@ export function CardTakeover({
     v.addEventListener('loadeddata', tryPlay) // when the first frame is decodable
     v.addEventListener('canplay', tryPlay) // when enough is buffered to start
 
-    // dismiss after a short, fixed window — one play, no loop, not the full clip
+    // dismiss after a fixed window (holdMs overrides the short default so the
+    // Slingshot cinematic plays its full length) OR when the clip ends on its
+    // own — whichever comes first. One play, no loop.
     let done = false
     const finish = () => {
       if (done) return
@@ -124,11 +142,13 @@ export function CardTakeover({
       setLeaving(true) // trigger the fade-out, then unmount
       window.setTimeout(() => onDoneRef.current(), FADE_OUT_MS)
     }
-    const t = window.setTimeout(finish, PLAY_MS)
+    const t = window.setTimeout(finish, holdMs ?? PLAY_MS)
+    v.addEventListener('ended', finish)
     return () => {
       window.clearTimeout(t)
       v.removeEventListener('loadeddata', tryPlay)
       v.removeEventListener('canplay', tryPlay)
+      v.removeEventListener('ended', finish)
     }
     // run once on mount — onDone is read via the ref above
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,6 +186,7 @@ export function CardTakeover({
         onTimeUpdate={stage ? (e) => { if (e.currentTarget.currentTime > 0) setPlaying(true) } : undefined}
       />
       <span className="takeover__tint" />
+      {caption && <div className="takeover__caption">{caption}</div>}
     </div>,
     document.body,
   )

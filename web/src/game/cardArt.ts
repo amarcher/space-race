@@ -65,6 +65,26 @@ export function cardHeroVideo(kind: string | undefined): string | undefined {
   return `/cards/video/${kind}.hero.mp4${ASSET_V}`
 }
 
+// Safety kinds that ship a dedicated ~8s SLINGSHOT cinematic — the full-screen
+// "you dodged it" hero clip played (in place of the hazard-hit takeover) the
+// instant that safety pulls off a Slingshot. Add a kind here once its
+// `<kind>.slingshot.mp4` (+ `.slingshot.hero.mp4`) clips exist; kinds not listed
+// fall back to the built-in DOM Slingshot overlay.
+const SLINGSHOT_CLIP_KINDS = new Set<string>(['ace-pilot'])
+
+/** The standard-res (720×1280, mobile) Slingshot cinematic for a safety kind, if
+ *  it ships one — else undefined (→ caller falls back to the DOM overlay). */
+export function cardSlingshotVideo(kind: string | undefined): string | undefined {
+  if (!kind || !SLINGSHOT_CLIP_KINDS.has(kind)) return undefined
+  return `/cards/video/${kind}.slingshot.mp4`
+}
+
+/** The crisp hero-res (1080×1920, wide) Slingshot cinematic for a safety kind. */
+export function cardSlingshotHeroVideo(kind: string | undefined): string | undefined {
+  if (!kind || !SLINGSHOT_CLIP_KINDS.has(kind)) return undefined
+  return `/cards/video/${kind}.slingshot.hero.mp4`
+}
+
 /**
  * The clip's first frame, exported as a still. Using frame-0 as BOTH the static
  * <img> and the <video> poster means the still and the motion share identical
