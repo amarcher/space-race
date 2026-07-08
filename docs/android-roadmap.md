@@ -109,12 +109,20 @@ Android-only gaps:
       ace-pilot still. Then `src/native/BootSplash.tsx` (already cross-platform,
       native-gated) plays the **full-screen ace-pilot takeover clip**
       (`/cards/video/ace-pilot.hero.mp4`) → fades to the table.
-- [~] **Status bar + edge-to-edge** — the shared `@capacitor/status-bar` boot
-      call (`Style.Dark` = light icons, overlay) already applies. **API 35
-      (Android 15) enforces edge-to-edge** for `targetSdk 35+`; the iOS
-      `env(safe-area-inset-*)` CSS is in place. **Still to verify on device**:
-      that the Android window insets actually feed those CSS vars so nothing
-      hides behind the status/nav bars (plumb from the inset listener if not).
+- [x] **Status bar + edge-to-edge** — the shared `@capacitor/status-bar` boot
+      call (`Style.Dark` = light icons) sets the icon appearance. We target **API
+      36 (Android 16), where edge-to-edge is fully ENFORCED with no opt-out**
+      (`windowOptOutEdgeToEdgeEnforcement` was Android-15-only), so insets must be
+      plumbed. Android WebView's `env(safe-area-inset-*)` only reports display
+      **cutouts**, not the system bars — so `MainActivity` reads native
+      `WindowInsets` (systemBars | displayCutout) and injects `--safe-area-inset-*`
+      CSS variables (in CSS px), which `index.css` consumes ahead of `env()` in
+      the `--safe-*` block. Re-fires on rotation/gesture-nav changes; forced on
+      `onResume` so the values land after the SPA mounts. (This is what the
+      unreleased `@capacitor/system-bars` plugin does internally — done inline to
+      avoid a dependency on an unpublished package.) iOS/web unchanged: with
+      `--safe-area-inset-*` unset there, `--safe-*` falls back to `env()`.
+      *On-device confirmation (nothing hides behind the bars) pending.*
 - [x] **Killed webview artifacts** — the iOS CSS (`overscroll-behavior: none`,
       `touch-action: manipulation`, no selection/callout on the game surface) is
       platform-neutral and already applies. *Verify on device*: no Android-only
