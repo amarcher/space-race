@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -7,7 +8,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // WKWebView's WebAudio runs under the default *ambient* session, which the
+        // hardware ring/silent switch mutes outright — the game was dead silent on
+        // most devices. `.playback` ignores the switch; `.mixWithOthers` keeps the
+        // player's own music/podcast running under our short card SFX.
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            print("AVAudioSession setup failed: \(error)")
+        }
         return true
     }
 
