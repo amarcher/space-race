@@ -22,9 +22,6 @@
 .takeover--hazard .takeover__video,
 .takeover--remedy .takeover__video,
 .takeover--safety .takeover__video { animation: takeoverScaleIn 2600ms ease-out both; }
-/* the Slingshot cinematic plays its FULL ~8s with its own in-clip camera move —
-   no CSS scale/zoom (a 2.6s transform that then holds would fight the footage) */
-.takeover--slingshot .takeover__video { animation: none; transform: none; }
 
 /* soft vignette so it reads as peering through a porthole, not a hard cut */
 .takeover::after {
@@ -49,59 +46,6 @@
 }
 .takeover--safety .takeover__tint {
   background: radial-gradient(125% 100% at 50% 50%, transparent 42%, rgba(255, 200, 70, 0.28));
-}
-/* Slingshot: a light gold peripheral wash (the clip carries its own red-hazard /
-   gold-safety story, so keep the tint subtle) + a lower gradient so the caption
-   reads cleanly over the "break clear" starfield. */
-.takeover--slingshot .takeover__tint {
-  background:
-    linear-gradient(to top, rgba(3, 3, 18, 0.82) 0%, transparent 34%),
-    radial-gradient(125% 100% at 50% 50%, transparent 52%, rgba(255, 205, 80, 0.2));
-}
-
-/* ── Slingshot caption ────────────────────────────────────────────────────
-   Two stacked lines laid out INSIDE the full-bleed clip (not the old nowrap
-   board banner that overran narrow phones). Lands as the ship breaks clear. */
-.takeover__caption {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  bottom: 12%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-  max-width: 92vw;
-  pointer-events: none;
-  animation: slingCaptionIn 700ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
-  animation-delay: 5.2s; /* fade in near the clip's "break clear" climax */
-}
-.takeover__caption .sling-cap__word {
-  font-family: var(--font-display, inherit);
-  font-weight: 900;
-  letter-spacing: 1px;
-  line-height: 1;
-  font-size: clamp(38px, 12vw, 88px);
-  background: linear-gradient(120deg, #fff, #ffe98f 55%, #ffd23d);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 14px rgba(255, 200, 70, 0.55));
-}
-.takeover__caption .sling-cap__pts {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 800;
-  font-size: clamp(20px, 5.5vw, 34px);
-  color: #7df0ff;
-  text-shadow: 0 2px 12px rgba(60, 210, 255, 0.5);
-}
-@keyframes slingCaptionIn {
-  0% { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.94); }
-  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
 @keyframes takeoverIn {
