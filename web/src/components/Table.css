@@ -723,6 +723,24 @@
   inset: 0;
   background: radial-gradient(120% 90% at 50% 40%, rgba(8, 16, 40, 0.66), rgba(2, 6, 20, 0.86));
   backdrop-filter: blur(3px);
+  transition: opacity 260ms ease;
+}
+
+/* PEEK — tap outside the cards to lift the dim/blur and fade the chooser way
+   back, so the boards + hand underneath can be studied before committing. The
+   (transparent) backdrop still swallows every tap, so the board is a no-op; the
+   badge button and the faded cards are the only live controls. */
+.scry--peek .scry__backdrop {
+  opacity: 0;
+  cursor: default;
+}
+.scry--peek .scry__row {
+  opacity: 0.3;
+}
+.scry--peek .scry__pick { animation-play-state: paused; }
+.scry--peek .scry__badge {
+  cursor: pointer;
+  transform: scale(1.06);
 }
 .scry__panel {
   position: relative;
@@ -737,12 +755,15 @@
   place-items: center;
   width: 56px;
   height: 56px;
+  border: none;
+  padding: 0;
   border-radius: 50%;
   color: rgba(125, 240, 255, 1);
   background: rgba(10, 30, 50, 0.7);
   box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.9), 0 0 26px rgba(125, 240, 255, 0.5);
   font-size: 28px;
   animation: scryBadge 1.6s ease-in-out infinite;
+  transition: transform 200ms ease;
 }
 @keyframes scryBadge {
   0%, 100% { box-shadow: 0 0 0 2px rgba(125, 240, 255, 0.8), 0 0 18px rgba(125, 240, 255, 0.4); }
@@ -752,6 +773,7 @@
   display: flex;
   gap: clamp(12px, 4vw, 30px);
   align-items: center;
+  transition: opacity 260ms ease;
 }
 .scry__pick {
   position: relative;
