@@ -23,6 +23,26 @@
 .takeover--remedy .takeover__video,
 .takeover--safety .takeover__video { animation: takeoverScaleIn 2600ms ease-out both; }
 
+/* The clips are PORTRAIT (9:16). On a landscape viewport, cover-cropping shows
+   only the middle third of the frame — so letterbox the clip (contain) over a
+   blurred, dimmed blow-up of its own poster. Portrait keeps full-bleed cover.
+   (TV stage mode opts back into cover via inline style.) */
+.takeover__backdrop { display: none; }
+@media (orientation: landscape) {
+  .takeover__backdrop {
+    display: block;
+    position: absolute;
+    inset: -32px; /* overscan so the blur never reveals hard edges */
+    background-position: center;
+    background-size: cover;
+    filter: blur(28px) brightness(0.45) saturate(1.15);
+  }
+  .takeover__video {
+    position: relative; /* paint above the absolutely-positioned backdrop */
+    object-fit: contain;
+  }
+}
+
 /* soft vignette so it reads as peering through a porthole, not a hard cut */
 .takeover::after {
   content: '';
