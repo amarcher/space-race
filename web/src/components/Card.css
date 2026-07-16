@@ -55,6 +55,10 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  /* the button's overflow:hidden clip is unreliable in WebKit once a child gets
+     its own composited layer (preserve-3d tilt + a playing video) — the corners
+     paint square. Round every full-bleed layer itself, like .card__glare does. */
+  border-radius: inherit;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -74,6 +78,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: inherit; /* see .card__art — composited video escapes the clip */
   opacity: 0;
   transition: opacity 220ms ease;
   pointer-events: none;
@@ -86,6 +91,7 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  border-radius: inherit;
   background: linear-gradient(
     150deg,
     rgba(255, 255, 255, 0.16) 0%,
