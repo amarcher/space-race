@@ -40,6 +40,9 @@ export interface PlayerState {
    * player (cards stay in play). A remedy lands on top of the hazard it fixes. */
   battle: Record<Lane, CardInstance[]>
   safeties: string[] // revealed safety kinds (permanent immunity)
+  /** safety kinds won via a Slingshot (⊆ safeties) — rendered SIDEWAYS on the
+   *  board to mark the reversal, per Mille Bornes coup-fourré tradition. */
+  coupSafeties: string[]
   coupFourres: number
   count200: number
 }
@@ -342,6 +345,7 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     started: false,
     battle: emptyBattle(),
     safeties: [],
+    coupSafeties: [],
     coupFourres: 0,
     count200: 0,
   }))
@@ -634,6 +638,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         const sdef = defOf(safetyCard)
         target.hand.splice(safetyIdx, 1)
         target.safeties.push(sdef.kind)
+        target.coupSafeties.push(sdef.kind) // mark it for the sideways board render
         target.coupFourres++
         target.distance += SLINGSHOT_MILEAGE
         if (grantsGreenLight(sdef)) target.started = true // Rescue Shuttle also launches you

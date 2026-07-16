@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- App Store screenshot compositor for Space Race.
+
+     Renders ONE marketing screenshot per invocation, selected by query params,
+     at the exact pixel size App Store Connect expects. Headless Chrome does the
+     rasterizing — see render.sh next to this file.
+
+       file://…/compose.html?slide=<id>&size=<iphone|ipad>
+
+     Slides (captures live in ../screenshots/) are defined in SLIDES below.
+     Brand ingredients come straight from the app: Unbounded/Inter woff2 from
+     web/public/fonts, the #07071a space blue, the gold distance-value accent,
+     and a CSS starfield standing in for the app's animated one. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: 'Unbounded'; src: url('../../../web/public/fonts/unbounded-900.woff2') format('woff2'); font-weight: 900; }
+  @font-face { font-family: 'Unbounded'; src: url('../../../web/public/fonts/unbounded-700.woff2') format('woff2'); font-weight: 700; }
+  @font-face { font-family: 'Inter'; src: url('../../../web/public/fonts/inter-600.woff2') format('woff2'); font-weight: 600; }
+  @font-face { font-family: 'Inter'; src: url('../../../web/public/fonts/inter-500.woff2') format('woff2'); font-weight: 500; }
+
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: var(--page-w); height: var(--page-h);
+    overflow: hidden; position: relative;
+    background:
+      radial-gradient(140% 90% at 80% -10%, rgba(88, 60, 160, 0.35), transparent 55%),
+      radial-gradient(120% 80% at 10% 110%, rgba(20, 90, 140, 0.30), transparent 55%),
+      #07071a;
+    font-family: 'Inter', sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    color: #fff;
+  }
+
+  /* --- starfield: three parallax-ish layers of box-shadow stars --- */
+  .stars, .stars::before, .stars::after { position: absolute; inset: 0; content: ''; }
+  .star { position: absolute; border-radius: 50%; background: #fff; }
+
+  /* --- caption block --- */
+  .caption { text-align: center; z-index: 2; padding: 0 90px; }
+  .caption h1 {
+    font-family: 'Unbounded'; font-weight: 900;
+    font-size: var(--h1-size); line-height: 1.12; margin: 0;
+    letter-spacing: 0.01em;
+    background: linear-gradient(180deg, #ffffff 55%, #a9b7ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-wrap: balance;
+  }
+  .caption h1 em {
+    font-style: normal;
+    background: linear-gradient(180deg, #ffe9a8, #ffd76a 60%, #e0a93e);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .caption p {
+    font-weight: 500; font-size: var(--sub-size); line-height: 1.35;
+    color: rgba(215, 222, 255, 0.82); margin: 26px 0 0;
+  }
+
+  /* --- device frame --- */
+  .device-wrap { position: relative; z-index: 2; flex: 0 0 auto; }
+  .device {
+    position: relative;
+    border-radius: var(--dev-radius);
+    padding: var(--bezel);
+    background: linear-gradient(160deg, #3b3f55, #14162a 40%, #0b0d1d);
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.16),
+      0 60px 140px rgba(0, 0, 0, 0.75),
+      0 0 160px rgba(90, 140, 255, 0.18);
+  }
+  .device img {
+    display: block;
+    width: var(--shot-w);
+    border-radius: calc(var(--dev-radius) - var(--bezel));
+  }
+  /* dynamic-island hint (iphone only) */
+  .device .island {
+    position: absolute; top: calc(var(--bezel) + 18px); left: 50%;
+    transform: translateX(-50%);
+    width: 190px; height: 56px; border-radius: 999px;
+    background: #050510;
+  }
+  .ipad .island { display: none; }
+
+  /* soft glow pedestal under the device */
+  .device-wrap::after {
+    content: ''; position: absolute; left: 50%; bottom: -40px;
+    transform: translateX(-50%);
+    width: 80%; height: 90px; border-radius: 50%;
+    background: radial-gradient(50% 50% at 50% 50%, rgba(120, 160, 255, 0.35), transparent 70%);
+    filter: blur(18px);
+  }
+
+  /* --- badge row (sits under the sub-caption, above the device) --- */
+  .badges { display: flex; gap: 26px; align-items: center; justify-content: center; margin-top: 44px; }
+  .badge {
+    font-weight: 600; font-size: var(--badge-size);
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(215, 222, 255, 0.75);
+    border: 2px solid rgba(160, 175, 255, 0.35);
+    border-radius: 999px; padding: 16px 34px;
+    background: rgba(20, 24, 55, 0.55);
+  }
+</style>
+</head>
+<body>
+<script>
+  const params = new URLSearchParams(location.search)
+  const SIZE = params.get('size') || 'iphone'
+  const SLIDE = params.get('slide') || 'takeover'
+
+  // page + layout geometry per ASC size class
+  const GEOM = {
+    iphone: { w: 1284, h: 2778, shotW: 940, h1: 104, sub: 46, badge: 30, radius: 74, bezel: 22, capTop: 150, gap: 96 },
+    ipad:   { w: 2064, h: 2752, shotW: 1360, h1: 118, sub: 50, badge: 32, radius: 64, bezel: 26, capTop: 130, gap: 86 },
+  }[SIZE]
+
+  const SLIDES = {
+    takeover: {
+      shot: { iphone: '../screenshots/iphone-6.9-03-rescue-takeover.png' },
+      h1: 'Every card is a <em>moment</em>',
+      sub: 'Full-screen cinematics when the race turns',
+    },
+    scry: {
+      shot: { iphone: '../screenshots/iphone-6.9-04-scry.png' },
+      h1: 'Scry the deck. <em>Choose</em> your path',
+      sub: 'Peek two cards ahead and pick your line',
+    },
+    race: {
+      shot: { iphone: '../screenshots/iphone-6.9-05-board-race.png' },
+      h1: 'Race a rival to <em>1,000</em> light-years',
+      sub: 'Hazards, remedies, and photo finishes',
+    },
+    table: {
+      shot: { iphone: '../screenshots/iphone-6.9-01-table.png', ipad: '../screenshots/ipad-13-01-table.png' },
+      h1: 'Learn it in <em>one hand</em>',
+      sub: 'Icon-first table — kids and grown-ups both play',
+      badges: ['Free', 'Offline', 'No ads'],
+    },
+    rules: {
+      shot: { iphone: '../screenshots/iphone-6.9-02-rules.png', ipad: '../screenshots/ipad-13-02-rules.png' },
+      h1: 'Every card, <em>explained</em>',
+      sub: 'Full rules and card gallery built in',
+      badges: ['No account', 'No signal needed'],
+    },
+  }
+
+  const slide = SLIDES[SLIDE]
+  const shot = slide.shot[SIZE] || slide.shot.iphone
+
+  const root = document.documentElement
+  root.style.setProperty('--page-w', GEOM.w + 'px')
+  root.style.setProperty('--page-h', GEOM.h + 'px')
+  root.style.setProperty('--shot-w', GEOM.shotW + 'px')
+  root.style.setProperty('--h1-size', GEOM.h1 + 'px')
+  root.style.setProperty('--sub-size', GEOM.sub + 'px')
+  root.style.setProperty('--badge-size', GEOM.badge + 'px')
+  root.style.setProperty('--dev-radius', GEOM.radius + 'px')
+  root.style.setProperty('--bezel', GEOM.bezel + 'px')
+
+  // deterministic pseudo-random starfield (seeded so renders are reproducible)
+  let seed = 42
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const stars = document.createElement('div')
+  stars.className = 'stars'
+  for (let i = 0; i < 220; i++) {
+    const s = document.createElement('span')
+    s.className = 'star'
+    const r = rand() * 2.6 + 0.6
+    s.style.width = s.style.height = r.toFixed(1) + 'px'
+    s.style.left = (rand() * 100).toFixed(2) + '%'
+    s.style.top = (rand() * 100).toFixed(2) + '%'
+    s.style.opacity = (rand() * 0.65 + 0.2).toFixed(2)
+    stars.appendChild(s)
+  }
+  document.body.appendChild(stars)
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="caption" style="margin-top:${GEOM.capTop}px">
+      <h1>${slide.h1}</h1>
+      <p>${slide.sub}</p>
+      ${slide.badges ? `<div class="badges">${slide.badges.map((b) => `<span class="badge">${b}</span>`).join('')}</div>` : ''}
+    </div>
+    <div class="device-wrap" style="margin-top:${GEOM.gap}px">
+      <div class="device ${SIZE}">
+        <img src="${shot}" />
+        <span class="island"></span>
+      </div>
+    </div>
+  `)
+</script>
+</body>
+</html>

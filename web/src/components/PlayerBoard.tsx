@@ -193,13 +193,22 @@ export function PlayerBoard({ player, isOpponent, active, who, impact, momentum,
 
         {player.safeties.length > 0 && <span className="board__div board__div--gold" />}
 
-        {player.safeties.map((kind) => (
-          <div className="stack stack--safety" key={kind} style={{ height: 'var(--tab-h)' }}>
-            <div className="stack__card" style={{ top: 0, zIndex: 0 }}>
-              <Card kind={kind} size="sm" showName={false} />
+        {player.safeties.map((kind) => {
+          // a safety won via Slingshot is laid SIDEWAYS (coup-fourré tradition)
+          const coup = player.coupSafeties?.includes(kind)
+          return (
+            <div
+              className={`stack stack--safety${coup ? ' stack--safety--coup' : ''}`}
+              key={kind}
+              style={{ height: 'var(--tab-h)' }}
+              title={coup ? 'Slingshot!' : undefined}
+            >
+              <div className="stack__card" style={{ top: 0, zIndex: 0 }}>
+                <Card kind={kind} size="sm" showName={false} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         {player.coupFourres > 0 && (
           <span className="board__coup" title="Slingshot!" aria-label={`${player.coupFourres} slingshot`}>
