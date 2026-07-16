@@ -636,7 +636,9 @@
 }
 .scorecol__total b { color: #ffd76a; font-variant-numeric: tabular-nums; }
 
-@media (max-width: 760px) {
+/* compact = narrow viewports AND any touch-first device — must stay in lockstep
+   with the matching query in Hand.css */
+@media (max-width: 760px), (pointer: coarse) {
   .table {
     /* no room for a margin log on phones — give the play area the full width.
        Every play-piece is sized down (height-aware vh clamps) so the whole stack

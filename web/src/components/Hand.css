@@ -88,7 +88,9 @@
    negative inline-margin laps each card over its neighbour so 6–7 fit the width.
    Later cards stack on top, so each card's right half (where nothing critical
    sits) tucks under the next while its value stays clear. */
-@media (max-width: 760px) {
+/* compact = narrow viewports AND any touch-first device (iPads report 820 to
+   1180px wide but still need the lapped fan + floating action pill) */
+@media (max-width: 760px), (pointer: coarse) {
   .hand {
     justify-content: center;
     flex-wrap: nowrap;
