@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { CARD_DEFS, type CardInstance } from '../game/cards'
 import {
   applyMove,
@@ -16,7 +16,8 @@ import {
 import { MOMENTUM_CAP } from '../game/rules'
 import { loadRules } from '../settings'
 import { Settings } from './Settings'
-import { cardHeroVideo, cardVideo } from '../game/cardArt'
+import { cardHeroVideo, cardSlingshotHeroVideo, cardSlingshotVideo, cardVideo } from '../game/cardArt'
+import { SLINGSHOT_MILEAGE } from '../game/cards'
 import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import * as haptics from '../native/haptics'
@@ -39,8 +40,25 @@ import './Table.css'
 const DRAW_DELAY = 480
 const AI_DELAY = 780
 const SLINGSHOT_MS = 2800
+// The Slingshot cinematic runs its full length; cap slightly past the 8s clip so
+// it always dismisses even if `ended` never fires (some WebViews swallow it).
+const SLINGSHOT_CINEMATIC_MS = 8200
 // SCRY: the AI "reads" the revealed cards for a beat before picking one.
 const SCRY_DELAY = 620
+
+// A full-screen hero takeover. `next` lets takeovers be chained (a Slingshot
+// plays its cinematic, then its `next` safety-reveal clip) — onDone advances to
+// `next` instead of clearing.
+type Takeover = {
+  src: string
+  kind: string
+  variant: TakeoverVariant
+  key: number
+  heroSrc?: string
+  holdMs?: number
+  caption?: ReactNode
+  next?: Takeover | null
+}
 
 // Screen-space rect of the .card inside an anchor element (deck/discard pile).
 function cardRectOf(el: HTMLElement | null): Rect | null {
@@ -228,9 +246,7 @@ export function Table({
   const [impact, setImpact] = useState<{ seat: number; tone: 'hit' | 'recover'; key: number } | null>(null)
   const impactSeq = useRef(0)
   // full-screen hero takeover for headline plays (warp-200 + hazard/remedy/safety)
-  const [takeover, setTakeover] = useState<{ src: string; kind: string; variant: TakeoverVariant; key: number } | null>(
-    null,
-  )
+  const [takeover, setTakeover] = useState<Takeover | null>(null)
   const lastSlingId = useRef<number>(-1)
   const lastHealId = useRef<number>(-1)
   // the deck size of a brand-fresh deal (captured on mount) — used to tell an
@@ -334,6 +350,14 @@ export function Table({
       return
     }
     const victimSeat = def.type === 'hazard' ? move.targetSeat ?? actor : actor
+    // A hazard the victim can Slingshot (holds the matching safety in hand) never
+    // lands — suppress ALL hazard-hit fx here (burst, shake, red takeover, buzz).
+    // The Slingshot effect owns the whole moment: cinematic → safety reveal.
+    if (def.type === 'hazard') {
+      const victimHand = state.players[victimSeat].hand
+      const willSlingshot = victimHand.some((c) => (CARD_DEFS[c.kind].immuneTo ?? []).includes(def.kind))
+      if (willSlingshot) return
+    }
     const el = document.querySelector<HTMLElement>(victimSeat === 0 ? '[data-drop="self"]' : '[data-drop="opp"]')
     if (el) {
       const r = el.getBoundingClientRect()
@@ -522,19 +546,58 @@ export function Table({
     return () => clearTimeout(t)
   }, [state, cur.isAI, animating, takeover])
 
-  // ---- Slingshot hero animation: play it, and pause the loop while it runs ----
+  // ---- Slingshot hero moment: play it, and pause the loop while it runs -------
+  // When YOU pull off the Slingshot and its safety ships a cinematic, play the
+  // full ~8s "you dodged it" clip (in place of the suppressed hazard takeover),
+  // captioned SLINGSHOT! / +200 ly, then chain straight into the safety-reveal
+  // clip. Otherwise (the AI dodged you, no clip, or reduced motion) fall back to
+  // the compact DOM overlay — an 8s hero clip shouldn't celebrate the opponent.
   useEffect(() => {
     const ev = state.lastSlingshot
     if (!ev || ev.id === lastSlingId.current) return
-    // if the triggering hazard's full-screen takeover is still on screen, wait —
-    // this effect re-runs when `takeover` clears, so the slingshot plays AFTER
-    // the hazard moment, clearly sequential (never overlapping)
+    // wait out any takeover still on screen — this effect re-runs when it clears,
+    // so the Slingshot always plays cleanly after, never overlapping
     if (takeover) return
     lastSlingId.current = ev.id
-    setSlingshot(ev)
-    setAnimating(true)
     playSfx('slingshot')
     haptics.coupFourre() // the showiest reversal — always worth a heavy buzz
+
+    // prefer a hazard-specific clip (Rescue Shuttle dodges Tractor Beam AND Black
+    // Hole) — falls back to the safety's generic Slingshot clip when absent
+    const cinematic = cardSlingshotVideo(ev.safetyKind, ev.hazardKind)
+    const youDodged = ev.seat === 0
+    const safetyClip = cardVideo(ev.safetyKind, ['idle', 'hover'])
+    if (youDodged && cinematic && safetyClip && !prefersReducedMotion()) {
+      // cinematic → safety-reveal, chained via `next` (onDone advances the chain)
+      const key = ++impactSeq.current
+      setTakeover({
+        src: cinematic,
+        heroSrc: cardSlingshotHeroVideo(ev.safetyKind, ev.hazardKind),
+        kind: ev.safetyKind,
+        variant: 'slingshot',
+        holdMs: SLINGSHOT_CINEMATIC_MS,
+        caption: (
+          <>
+            <span className="sling-cap__word">SLINGSHOT!</span>
+            <span className="sling-cap__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
+          </>
+        ),
+        key,
+        next: {
+          src: safetyClip,
+          heroSrc: cardHeroVideo(ev.safetyKind),
+          kind: ev.safetyKind,
+          variant: 'safety',
+          key: key + 1,
+        },
+      })
+      impactSeq.current = key + 1
+      return
+    }
+
+    // fallback: compact DOM overlay
+    setSlingshot(ev)
+    setAnimating(true)
     const t = setTimeout(() => {
       setSlingshot(null)
       setAnimating(false)
@@ -843,7 +906,10 @@ export function Table({
           src={takeover.src}
           kind={takeover.kind}
           variant={takeover.variant}
-          onDone={() => setTakeover(null)}
+          heroSrc={takeover.heroSrc}
+          holdMs={takeover.holdMs}
+          caption={takeover.caption}
+          onDone={() => setTakeover((t) => t?.next ?? null)}
         />
       )}
 
