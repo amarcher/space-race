@@ -231,8 +231,6 @@ export function Table({
   const [takeover, setTakeover] = useState<{ src: string; kind: string; variant: TakeoverVariant; key: number } | null>(
     null,
   )
-  // warp values whose first-play cinematic already fired this round (see firePlayEffect)
-  const warpCinematicSeen = useRef(new Set<number>())
   const lastSlingId = useRef<number>(-1)
   const lastHealId = useRef<number>(-1)
   // the deck size of a brand-fresh deal (captured on mount) — used to tell an
@@ -321,19 +319,16 @@ export function Table({
 
     if (def.type === 'distance') {
       window.dispatchEvent(new CustomEvent('spacerace:warp', { detail: { ly: def.value ?? 50 } }))
-      // Every warp value has its own clip, but a takeover on EVERY distance card
-      // would wear thin fast — so YOUR first play of each value per round earns
-      // the full-screen moment, and the big 200-ly jump earns it every time.
-      // The AI just moving is never your cinematic moment.
-      const ly = def.value ?? 50
-      const cinematic = isPlayer && (ly === 200 || !warpCinematicSeen.current.has(ly))
-      if (cinematic) {
-        warpCinematicSeen.current.add(ly)
-        fireTakeover('warp')
+      // ONLY the big 200-ly jump earns the full-screen hyperwarp hero moment —
+      // and only for YOUR jump; the AI just moving isn't your cinematic moment.
+      // Smaller warps stay sfx-only (the owner's explicit call: the takeover is
+      // the 200's signature).
+      if (def.value === 200) {
+        if (isPlayer) fireTakeover('warp')
         playSfx('warp')
-        haptics.boost()
+        if (isPlayer) haptics.boost()
       } else {
-        playSfx(ly === 200 ? 'warp' : 'distance')
+        playSfx('distance')
         if (isPlayer) haptics.cardDrop()
       }
       return
@@ -616,7 +611,6 @@ export function Table({
     setSelectedUid(null)
     setWinTakeoverShown(false)
     setScoreboardOpen(false)
-    warpCinematicSeen.current.clear() // each round re-earns its first-warp moments
     // re-read the persisted preference so a settings change applies to this round
     const fresh = loadRules()
     setRules(fresh)
