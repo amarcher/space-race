@@ -1,0 +1,61 @@
+/* Slim "get the app" bar for non-Safari iOS browsers. Overlaid (fixed) so the
+   no-scroll game layout underneath is never reflowed. */
+.appstore-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(6px + env(safe-area-inset-top)) 12px 6px 8px;
+  background: rgba(7, 7, 26, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+}
+
+.appstore-banner__close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.appstore-banner__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.appstore-banner__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.appstore-banner__text span {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appstore-banner__cta {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #2f7cf6;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}

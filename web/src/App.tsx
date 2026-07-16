@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import type { GameState } from './game'
 import { initAudio } from './audio/sfx'
+import { AppStoreBanner } from './components/AppStoreBanner'
 import { Gallery } from './components/Gallery'
 import { Starfield } from './components/Starfield'
 import { Table } from './components/Table'
@@ -60,6 +61,8 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
       <BootSplash />
       {/* Android "press back again to exit" toast (no-op on web) */}
       <BackExitHint />
+      {/* "get the iOS app" bar for non-Safari iOS browsers (no-op elsewhere) */}
+      <AppStoreBanner />
       <Starfield />
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
