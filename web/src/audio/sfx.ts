@@ -129,6 +129,15 @@ export function initAudio(): void {
   window.addEventListener('keydown', unlock)
   window.addEventListener('touchstart', unlock)
 
+  // iOS suspends (or "interrupt"s — a WebKit-only state) the AudioContext when
+  // the app backgrounds or a call/Siri takes the output, and never resumes it on
+  // its own. Re-resume whenever we come back to the foreground.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ctx && ctx.state !== 'running') {
+      ctx.resume().catch(() => {})
+    }
+  })
+
   // a small debug/verification handle (harmless, word-free): lets the owner test
   // levels from the console and lets headless checks observe the engine
   ;(window as unknown as { __sfx?: unknown }).__sfx = {
