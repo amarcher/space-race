@@ -26,11 +26,17 @@ const CLIP_KINDS = [
   'ace-pilot', 'antimatter-fuel-cell', 'diamond-thruster', 'rescue-shuttle',
 ]
 
+// Asset version — BUMP whenever a clip/poster is re-exported (same convention as
+// WinTakeover's ASSET_V). These URLs are runtime-cached CacheFirst by the service
+// worker for 30 days, so replacing a file's bytes at the same URL (e.g. the
+// warp-25 regeneration) never reaches returning visitors without a new cache key.
+const ASSET_V = '?v=2'
+
 /** kind → state → asset URL. Missing entries simply fall back to the static webp. */
 export const CARD_VIDEO: Partial<Record<string, Partial<Record<CardArtState, string>>>> =
   Object.fromEntries(
     CLIP_KINDS.map((kind) => {
-      const url = `/cards/video/${kind}.mp4`
+      const url = `/cards/video/${kind}.mp4${ASSET_V}`
       return [kind, { idle: url, hover: url }]
     }),
   )
@@ -56,7 +62,7 @@ const HERO_KINDS = new Set<string>([
  *  the takeover falls back to the standard cardVideo clip). */
 export function cardHeroVideo(kind: string | undefined): string | undefined {
   if (!kind || !HERO_KINDS.has(kind)) return undefined
-  return `/cards/video/${kind}.hero.mp4`
+  return `/cards/video/${kind}.hero.mp4${ASSET_V}`
 }
 
 /**
@@ -67,7 +73,7 @@ export function cardHeroVideo(kind: string | undefined): string | undefined {
  */
 export function cardPoster(kind: string | undefined): string | undefined {
   if (!kind || !CLIP_KIND_SET.has(kind)) return undefined
-  return `/cards/video/${kind}.poster.webp`
+  return `/cards/video/${kind}.poster.webp${ASSET_V}`
 }
 
 /**

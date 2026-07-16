@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cardHeroVideo } from '../game/cardArt'
+import { cardHeroVideo, cardPoster } from '../game/cardArt'
 import './CardTakeover.css'
 
 export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety'
@@ -140,8 +140,12 @@ export function CardTakeover({
   // `position: fixed`, which would shrink this overlay to the (narrower) table box
   // and jitter it, then snap back to full-screen when the shake ends. Rendering at
   // <body> keeps `position: fixed` rooted to the viewport regardless of the shake.
+  const posterSrc = stage ? undefined : cardPoster(kind)
   return createPortal(
     <div className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''}`} aria-hidden>
+      {/* landscape viewports letterbox the portrait clip over a blurred blow-up of
+          its own poster (see .takeover__backdrop); hidden in portrait and on stage */}
+      {posterSrc && <span className="takeover__backdrop" style={{ backgroundImage: `url(${posterSrc})` }} />}
       <video
         ref={setVideo}
         className="takeover__video"
