@@ -95,13 +95,13 @@ function slingshotBase(safety: string | undefined, hazard?: string): string | un
  *  `hazard`, if one ships — else undefined (→ caller falls back to the overlay). */
 export function cardSlingshotVideo(safety: string | undefined, hazard?: string): string | undefined {
   const base = slingshotBase(safety, hazard)
-  return base ? `/cards/video/${base}.mp4` : undefined
+  return base ? `/cards/video/${base}.mp4${ASSET_V}` : undefined
 }
 
 /** The crisp hero-res (1080×1920, wide) Slingshot cinematic for the pairing. */
 export function cardSlingshotHeroVideo(safety: string | undefined, hazard?: string): string | undefined {
   const base = slingshotBase(safety, hazard)
-  return base ? `/cards/video/${base}.hero.mp4` : undefined
+  return base ? `/cards/video/${base}.hero.mp4${ASSET_V}` : undefined
 }
 
 /**
