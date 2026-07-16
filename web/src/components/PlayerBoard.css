@@ -239,7 +239,11 @@
   align-items: flex-start;
   gap: 8px;
   min-height: var(--tab-h);
-  flex-wrap: wrap;
+  /* NEVER wrap: a crowded board (all five distance stacks + lanes + safeties)
+     wrapping to a second row grows the board past its band and overlaps the
+     centre piles (seen on iPad). Instead the stacks flex-shrink evenly — full
+     --tab-w when there's room, uniformly narrower when there isn't. */
+  flex-wrap: nowrap;
   transition: filter 320ms ease; /* ease the powered-down dim in/out */
 }
 .board__empty {
@@ -270,16 +274,17 @@
 .stack {
   position: relative;
   width: var(--tab-w);
-  flex: 0 0 auto;
+  flex: 0 1 auto; /* shrink with the nowrap tableau; --tab-w when space allows */
+  min-width: 0;
 }
 .stack__card {
   position: absolute;
   left: 0;
-  width: var(--tab-w);
+  width: 100%; /* track the (possibly shrunken) stack, not the nominal --tab-w */
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
   animation: stackIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.stack__card .card { width: var(--tab-w); border-radius: 5px; }
+.stack__card .card { width: 100%; border-radius: 5px; }
 .stack__card .card:hover { transform: none; }
 .stack__badge {
   position: absolute;
@@ -314,6 +319,9 @@
 .stack--safety--coup .stack__card {
   left: 50%;
   top: 50%;
+  /* 3:4 card in a 4:3 slot — 75% of the slot width = the card's upright width,
+     and it stays proportional if the whole stack flex-shrinks */
+  width: 75%;
   transform: translate(-50%, -50%) rotate(90deg);
   animation: coupIn 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -341,8 +349,11 @@
   position: absolute;
   top: -6px;
   left: -6px;
-  width: calc(var(--tab-w) + 12px);
-  height: calc(var(--tab-w) + 12px);
+  /* size off the stack itself (100% = stack width) so the ring tracks a
+     flex-shrunken stack, not the nominal --tab-w */
+  width: calc(100% + 12px);
+  height: auto;
+  aspect-ratio: 1 / 1;
   overflow: visible;
 }
 .heal-timer__track {

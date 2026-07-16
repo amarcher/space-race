@@ -996,18 +996,29 @@ function ScryChooser({
   useEffect(() => {
     if (catchUp) playSfx('safety', { rate: 1.15 })
   }, [catchUp])
+  // PEEK: tap outside the cards → the chooser fades way back and the dim/blur
+  // lifts so you can study the boards and your hand before committing. While
+  // peeking everything is a no-op except the two ways back in: the cards badge
+  // (returns to the chooser) or tapping a faded card (draws it directly).
+  const [peeking, setPeeking] = useState(false)
   return (
     <div
-      className={`scry ${catchUp ? 'scry--catchup' : ''}`}
+      className={`scry ${catchUp ? 'scry--catchup' : ''} ${peeking ? 'scry--peek' : ''}`}
       role="dialog"
       aria-label="Choose a card from the top of the deck"
     >
-      <div className="scry__backdrop" aria-hidden />
+      <div className="scry__backdrop" onClick={() => setPeeking(true)} aria-hidden />
       {catchUp && <div className="scry__tailwind" aria-hidden />}
       <div className="scry__panel">
-        <div className="scry__badge" aria-hidden>
+        <button
+          type="button"
+          className="scry__badge"
+          onClick={() => setPeeking(false)}
+          aria-label={peeking ? 'Back to the card choice' : 'Card choice'}
+          disabled={!peeking}
+        >
           <Icon name="cards" />
-        </div>
+        </button>
         <div className="scry__row">
           {cards.map((c) => (
             <button
