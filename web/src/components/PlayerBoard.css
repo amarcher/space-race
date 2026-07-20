@@ -260,16 +260,6 @@
   margin: 0 3px;
 }
 .board__div--gold { background: rgba(255, 215, 106, 0.4); }
-.board__coup {
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-size: 15px;
-  font-weight: 700;
-  color: #ffd76a;
-  white-space: nowrap;
-}
 
 .stack {
   position: relative;
@@ -313,21 +303,29 @@
   box-shadow: 0 0 0 1.5px rgba(255, 215, 106, 0.8), 0 0 14px rgba(255, 215, 106, 0.5);
   border-radius: 5px;
 }
-/* Slingshot-won safety: laid SIDEWAYS across a tab-height-wide slot (coup-fourré
-   tradition) so a glance reads "this one was a reversal". */
-.stack--safety--coup { width: var(--tab-h); }
-.stack--safety--coup .stack__card {
-  left: 50%;
-  top: 50%;
-  /* 3:4 card in a 4:3 slot — 75% of the slot width = the card's upright width,
-     and it stays proportional if the whole stack flex-shrinks */
-  width: 75%;
-  transform: translate(-50%, -50%) rotate(90deg);
-  animation: coupIn 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+/* Slingshot-won safety: portrait like the rest, marked by a 💫 badge that pops
+   in on the card's shoulder. (The sideways coup-fourré render was retired —
+   it broke the tableau line-up.) */
+.stack__sling {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 31;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #05050f;
+  border: 1.5px solid rgba(255, 215, 106, 0.85);
+  box-shadow: 0 0 10px rgba(255, 215, 106, 0.5);
+  font-size: 13px;
+  line-height: 1;
+  animation: slingBadgeIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-@keyframes coupIn {
-  from { opacity: 0; transform: translate(-50%, -50%) rotate(90deg) scale(0.7); }
-  to { opacity: 1; transform: translate(-50%, -50%) rotate(90deg) scale(1); }
+@keyframes slingBadgeIn {
+  from { opacity: 0; transform: scale(0.4) rotate(-90deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
 }
 @keyframes blockpulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
 

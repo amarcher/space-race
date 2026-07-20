@@ -14,6 +14,8 @@
 //
 // No words/UI on the play surface here — this is pure plumbing. The mute control
 // is word-free SVG chrome in the header.
+import { Capacitor } from '@capacitor/core'
+import { NativeAudio } from '@capacitor-community/native-audio'
 
 export type SfxName =
   | 'card-flick' // draw / card movement
@@ -59,6 +61,44 @@ const BASE_GAIN: Record<SfxName, number> = {
 }
 
 const MUTE_KEY = 'sr-sfx-muted'
+
+// iOS ONLY: play SFX through the NATIVE audio engine instead of WebAudio.
+// WKWebView renders web audio under WebKit's own audio-session policy, which
+// honors the ring/silent switch like Safari — the app's .playback category
+// (AppDelegate) can't override it for web-originated sound. Playing the same
+// files via AVAudioPlayer puts them under the APP's session, so the game is
+// audible regardless of the switch — native-game behavior, per the owner's
+// explicit call (2026-07-20). Web keeps WebAudio; Android's ringer switch
+// never muted media in the first place.
+const NATIVE_SFX = Capacitor.getPlatform() === 'ios'
+let nativeReady = false
+let nativePlays = 0
+let lastNativeError = ''
+
+async function preloadNative(): Promise<void> {
+  try {
+    await NativeAudio.configure({ focus: false }) // keep mixing with the user's own music
+  } catch {
+    /* configure is best-effort */
+  }
+  await Promise.all(
+    (Object.keys(FILES) as SfxName[]).map(async (name) => {
+      try {
+        await NativeAudio.preload({
+          assetId: name,
+          // the Capacitor iOS bundle serves web assets from App.app/public/
+          assetPath: `public${FILES[name]}`,
+          audioChannelNum: 2,
+          volume: BASE_GAIN[name],
+          isUrl: false,
+        })
+        nativeReady = true
+      } catch (e) {
+        lastNativeError = `${name}: ${e instanceof Error ? e.message : String(e)}`
+      }
+    }),
+  )
+}
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
@@ -137,6 +177,9 @@ async function preload(): Promise<void> {
  */
 export function initAudio(): void {
   if (typeof window === 'undefined') return
+  // native SFX need no gesture — start loading immediately; if this fails the
+  // web engine below remains the fallback (nativeReady stays false)
+  if (NATIVE_SFX) void preloadNative()
   // iOS WebKit does NOT grant audio activation on touch-START events — only on
   // touchend / click / mousedown / keydown. The old one-shot unlock listened on
   // pointerdown/touchstart and removed itself after the FIRST event, so on an
@@ -204,6 +247,15 @@ export function initAudio(): void {
  */
 export function playSfx(name: SfxName, opts: { gain?: number; rate?: number } = {}): void {
   if (muted) return
+  // iOS: native path — audible regardless of the silent switch. (No pitch
+  // jitter here; AVAudioPlayer rate control isn't exposed by the plugin.)
+  if (NATIVE_SFX && nativeReady) {
+    nativePlays++
+    void NativeAudio.play({ assetId: name }).catch((e) => {
+      lastNativeError = `${name}: ${e instanceof Error ? e.message : String(e)}`
+    })
+    return
+  }
   const c = ctx
   if (!c || !master) return
   const buf = buffers.get(name)
@@ -237,6 +289,10 @@ export function audioDebugState() {
     masterGain: master?.gain.value ?? -1,
     plays: playCount,
     lastLoadError,
+    nativeSfx: NATIVE_SFX,
+    nativeReady,
+    nativePlays,
+    lastNativeError,
   }
 }
 

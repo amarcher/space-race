@@ -63,6 +63,13 @@ export function AudioDebug({ onClose }: { onClose: () => void }) {
       {row('master gain', state.masterGain.toFixed(2), state.masterGain === 0)}
       {row('plays fired', state.plays)}
       {row('out peak', peak.toFixed(4), peak === 0)}
+      {state.nativeSfx && row('native ready', state.nativeReady, !state.nativeReady)}
+      {state.nativeSfx && row('native plays', state.nativePlays)}
+      {state.lastNativeError && (
+        <div style={{ color: '#ff7a8a', wordBreak: 'break-all', fontSize: 10, lineHeight: 1.4 }}>
+          native {state.lastNativeError}
+        </div>
+      )}
       {state.lastLoadError && (
         <div style={{ color: '#ff7a8a', wordBreak: 'break-all', fontSize: 10, lineHeight: 1.4 }}>
           {state.lastLoadError}
