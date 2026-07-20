@@ -116,18 +116,44 @@ async function preload(): Promise<void> {
  */
 export function initAudio(): void {
   if (typeof window === 'undefined') return
+  // iOS WebKit does NOT grant audio activation on touch-START events — only on
+  // touchend / click / mousedown / keydown. The old one-shot unlock listened on
+  // pointerdown/touchstart and removed itself after the FIRST event, so on an
+  // iPhone the first touch "unlocked" nothing (resume() rejected, listeners
+  // gone) and the app was silent forever — while Chrome, which grants
+  // activation on pointerdown, worked fine. So: listen on the activation-
+  // granting events too, and DON'T stand down until a resume actually sticks.
+  const EVENTS = ['pointerdown', 'pointerup', 'touchend', 'mousedown', 'click', 'keydown'] as const
+  const cleanup = () => EVENTS.forEach((e) => window.removeEventListener(e, unlock))
   const unlock = () => {
     if (unlocked) return
-    unlocked = true
-    ensureContext()?.resume().catch(() => {})
-    void preload()
-    window.removeEventListener('pointerdown', unlock)
-    window.removeEventListener('keydown', unlock)
-    window.removeEventListener('touchstart', unlock)
+    const c = ensureContext()
+    if (!c) {
+      cleanup() // WebAudio unsupported — nothing to unlock
+      return
+    }
+    void preload() // fetch/decode needs no gesture; start it on the first try
+    // classic WebKit kick: starting a (silent) source inside the gesture is the
+    // most reliable unlock across WKWebView versions
+    try {
+      const kick = c.createBufferSource()
+      kick.buffer = c.createBuffer(1, 1, 22050)
+      kick.connect(c.destination)
+      kick.start(0)
+    } catch {
+      /* already unlocked or transient — resume() below decides */
+    }
+    void c
+      .resume()
+      .then(() => {
+        if (c.state === 'running' && !unlocked) {
+          unlocked = true
+          cleanup()
+        }
+      })
+      .catch(() => {})
   }
-  window.addEventListener('pointerdown', unlock)
-  window.addEventListener('keydown', unlock)
-  window.addEventListener('touchstart', unlock)
+  EVENTS.forEach((e) => window.addEventListener(e, unlock))
 
   // iOS suspends (or "interrupt"s — a WebKit-only state) the AudioContext when
   // the app backgrounds or a call/Siri takes the output, and never resumes it on
