@@ -36,6 +36,19 @@ const config: CapacitorConfig = {
     // per CapConfig.java) — NOT `appendUserAgentString`, which Capacitor silently ignores.
     appendUserAgent: 'SpaceRaceAndroid',
   },
+  plugins: {
+    // Hold the NATIVE splash (iOS: the LaunchScreen storyboard's Ace-Pilot
+    // still; Android: the splash resource) until the WEB boot splash — which
+    // shows the SAME still — has painted, then BootSplash.tsx calls hide().
+    // Without this, iOS drops the launch image the moment the app's first
+    // frame renders, exposing ~1s of dark half-loaded webview (the "black
+    // gap" between the still flash and the takeover clip).
+    SplashScreen: {
+      launchAutoHide: false,
+      backgroundColor: '#07071a',
+      showSpinner: false,
+    },
+  },
 };
 
 export default config;

@@ -10,6 +10,7 @@
 // prefers-reduced-motion by skipping the clip and doing a quick fade.
 import { useEffect, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { SplashScreen } from '@capacitor/splash-screen'
 import { cardHeroVideo } from '../game/cardArt'
 import './BootSplash.css'
 
@@ -36,6 +37,26 @@ function BootSplashOverlay() {
   // real playback. Same fix as CardTakeover's stage mode.
   const [playing, setPlaying] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  // The NATIVE splash (launchAutoHide: false) is still covering everything
+  // when we mount. Dismiss it only once OUR still has decoded and had a frame
+  // to paint — the native still and this one are the same art, so the handoff
+  // is seamless and the dark half-loaded webview is never exposed. The timeout
+  // is a safety net: never trap the user on the native splash.
+  useEffect(() => {
+    let cancelled = false
+    const dismiss = () => {
+      if (cancelled) return
+      cancelled = true
+      void SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {})
+    }
+    const img = new Image()
+    img.src = STILL
+    const ready = 'decode' in img ? img.decode().catch(() => {}) : Promise.resolve()
+    void ready.then(() => requestAnimationFrame(() => requestAnimationFrame(dismiss)))
+    const guard = window.setTimeout(dismiss, 3000)
+    return () => window.clearTimeout(guard)
+  }, [])
 
   useEffect(() => {
     const beginFade = () => setFading(true)
