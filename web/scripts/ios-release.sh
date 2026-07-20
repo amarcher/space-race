@@ -3,11 +3,19 @@
 #
 #   ./scripts/ios-release.sh            # unsigned archive (proves the build; no Apple account needed)
 #   ./scripts/ios-release.sh --signed   # signed archive + .ipa export for App Store Connect
+#   ./scripts/ios-release.sh --upload   # --signed, then upload the .ipa to App Store Connect
 #
 # --signed requires an Apple Developer team. Set TEAM_ID to your 10-char Team ID
 # (App Store Connect -> Membership) and have automatic signing set up in Xcode once:
 #
 #   TEAM_ID=ABCDE12345 ./scripts/ios-release.sh --signed
+#
+# --upload additionally needs an App Store Connect API key (Users and Access ->
+# Integrations -> App Store Connect API). altool finds the AuthKey_<ID>.p8 in
+# ~/.appstoreconnect/private_keys automatically. Unlike the Xcode-account path,
+# API keys never hit session expiry — this is the durable headless upload.
+#
+#   TEAM_ID=... ASC_API_KEY_ID=... ASC_API_ISSUER_ID=... ./scripts/ios-release.sh --upload
 #
 # The unsigned path is the default so CI / a fresh machine can verify the app
 # compiles for device arch. Only the final signed upload needs the paid account.
@@ -20,7 +28,9 @@ BUILD_DIR="$ROOT/ios/build"
 ARCHIVE="$BUILD_DIR/SpaceRace.xcarchive"
 
 SIGNED=0
+UPLOAD=0
 [[ "${1:-}" == "--signed" ]] && SIGNED=1
+[[ "${1:-}" == "--upload" ]] && { SIGNED=1; UPLOAD=1; }
 
 echo "==> Building web bundle (vite)"
 cd "$ROOT"
@@ -89,5 +99,15 @@ xcodebuild \
   -allowProvisioningUpdates
 
 echo "==> .ipa at $EXPORT_DIR"
-echo "    Upload via Xcode Organizer, Transporter, or:"
-echo "    xcrun altool --upload-app -f \"$EXPORT_DIR\"/*.ipa -t ios --apiKey <KEY> --apiIssuer <ISSUER>"
+
+if [[ "$UPLOAD" -eq 1 ]]; then
+  : "${ASC_API_KEY_ID:?Set ASC_API_KEY_ID (App Store Connect API key ID; .p8 in ~/.appstoreconnect/private_keys)}"
+  : "${ASC_API_ISSUER_ID:?Set ASC_API_ISSUER_ID (App Store Connect API issuer ID)}"
+  echo "==> Uploading to App Store Connect (API key $ASC_API_KEY_ID)"
+  xcrun altool --upload-app -f "$EXPORT_DIR"/*.ipa -t ios \
+    --apiKey "$ASC_API_KEY_ID" --apiIssuer "$ASC_API_ISSUER_ID"
+  echo "==> Uploaded. TestFlight distributes automatically once Apple finishes processing."
+else
+  echo "    Upload via Xcode Organizer, Transporter, or re-run with --upload"
+  echo "    (needs ASC_API_KEY_ID + ASC_API_ISSUER_ID; .p8 in ~/.appstoreconnect/private_keys)"
+fi
