@@ -26,6 +26,7 @@ import { useMuted } from '../audio/useMuted'
 import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { Icon, type IconName } from './Icon'
+import { AudioDebug } from './AudioDebug'
 import { Avatar } from './Avatar'
 import { CardTakeover, type TakeoverVariant } from './CardTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
@@ -794,10 +795,23 @@ export function Table({
   }
   useEffect(() => () => window.clearTimeout(drawNudgeTimer.current), [])
 
+  // hidden audio diagnostics: 7 quick taps on the title (see AudioDebug.tsx)
+  const [audioDebugOpen, setAudioDebugOpen] = useState(false)
+  const titleTaps = useRef<{ n: number; t: number }>({ n: 0, t: 0 })
+  const onTitleTap = () => {
+    const now = Date.now()
+    titleTaps.current = { n: now - titleTaps.current.t < 2000 ? titleTaps.current.n + 1 : 1, t: now }
+    if (titleTaps.current.n >= 7) {
+      titleTaps.current.n = 0
+      setAudioDebugOpen((v) => !v)
+    }
+  }
+
   return (
     <div className={`table ${shaking ? 'table--shake' : ''}`}>
+      {audioDebugOpen && <AudioDebug onClose={() => setAudioDebugOpen(false)} />}
       <header className="table__bar">
-        <h1>Space Race</h1>
+        <h1 onClick={onTitleTap}>Space Race</h1>
         <div className="table__bar-actions">
           <button
             className="btn btn--icon"
