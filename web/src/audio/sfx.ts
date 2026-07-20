@@ -62,9 +62,13 @@ const MUTE_KEY = 'sr-sfx-muted'
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
+let analyser: AnalyserNode | null = null
 const buffers = new Map<SfxName, AudioBuffer>()
 let unlocked = false
 let preloadStarted = false
+let playCount = 0 // successful playSfx starts — for the hidden debug panel
+let fetchFails = 0 // sfx files that failed to fetch/decode during preload
+let lastLoadError = '' // exact stage + error of the most recent preload failure
 
 let muted = readMuted()
 const listeners = new Set<() => void>()
@@ -85,7 +89,12 @@ function ensureContext(): AudioContext | null {
   ctx = new AC()
   master = ctx.createGain()
   master.gain.value = muted ? 0 : 1
-  master.connect(ctx.destination)
+  // master → analyser → destination: the analyser taps the final mix so the
+  // hidden debug panel can SHOW output signal even when nothing is audible
+  analyser = ctx.createAnalyser()
+  analyser.fftSize = 1024
+  master.connect(analyser)
+  analyser.connect(ctx.destination)
   return ctx
 }
 
@@ -96,14 +105,26 @@ async function preload(): Promise<void> {
   if (!c) return
   await Promise.all(
     (Object.keys(FILES) as SfxName[]).map(async (name) => {
+      let stage = 'fetch'
       try {
         const res = await fetch(FILES[name])
-        if (!res.ok) return // asset not added yet — play(name) will simply no-op
+        // status 0 is NOT a failure here: WKWebView reports responses from
+        // Capacitor's custom-scheme handler (capacitor://localhost) with
+        // status 0 even though the body arrives intact. Only real HTTP errors
+        // (404 etc.) mean the asset is missing — let decode judge the bytes.
+        if (!res.ok && res.status !== 0) {
+          fetchFails++
+          lastLoadError = `${name}: fetch status ${res.status}`
+          return // asset not added yet — play(name) will simply no-op
+        }
+        stage = 'arrayBuffer'
         const arr = await res.arrayBuffer()
+        stage = `decode(${arr.byteLength}B)`
         const buf = await c.decodeAudioData(arr)
         buffers.set(name, buf)
-      } catch {
-        // missing or undecodable — skip silently, never throw
+      } catch (e) {
+        fetchFails++ // missing or undecodable — skip silently, never throw
+        lastLoadError = `${name}@${stage}: ${e instanceof Error ? `${e.name} ${e.message}` : String(e)}`
       }
     }),
   )
@@ -196,9 +217,54 @@ export function playSfx(name: SfxName, opts: { gain?: number; rate?: number } = 
   src.connect(g).connect(master)
   try {
     src.start()
+    playCount++
   } catch {
     // a source can only start once; ignore any spurious double-start
   }
+}
+
+// ---- hidden diagnostics (see components/AudioDebug.tsx) --------------------
+
+/** Snapshot of every audio-pipeline stage, for the hidden debug panel. */
+export function audioDebugState() {
+  return {
+    ctxState: ctx ? ctx.state : 'not-created',
+    sampleRate: ctx?.sampleRate ?? 0,
+    unlocked,
+    buffers: buffers.size,
+    fetchFails,
+    muted,
+    masterGain: master?.gain.value ?? -1,
+    plays: playCount,
+    lastLoadError,
+  }
+}
+
+/** RMS of the FINAL mix right now (0 = digital silence, -1 = no context). If
+ *  this moves while the device stays silent, the fault is OS output routing —
+ *  not the web audio pipeline. */
+export function audioDebugRms(): number {
+  if (!analyser) return -1
+  const arr = new Float32Array(analyser.fftSize)
+  analyser.getFloatTimeDomainData(arr)
+  let sum = 0
+  for (const v of arr) sum += v * v
+  return Math.sqrt(sum / arr.length)
+}
+
+/** A pure-oscillator beep THROUGH the master chain — no fetch, no decode, no
+ *  buffers. Isolates output from the asset pipeline. */
+export function audioDebugBeep(): void {
+  const c = ensureContext()
+  if (!c || !master) return
+  void c.resume().catch(() => {})
+  const o = c.createOscillator()
+  const g = c.createGain()
+  o.frequency.value = 660
+  g.gain.value = 0.5
+  o.connect(g).connect(master)
+  o.start()
+  o.stop(c.currentTime + 0.4)
 }
 
 export function isMuted(): boolean {

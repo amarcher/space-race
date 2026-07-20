@@ -30,6 +30,11 @@ export function BootSplash() {
 function BootSplashOverlay() {
   const [fading, setFading] = useState(false)
   const [done, setDone] = useState(false)
+  // WKWebView paints the <video> surface BLACK from load-start until the first
+  // frame decodes (the poster does not reliably cover that window on iOS), so
+  // the clip must stay invisible — still showing underneath — until it reports
+  // real playback. Same fix as CardTakeover's stage mode.
+  const [playing, setPlaying] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   useEffect(() => {
@@ -67,10 +72,15 @@ function BootSplashOverlay() {
           className="boot-splash__clip"
           src={CLIP}
           poster={STILL}
+          style={{ opacity: playing ? 1 : 0, transition: 'opacity 180ms ease' }}
           muted
           playsInline
           autoPlay
           preload="auto"
+          onPlaying={() => setPlaying(true)}
+          onTimeUpdate={(e) => {
+            if (e.currentTarget.currentTime > 0) setPlaying(true)
+          }}
           onEnded={() => setFading(true)}
           onError={() => setFading(true)}
         />
