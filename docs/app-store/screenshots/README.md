@@ -27,10 +27,12 @@ needed.
 
 ## App preview video
 
-`../previews/app-preview-6.9.mp4` — 886×1920, 26s, H.264 + silent AAC
-(exact ASC spec for the 6.5"/6.7" class). Recorded 2026-07-21 via
-`simctl io recordVideo` on the staged build: seamless boot splash → mid-race
-board → full slingshot cinematic + SLINGSHOT! caption → safety reveal.
+`../previews/app-preview-6.9.mp4` — 886×1920, 16s, H.264 + silent AAC
+(exact ASC spec for the 6.5"/6.7" class; NB Apple's minimum is 15s — don't
+trim tighter). Recorded 2026-07-21 via `simctl io recordVideo` on the staged
+build, opening ~1s before the action per the owner: mid-race board beat →
+full slingshot cinematic + SLINGSHOT! caption → SEAMLESS handoff (post-#126
+chain) → safety reveal → board.
 Re-encode recipe: `ffmpeg -ss 0.8 -t 26 -i raw.mp4 -f lavfi -t 26 -i
 anullsrc=channel_layout=stereo:sample_rate=44100 -vf
 "scale=886:1920:flags=lanczos,fps=30" -c:v libx264 -profile:v high -pix_fmt
