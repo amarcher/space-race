@@ -59,18 +59,33 @@
     color: rgba(255, 236, 205, 0.85); margin: 26px 0 0;
   }
 
-  /* --- device frame --- */
+  /* --- device frame: iPhone-style — uniform black bezel inside a thin
+         titanium band with a bright outer edge, plus side buttons --- */
   .device-wrap { position: relative; z-index: 2; flex: 0 0 auto; }
   .device {
     position: relative;
     border-radius: var(--dev-radius);
     padding: var(--bezel);
-    background: linear-gradient(160deg, #3b3f55, #14162a 40%, #0b0d1d);
+    background: #050508; /* the uniform black screen surround */
     box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.16),
+      0 0 0 3px #101116,                    /* band inner shadow line */
+      0 0 0 8px #62666f,                    /* titanium band */
+      0 0 0 9.5px rgba(255, 255, 255, 0.4), /* polished outer edge */
       0 60px 140px rgba(0, 0, 0, 0.75),
       0 0 160px rgba(255, 190, 84, 0.22);
   }
+  .device__btn {
+    position: absolute;
+    width: 7px;
+    border-radius: 3.5px;
+    background: linear-gradient(90deg, #868b96, #4a4e58);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  .device__btn--action { left: -16px; top: 15%; height: 42px; }
+  .device__btn--vol1 { left: -16px; top: 21%; height: 78px; }
+  .device__btn--vol2 { left: -16px; top: 28.5%; height: 78px; }
+  .device__btn--power { right: -16px; top: 23%; height: 120px; }
+  .ipad .device__btn { display: none; }
   .device img {
     display: block;
     width: var(--shot-w);
@@ -119,6 +134,14 @@
   }[SIZE]
 
   const SLIDES = {
+    // MARQUEE — slide 1. The App Store link unfurl thumbnails the FIRST
+    // screenshot, so this one carries the full app title as the brand card.
+    marquee: {
+      shot: { iphone: '../screenshots/iphone-6.9-03-slingshot.png' },
+      h1: 'Space Race:<br><em>1000 Light&#8209;Years</em>',
+      sub: 'A cosmic card duel across the galaxy',
+      marquee: true,
+    },
     slingshot: {
       shot: { iphone: '../screenshots/iphone-6.9-03-slingshot.png' },
       h1: 'Pull off the <em>Slingshot!</em>',
@@ -178,16 +201,26 @@
   }
   document.body.appendChild(stars)
 
+  // marquee (slide 1 / the unfurl thumbnail): bigger title, tighter gap so the
+  // brand line dominates the small preview crop
+  const h1Size = slide.marquee ? Math.round(GEOM.h1 * 1.22) : GEOM.h1
+  const gap = slide.marquee ? Math.round(GEOM.gap * 0.7) : GEOM.gap
+  if (slide.marquee) root.style.setProperty('--h1-size', h1Size + 'px')
+
   document.body.insertAdjacentHTML('beforeend', `
-    <div class="caption" style="margin-top:${GEOM.capTop}px">
+    <div class="caption" style="margin-top:${slide.marquee ? Math.round(GEOM.capTop * 0.85) : GEOM.capTop}px">
       <h1>${slide.h1}</h1>
       <p>${slide.sub}</p>
       ${slide.badges ? `<div class="badges">${slide.badges.map((b) => `<span class="badge">${b}</span>`).join('')}</div>` : ''}
     </div>
-    <div class="device-wrap" style="margin-top:${GEOM.gap}px">
+    <div class="device-wrap" style="margin-top:${gap}px">
       <div class="device ${SIZE}">
         <img src="${shot}" />
         <span class="island"></span>
+        <span class="device__btn device__btn--action"></span>
+        <span class="device__btn device__btn--vol1"></span>
+        <span class="device__btn device__btn--vol2"></span>
+        <span class="device__btn device__btn--power"></span>
       </div>
     </div>
   `)
