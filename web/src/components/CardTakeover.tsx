@@ -44,6 +44,8 @@ export function CardTakeover({
   heroSrc,
   holdMs,
   caption,
+  seamlessOut = false,
+  seamlessIn = false,
   onDone,
   stage = false,
 }: {
@@ -63,6 +65,12 @@ export function CardTakeover({
   /** Optional overlay laid over the clip (e.g. the "SLINGSHOT! / +200 ly"
    *  caption). Rendered non-interactive, above the tint. */
   caption?: ReactNode
+  /** This takeover CHAINS into another (`next` is queued): skip the exit fade
+   *  and hand off immediately, so the board never flashes between clips. */
+  seamlessOut?: boolean
+  /** This takeover IS the continuation of a chain: skip the entry fade and
+   *  appear fully opaque on the first frame. */
+  seamlessIn?: boolean
   onDone: () => void
   /** TV-STAGE mode: letterbox the clip (object-fit: contain — the portrait clip
    * would be massively over-zoomed cover-cropped onto a 4K landscape panel) and
@@ -139,6 +147,12 @@ export function CardTakeover({
     const finish = () => {
       if (done) return
       done = true
+      if (seamlessOut) {
+        // chained: the NEXT takeover mounts (with seamlessIn) the same tick —
+        // no fade-out, so the board underneath is never revealed between clips
+        onDoneRef.current()
+        return
+      }
       setLeaving(true) // trigger the fade-out, then unmount
       window.setTimeout(() => onDoneRef.current(), FADE_OUT_MS)
     }
@@ -161,7 +175,10 @@ export function CardTakeover({
   // and jitter it, then snap back to full-screen when the shake ends. Rendering at
   // <body> keeps `position: fixed` rooted to the viewport regardless of the shake.
   return createPortal(
-    <div className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''}`} aria-hidden>
+    <div
+      className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''} ${seamlessIn ? 'takeover--instant' : ''}`}
+      aria-hidden
+    >
       <video
         ref={setVideo}
         className="takeover__video"
