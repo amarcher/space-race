@@ -1,43 +1,46 @@
 # App Store screenshots
 
-Captured from the iOS Simulator (`xcrun simctl io … screenshot`) on the reverted
-`main` build (game default view). Pixel dimensions verified with `sips`.
+RAW captures from the iOS Simulator (`xcrun simctl io <udid> screenshot`) — the
+inputs to the marketing compositor in `../compose/` (edit SLIDES in
+compose.html, run render.sh; the composed `../compose/out/*.png` are what get
+UPLOADED to App Store Connect). Refreshed 2026-07-21 from the v1.1 build 7
+content (slingshot cinematic, portrait 💫 safeties, compact iPad layout).
 
 | File | Device | Pixels | Shows |
 |------|--------|--------|-------|
-| `iphone-6.9-01-table.png` | iPhone 17 Pro Max | 1320 × 2868 | Game table, freshly dealt hand — both player boards, 94-card draw pile, 5-card hand fanned at the bottom |
-| `iphone-6.9-02-rules.png` | iPhone 17 Pro Max | 1320 × 2868 | In-app How-to-Play / card reference (toolbar book icon): Goal, turn flow, Ignition, Slingshot, hazard tracks |
-| `ipad-13-01-table.png` | iPad Pro 13-inch (M5) | 2064 × 2752 | Game table on the wide iPad layout — both boards, draw pile, 6-card hand with distance + hazard/remedy art |
-| `ipad-13-02-rules.png` | iPad Pro 13-inch (M5) | 2064 × 2752 | How-to-Play / card reference on iPad |
+| `iphone-6.9-01-table.png` | iPhone 17 Pro Max | 1320×2868 | Freshly dealt table |
+| `iphone-6.9-02-rules.png` | iPhone 17 Pro Max | 1320×2868 | How-to-Play / card reference |
+| `iphone-6.9-03-slingshot.png` | iPhone 17 Pro Max | 1320×2868 | Slingshot cinematic mid-clip — cockpit asteroid field + SLINGSHOT! +200 ly caption |
+| `iphone-6.9-04-scry.png` | iPhone 17 Pro Max | 1320×2868 | Two-card scry reveal |
+| `iphone-6.9-05-board-race.png` | iPhone 17 Pro Max | 1320×2868 | Staged mid-race board — AI 575 (blocked, red) vs you 525, 💫 slingshot safety |
+| `ipad-13-01-table.png` | iPad Pro 13" (M5) | 2064×2752 | Mid-race table, compact iPad layout |
+| `ipad-13-02-rules.png` | iPad Pro 13" (M5) | 2064×2752 | How-to-Play on iPad |
 
-**Sizes match App Store Connect requirements:** 6.9" iPhone = 1320×2868, 13" iPad
-= 2064×2752 (both portrait). App Store Connect derives the 6.5"/6.7" iPhone slots
-from the 6.9" set.
+## How the staged shots were made
 
-## Limitation & how to get more
+The board-race + slingshot shots come from a THROWAWAY local build (reverted,
+never committed): `buildInitialGame()` short-circuited to a hand-seeded
+mid-race `GameState` (distance piles, hazard on the AI, coupSafeties for the
+💫 badge), plus a `useEffect` that `setTakeover`s the ace-pilot slingshot
+cinematic 12s after mount. Recreate the same way when new content shots are
+needed.
 
-`simctl` cannot tap or scroll inside the WKWebView, and Appium was explicitly
-off-limits. To reach a screen other than the launch table without tapping, the
-`02-rules` shots were captured from a throwaway build that defaulted the app's
-view state to `gallery` (source reverted to `game` before committing — see git).
+## App preview video
 
-Screens that need in-play interaction — a mid-race board with distance/hazards
-played, a Coup-fourré, or the win takeover — can't be reached this way. Grab
-those live during TestFlight on a real device (they're the game's showpieces and
-worth adding before the final submission).
+`../previews/app-preview-6.9.mp4` — 886×1920, 26s, H.264 + silent AAC
+(exact ASC spec for the 6.5"/6.7" class). Recorded 2026-07-21 via
+`simctl io recordVideo` on the staged build: seamless boot splash → mid-race
+board → full slingshot cinematic + SLINGSHOT! caption → safety reveal.
+Re-encode recipe: `ffmpeg -ss 0.8 -t 26 -i raw.mp4 -f lavfi -t 26 -i
+anullsrc=channel_layout=stereo:sample_rate=44100 -vf
+"scale=886:1920:flags=lanczos,fps=30" -c:v libx264 -profile:v high -pix_fmt
+yuv420p -b:v 10M -c:a aac -b:a 64k -shortest -movflags +faststart out.mp4`.
 
-## Gameplay captures (2026-07-06, real play in iPhone 17 Pro Max sim)
+## Upload notes
 
-- `iphone-6.9-03-rescue-takeover.png` — Rescue Shuttle safety takeover, full-bleed (1320×2868)
-- `iphone-6.9-04-scry.png` — two-card scry reveal, two different cards (1320×2868)
-- `iphone-6.9-05-board-race.png` — mid-game: AI 200 vs player 150, Rescue Shuttle on board (1320×2868)
-- `../previews/app-preview-6.9.mp4` — 19s App Preview (886×1920, H.264 + silent AAC): scry reveal → Rescue Shuttle takeover → aftermath
-
-Suggested store order: rescue-takeover, scry, board-race, table, rules (first 3 appear on install sheets).
-
-## Upload-ready 6.7" set (1284×2778)
-
-App Store Connect's media manager for this app demands the 6.5"/6.7" size
-class (1242×2688 / 1284×2778) and rejects 1320×2868. The `iphone-6.7-*.png`
-files are the same five shots center-cropped to 1284×2778 — **upload these**.
-The 6.9" originals remain canonical.
+- ASC accepts the 6.5"/6.7" class (1284×2778) for this app and REJECTS
+  1320×2868 — the compositor renders at the accepted size; upload
+  `../compose/out/*`, not these raw captures.
+- Upload the preview video FIRST (previews display before screenshots),
+  then the composed screenshots, on the v1.1 version page. Media manager
+  is manual-only (automation is CSP/file-picker blocked).

@@ -24,10 +24,12 @@
   body {
     width: var(--page-w); height: var(--page-h);
     overflow: hidden; position: relative;
+    /* ANGELIC GOLD — the brand warmth of the hero safety art (Ace Pilot's halo),
+       per the owner's call, over the app's deep-space base. */
     background:
-      radial-gradient(140% 90% at 80% -10%, rgba(88, 60, 160, 0.35), transparent 55%),
-      radial-gradient(120% 80% at 10% 110%, rgba(20, 90, 140, 0.30), transparent 55%),
-      #07071a;
+      radial-gradient(140% 90% at 80% -10%, rgba(212, 160, 60, 0.30), transparent 55%),
+      radial-gradient(120% 80% at 10% 110%, rgba(255, 196, 90, 0.16), transparent 55%),
+      #0a0814;
     font-family: 'Inter', sans-serif;
     display: flex; flex-direction: column; align-items: center;
     color: #fff;
@@ -43,7 +45,7 @@
     font-family: 'Unbounded'; font-weight: 900;
     font-size: var(--h1-size); line-height: 1.12; margin: 0;
     letter-spacing: 0.01em;
-    background: linear-gradient(180deg, #ffffff 55%, #a9b7ff);
+    background: linear-gradient(180deg, #ffffff 55%, #ffe3ad);
     -webkit-background-clip: text; background-clip: text; color: transparent;
     text-wrap: balance;
   }
@@ -54,7 +56,7 @@
   }
   .caption p {
     font-weight: 500; font-size: var(--sub-size); line-height: 1.35;
-    color: rgba(215, 222, 255, 0.82); margin: 26px 0 0;
+    color: rgba(255, 236, 205, 0.85); margin: 26px 0 0;
   }
 
   /* --- device frame --- */
@@ -67,7 +69,7 @@
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 0.16),
       0 60px 140px rgba(0, 0, 0, 0.75),
-      0 0 160px rgba(90, 140, 255, 0.18);
+      0 0 160px rgba(255, 190, 84, 0.22);
   }
   .device img {
     display: block;
@@ -88,7 +90,7 @@
     content: ''; position: absolute; left: 50%; bottom: -40px;
     transform: translateX(-50%);
     width: 80%; height: 90px; border-radius: 50%;
-    background: radial-gradient(50% 50% at 50% 50%, rgba(120, 160, 255, 0.35), transparent 70%);
+    background: radial-gradient(50% 50% at 50% 50%, rgba(255, 190, 90, 0.38), transparent 70%);
     filter: blur(18px);
   }
 
@@ -97,10 +99,10 @@
   .badge {
     font-weight: 600; font-size: var(--badge-size);
     letter-spacing: 0.14em; text-transform: uppercase;
-    color: rgba(215, 222, 255, 0.75);
-    border: 2px solid rgba(160, 175, 255, 0.35);
+    color: rgba(255, 232, 190, 0.85);
+    border: 2px solid rgba(255, 205, 110, 0.4);
     border-radius: 999px; padding: 16px 34px;
-    background: rgba(20, 24, 55, 0.55);
+    background: rgba(48, 36, 14, 0.5);
   }
 </style>
 </head>
@@ -117,10 +119,10 @@
   }[SIZE]
 
   const SLIDES = {
-    takeover: {
-      shot: { iphone: '../screenshots/iphone-6.9-03-rescue-takeover.png' },
-      h1: 'Every card is a <em>moment</em>',
-      sub: 'Full-screen cinematics when the race turns',
+    slingshot: {
+      shot: { iphone: '../screenshots/iphone-6.9-03-slingshot.png' },
+      h1: 'Pull off the <em>Slingshot!</em>',
+      sub: 'Dodge at the last second — and surge ahead',
     },
     scry: {
       shot: { iphone: '../screenshots/iphone-6.9-04-scry.png' },
