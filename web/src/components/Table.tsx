@@ -59,6 +59,8 @@ type Takeover = {
   holdMs?: number
   caption?: ReactNode
   next?: Takeover | null
+  /** this takeover is a chain continuation — mounts with no entry fade */
+  seamless?: boolean
 }
 
 // Screen-space rect of the .card inside an anchor element (deck/discard pile).
@@ -577,26 +579,31 @@ export function Table({
     const youDodged = ev.seat === 0
     const safetyClip = cardVideo(ev.safetyKind, ['idle', 'hover'])
     if (youDodged && cinematic && safetyClip && !prefersReducedMotion()) {
-      // cinematic → safety-reveal, chained via `next` (onDone advances the chain)
+      // cinematic → safety-reveal, chained via `next` (onDone advances the chain).
+      // The SLINGSHOT! caption rides BOTH clips, and the handoff is seamless
+      // (no exit/entry fade) so the pair reads as one continuous cinematic.
       const key = ++impactSeq.current
+      const caption = (
+        <>
+          <span className="sling-cap__word">SLINGSHOT!</span>
+          <span className="sling-cap__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
+        </>
+      )
       setTakeover({
         src: cinematic,
         heroSrc: cardSlingshotHeroVideo(ev.safetyKind, ev.hazardKind),
         kind: ev.safetyKind,
         variant: 'slingshot',
         holdMs: SLINGSHOT_CINEMATIC_MS,
-        caption: (
-          <>
-            <span className="sling-cap__word">SLINGSHOT!</span>
-            <span className="sling-cap__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
-          </>
-        ),
+        caption,
         key,
         next: {
           src: safetyClip,
           heroSrc: cardHeroVideo(ev.safetyKind),
           kind: ev.safetyKind,
           variant: 'safety',
+          caption,
+          seamless: true,
           key: key + 1,
         },
       })
@@ -931,6 +938,8 @@ export function Table({
           heroSrc={takeover.heroSrc}
           holdMs={takeover.holdMs}
           caption={takeover.caption}
+          seamlessOut={!!takeover.next}
+          seamlessIn={!!takeover.seamless}
           onDone={() => setTakeover((t) => t?.next ?? null)}
         />
       )}

@@ -12,6 +12,9 @@
 }
 /* on dismiss — a short fade-OUT, then unmount */
 .takeover--leaving { animation: takeoverOut 350ms ease forwards; }
+/* chain continuation — appears fully opaque on its first frame (the previous
+   clip handed off without fading, so the pair reads as one cinematic) */
+.takeover--instant { animation: none; }
 .takeover__video {
   width: 100%;
   height: 100%;
@@ -103,6 +106,9 @@
   0% { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.94); }
   100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
+/* chain continuation: the caption already landed during the previous clip —
+   it stays up from the first frame here, no delayed re-entrance */
+.takeover--instant .takeover__caption { animation: none; }
 
 @keyframes takeoverIn {
   0% { opacity: 0; }
