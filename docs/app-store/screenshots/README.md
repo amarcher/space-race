@@ -46,3 +46,6 @@ yuv420p -b:v 10M -c:a aac -b:a 64k -shortest -movflags +faststart out.mp4`.
 - Upload the preview video FIRST (previews display before screenshots),
   then the composed screenshots, on the v1.1 version page. Media manager
   is manual-only (automation is CSP/file-picker blocked).
+- SCREENSHOT ORDER matters twice: the App Store link unfurl thumbnails the
+  FIRST screenshot. Drag in this order: **marquee** (the app-title brand
+  card — must be first), slingshot, scry, race, table, rules.
