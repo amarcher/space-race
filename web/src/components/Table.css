@@ -504,6 +504,54 @@
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+/* ── restart guard dialog — an explicit yes before a mid-game restart ─────── */
+.confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 80; /* over settings/scoreboard — it interrupts */
+  display: grid;
+  place-items: center;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: rgba(3, 3, 14, 0.72);
+  backdrop-filter: blur(8px);
+  animation: toastin 240ms ease;
+}
+.confirm__card {
+  width: min(360px, 88vw);
+  padding: 24px 22px 20px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, #16163a, #0b0b22);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.confirm__text {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+}
+.confirm__sub {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: rgba(238, 240, 255, 0.65);
+}
+.confirm__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.confirm__btn {
+  flex: 1;
+  max-width: 150px;
+  padding: 11px 14px;
+  font-size: 14px;
+}
+.confirm__btn--danger {
+  border-color: rgba(255, 110, 90, 0.55);
+  background: linear-gradient(180deg, rgba(255, 110, 90, 0.32), rgba(255, 60, 40, 0.14));
+  color: #ffd9d2;
+}
+
 .scoreboard {
   position: fixed;
   inset: 0;
@@ -706,17 +754,23 @@
 }
 
 /* PEEK — tap outside the cards to lift the dim/blur and fade the chooser way
-   back, so the boards + hand underneath can be studied before committing. The
-   (transparent) backdrop still swallows every tap, so the board is a no-op; the
-   badge button and the faded cards are the only live controls. */
+   back + slide it down, so the boards + hand underneath can be studied before
+   committing. The (transparent) backdrop still swallows every tap, so the board
+   is a no-op; the badge button and the faded cards only RETURN to the chooser
+   (never draw), so a stray tap can't fat-finger a pick. */
 .scry--peek .scry__backdrop {
   opacity: 0;
   cursor: default;
 }
 .scry--peek .scry__row {
   opacity: 0.3;
+  transform: translateY(18px);
 }
 .scry--peek .scry__pick { animation-play-state: paused; }
+/* while peeking the cards aren't choices — no lift, no check badge */
+.scry--peek .scry__pick:hover,
+.scry--peek .scry__pick:focus-visible { transform: none; }
+.scry--peek .scry__plus { opacity: 0 !important; }
 .scry--peek .scry__badge {
   cursor: pointer;
   transform: scale(1.06);
@@ -752,7 +806,7 @@
   display: flex;
   gap: clamp(12px, 4vw, 30px);
   align-items: center;
-  transition: opacity 260ms ease;
+  transition: opacity 260ms ease, transform 260ms ease;
 }
 .scry__pick {
   position: relative;
