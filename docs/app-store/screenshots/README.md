@@ -13,6 +13,7 @@ content (slingshot cinematic, portrait 💫 safeties, compact iPad layout).
 | `iphone-6.9-03-slingshot.png` | iPhone 17 Pro Max | 1320×2868 | Slingshot cinematic mid-clip — cockpit asteroid field + SLINGSHOT! +200 ly caption |
 | `iphone-6.9-04-scry.png` | iPhone 17 Pro Max | 1320×2868 | Two-card scry reveal |
 | `iphone-6.9-05-board-race.png` | iPhone 17 Pro Max | 1320×2868 | Staged mid-race board — AI 575 (blocked, red) vs you 525, 💫 slingshot safety |
+| `iphone-6.9-06-ace-hero.png` | iPhone 17 Pro Max | 1320×2868 | Golden Ace Pilot hero frame (dodge-clip opening) — the MARQUEE slide art, echoes the app icon |
 | `ipad-13-01-table.png` | iPad Pro 13" (M5) | 2064×2752 | Mid-race table, compact iPad layout |
 | `ipad-13-02-rules.png` | iPad Pro 13" (M5) | 2064×2752 | How-to-Play on iPad |
 
