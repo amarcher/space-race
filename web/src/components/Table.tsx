@@ -241,6 +241,9 @@ export function Table({
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
   // the game log is tucked away in a dropdown, summoned from the header
   const [logOpen, setLogOpen] = useState(false)
+  // restart guard: pressing New Round mid-game asks first (a fresh untouched
+  // deal just reshuffles instantly — nothing to lose)
+  const [restartConfirm, setRestartConfirm] = useState(false)
 
   // Android Back closes an open menu-style overlay (settings / scoreboard / log)
   // instead of exiting the app; each only intercepts while it's actually open, so
@@ -249,6 +252,7 @@ export function Table({
   useBackHandler(() => { setLogOpen(false); return true }, logOpen)
   useBackHandler(() => { setScoreboardOpen(false); return true }, scoreboardOpen)
   useBackHandler(() => { setSettingsOpen(false); return true }, settingsOpen)
+  useBackHandler(() => { setRestartConfirm(false); return true }, restartConfirm)
   // transient impact feel: a screen shake, a full-screen flash, and a per-board
   // hit-recoil / recovery-spring (keyed so the same board can re-trigger)
   const [shaking, setShaking] = useState(false)
@@ -780,6 +784,14 @@ export function Table({
     (state.deck.length !== freshDeckLen.current ||
       state.log.length > 1 ||
       state.players.some((p) => p.started || p.distance > 0 || p.safeties.length > 0))
+  // Restart guard uses a STRICTER bar than the unload guard: only card actions
+  // count (the log grows on plays/discards/takes; deck draws don't log). A deal
+  // whose only motion is the opening draw — especially one auto-draw started by
+  // itself — restarts without a prompt: nothing meaningful is lost yet.
+  const restartNeedsConfirm =
+    state.phase !== 'roundOver' &&
+    (state.log.length > 1 ||
+      state.players.some((p) => p.started || p.distance > 0 || p.safeties.length > 0))
   useEffect(() => {
     if (!gameInProgress) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -927,7 +939,10 @@ export function Table({
             className="btn btn--icon"
             onClick={() => {
               playSfx('ui-click')
-              newRound()
+              // mid-game a restart throws away real progress — ask first; an
+              // untouched deal (or a finished round) restarts instantly
+              if (restartNeedsConfirm) setRestartConfirm(true)
+              else newRound()
             }}
             title="New round"
             aria-label="New round"
@@ -1015,6 +1030,43 @@ export function Table({
         <ScryChooser cards={state.scry} onPick={pickScry} disabled={animating} catchUp={state.catchUpScry} />
       )}
 
+      {/* restart guard: explicit yes/no before throwing away a game in progress */}
+      {restartConfirm && (
+        <div className="confirm" onClick={() => setRestartConfirm(false)}>
+          <div
+            className="confirm__card"
+            role="alertdialog"
+            aria-label="Restart the game?"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="confirm__text">Restart the game?</p>
+            <p className="confirm__sub">This round's progress will be lost.</p>
+            <div className="confirm__actions">
+              <button
+                className="btn confirm__btn"
+                onClick={() => {
+                  playSfx('ui-click')
+                  setRestartConfirm(false)
+                }}
+                autoFocus
+              >
+                Keep playing
+              </button>
+              <button
+                className="btn confirm__btn confirm__btn--danger"
+                onClick={() => {
+                  playSfx('ui-click')
+                  setRestartConfirm(false)
+                  newRound()
+                }}
+              >
+                Restart
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {settingsOpen && (
         <Settings
           rules={rules}
@@ -1093,10 +1145,11 @@ function ScryChooser({
   useEffect(() => {
     if (catchUp) playSfx('safety', { rate: 1.15 })
   }, [catchUp])
-  // PEEK: tap outside the cards → the chooser fades way back and the dim/blur
-  // lifts so you can study the boards and your hand before committing. While
-  // peeking everything is a no-op except the two ways back in: the cards badge
-  // (returns to the chooser) or tapping a faded card (draws it directly).
+  // PEEK: tap outside the cards → the chooser fades way back, slides down and
+  // the dim/blur lifts so you can study the boards and your hand before
+  // committing. While peeking NOTHING draws: tapping a faded card (or the cards
+  // badge) only returns to the chooser — so a fat-finger on a dimmed card can't
+  // accidentally pick it.
   const [peeking, setPeeking] = useState(false)
   return (
     <div
@@ -1122,9 +1175,15 @@ function ScryChooser({
               key={c.uid}
               type="button"
               className="scry__pick"
-              onClick={() => !disabled && onPick(c.uid)}
+              onClick={() => {
+                if (peeking) {
+                  setPeeking(false) // a faded card only refocuses the chooser
+                  return
+                }
+                if (!disabled) onPick(c.uid)
+              }}
               disabled={disabled}
-              aria-label={`Take ${CARD_DEFS[c.kind].title}`}
+              aria-label={peeking ? 'Back to the card choice' : `Take ${CARD_DEFS[c.kind].title}`}
             >
               <Card kind={c.kind} size="md" showName={false} />
               <span className="scry__plus" aria-hidden>
