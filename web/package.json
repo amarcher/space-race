@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "assets": "bash scripts/build-assets.sh",
-    "ios": "npm run build && npx cap sync ios",
+    "ios": "npm run build && npx cap sync ios && bash scripts/build-hevc.sh --swap",
     "ios:archive": "bash scripts/ios-release.sh",
     "android": "npm run build && npx cap sync android",
     "android:release": "bash scripts/android-release.sh"
