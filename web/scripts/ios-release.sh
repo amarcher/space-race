@@ -39,6 +39,9 @@ npm run build
 echo "==> Syncing Capacitor iOS project"
 npx cap sync ios
 
+echo "==> Swapping HEVC clips into the iOS bundle (see scripts/build-hevc.sh)"
+bash "$ROOT/scripts/build-hevc.sh" --swap
+
 mkdir -p "$BUILD_DIR"
 
 if [[ "$SIGNED" -eq 0 ]]; then
