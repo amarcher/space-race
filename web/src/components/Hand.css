@@ -32,6 +32,16 @@
 .hand__slot:has(+ .hand__slot:hover) {
   transform: translateX(-18px) translateY(var(--ty, 0)) rotate(var(--rot, 0deg));
 }
+/* Off-turn the hand is INERT: presses pass straight through the slots (so a
+   poke lands on the hand-wrap draw nudge instead), and the hover lift never
+   fires — the cards just sit until it's your play phase. */
+.hand__slot--inert {
+  pointer-events: none;
+}
+.hand__slot--inert:hover {
+  transform: translateY(var(--ty, 0)) rotate(var(--rot, 0deg));
+  z-index: auto;
+}
 /* deal-in: opacity/blur only so it never fights the fan or hover transforms */
 .hand__slot .card {
   animation: dealIn 300ms ease;

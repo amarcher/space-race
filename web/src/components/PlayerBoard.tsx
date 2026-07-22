@@ -1,8 +1,6 @@
 import { CARD_DEFS, DISTANCE_VALUES, LANES, WIN_DISTANCE, type CardInstance } from '../game/cards'
 import { activeHazard, hazardTurnsLeft, SELF_HEAL_MAX, speedLimited, type PlayerState } from '../game/engine'
-import { Avatar, type Who } from './Avatar'
 import { Card } from './Card'
-import { Icon } from './Icon'
 import { MomentumMeter } from './MomentumMeter'
 import './PlayerBoard.css'
 
@@ -10,7 +8,6 @@ interface PlayerBoardProps {
   player: PlayerState
   isOpponent: boolean
   active: boolean
-  who: Who
   /** transient hit-recoil / recovery-spring animation, keyed so it can retrigger */
   impact?: 'hit' | 'recover' | null
   /** MOMENTUM mode only: this player's banked charge + cap; null = mode off (no gauge) */
@@ -112,7 +109,7 @@ function Stack({
   )
 }
 
-export function PlayerBoard({ player, isOpponent, active, who, impact, momentum, canBurst, onBurst, selfHeal = false }: PlayerBoardProps) {
+export function PlayerBoard({ player, isOpponent, active, impact, momentum, canBurst, onBurst, selfHeal = false }: PlayerBoardProps) {
   const hzr = activeHazard(player)
   const slow = speedLimited(player)
   const pct = Math.min(100, (player.distance / WIN_DISTANCE) * 100)
@@ -148,17 +145,9 @@ export function PlayerBoard({ player, isOpponent, active, who, impact, momentum,
       aria-label={`${player.name} — ${ambientLabel}`}
     >
       <header className="board__head">
-        <span className={`board__avatar ${active ? 'board__avatar--active' : ''}`} title={player.name} aria-label={player.name}>
-          <Avatar who={who} />
-        </span>
         <div className="board__meter" title={`${player.distance} of ${WIN_DISTANCE} light-years`}>
-          <div className="board__meter-fill" style={{ width: `${pct}%` }}>
-            <span className="board__rocket" aria-hidden>
-              <img className="board__rocket-img" src="/ui/ship-marker.png" alt="" draggable={false} />
-            </span>
-          </div>
+          <div className="board__meter-fill" style={{ width: `${pct}%` }} />
           <span className="board__meter-num" aria-hidden>{player.distance}</span>
-          <span className="board__flag" aria-hidden><Icon name="gate" /></span>
         </div>
         {momentum && (
           <MomentumMeter

@@ -5,7 +5,7 @@ import { playSfx } from '../audio/sfx'
 import { win as hapticWin } from '../native/haptics'
 import { canShare, shareContent } from '../native/share'
 import { prefersReducedMotion } from '../motion'
-import { Avatar } from './Avatar'
+import { PlayerTag } from './PlayerTag'
 import { Icon } from './Icon'
 import './WinTakeover.css'
 
@@ -249,7 +249,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
             )}
             {state.winner != null && (
               <span className="win-takeover__outcome-avatar">
-                <Avatar who={humanWon ? 'you' : 'cpu'} size="1em" />
+                <PlayerTag who={humanWon ? 'you' : 'cpu'} size="1em" />
               </span>
             )}
           </div>
@@ -259,7 +259,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
             {/* Human score */}
             <div className={`win-takeover__scorecol ${state.winner === 0 ? 'win-takeover__scorecol--win' : ''}`}>
               <div className="win-takeover__scorecol-head">
-                <Avatar who="you" size="2.2em" />
+                <PlayerTag who="you" size="1.4em" />
               </div>
               <ul className="win-takeover__scorelines">
                 {humanScore?.lines.map((l, i) => (
@@ -285,7 +285,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
             {/* AI score */}
             <div className={`win-takeover__scorecol ${state.winner === 1 ? 'win-takeover__scorecol--win' : ''}`}>
               <div className="win-takeover__scorecol-head">
-                <Avatar who="cpu" size="2.2em" />
+                <PlayerTag who="cpu" size="1.4em" />
               </div>
               <ul className="win-takeover__scorelines">
                 {aiScore?.lines.map((l, i) => (
@@ -309,14 +309,14 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
             <div className="win-takeover__coups" aria-hidden>
               {state.players[0].coupFourres > 0 && (
                 <span className="win-takeover__coup win-takeover__coup--you">
-                  <Avatar who="you" size="1.2em" />
+                  <PlayerTag who="you" size="0.9em" />
                   <Icon name="bolt" size={16} />
                   <b>{state.players[0].coupFourres}</b>
                 </span>
               )}
               {state.players[1].coupFourres > 0 && (
                 <span className="win-takeover__coup win-takeover__coup--cpu">
-                  <Avatar who="cpu" size="1.2em" />
+                  <PlayerTag who="cpu" size="0.9em" />
                   <Icon name="bolt" size={16} />
                   <b>{state.players[1].coupFourres}</b>
                 </span>

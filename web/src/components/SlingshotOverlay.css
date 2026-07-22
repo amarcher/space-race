@@ -116,7 +116,6 @@
   86% { opacity: 1; }
   100% { opacity: 0; transform: scale(1.04); }
 }
-.sling__avatar { font-size: 46px; line-height: 1; display: inline-flex; }
 .sling__word {
   font-family: var(--font-display, sans-serif);
   font-weight: 900;
@@ -135,6 +134,16 @@
   font-weight: 800;
   font-size: clamp(16px, 2.4vw, 24px);
   color: #7df0ff;
+}
+/* the OPPONENT dodged YOUR hazard — same moment, burned red */
+.sling--foe .sling__word {
+  background: linear-gradient(120deg, #fff, #ff9d8f 55%, #ff4b3d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(255, 90, 70, 0.6);
+}
+.sling--foe .sling__pts {
+  color: #ff8d7d;
 }
 
 @media (prefers-reduced-motion: reduce) {

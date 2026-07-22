@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { SCRY_REVEAL, type GameRules } from '../game/rules'
 import { saveRules } from '../settings'
+import { LABEL_HIDE_GAMES, type Prefs } from '../prefs'
 import { playSfx } from '../audio/sfx'
 import { Icon } from './Icon'
 import './Settings.css'
@@ -15,14 +16,19 @@ interface SettingsProps {
   rules: GameRules
   /** persist + lift the chosen rules; the parent applies them on the next new game */
   onChange: (rules: GameRules) => void
+  /** interface prefs — the parent persists them and applies them IMMEDIATELY
+   * (they're presentation/flow, not game rules, so no "next game" gate) */
+  prefs: Prefs
+  onChangePrefs: (prefs: Prefs) => void
   onClose: () => void
   /** true while a game is actually in progress → show the "next game" note */
   gameInProgress: boolean
 }
 
-export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsProps) {
+export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, gameInProgress }: SettingsProps) {
   // local mirror so the toggle flips instantly; persisted + lifted on each change
   const [draft, setDraft] = useState<GameRules>(rules)
+  const [prefsDraft, setPrefsDraft] = useState<Prefs>(prefs)
   // becomes true once the user changes anything during a live game
   const [touched, setTouched] = useState(false)
 
@@ -32,6 +38,13 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
     saveRules(next)
     onChange(next)
     if (gameInProgress) setTouched(true)
+    playSfx('ui-click')
+  }
+
+  const setPref = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
+    const next = { ...prefsDraft, [key]: value }
+    setPrefsDraft(next)
+    onChangePrefs(next) // applies immediately — no "next game" note
     playSfx('ui-click')
   }
 
@@ -84,6 +97,24 @@ export function Settings({ rules, onChange, onClose, gameInProgress }: SettingsP
             help="Blocking hazards clear themselves after a few turns."
             checked={draft.selfHeal}
             onChange={(v) => set('selfHeal', v)}
+          />
+        </section>
+
+        <section className="settings__section">
+          <h3 className="settings__section-title">Interface</h3>
+
+          <Toggle
+            label="Auto-hide card labels"
+            help={`Stop naming cards over the art once you've played ${LABEL_HIDE_GAMES} games — by then you know them.`}
+            checked={prefsDraft.autoHideLabels}
+            onChange={(v) => setPref('autoHideLabels', v)}
+          />
+
+          <Toggle
+            label="Auto-draw"
+            help="When the discard pile is empty there's nothing to pick up — start your turn by drawing automatically."
+            checked={prefsDraft.autoDraw}
+            onChange={(v) => setPref('autoDraw', v)}
           />
         </section>
 

@@ -44,6 +44,8 @@ export interface TablePlay {
   setSelectedUid: Dispatch<SetStateAction<string | null>>
   playableUids: Set<string>
   incomingUid: string | null
+  /** card-name overlays on hand cards (off once the label auto-hide kicks in) */
+  showLabels: boolean
   cardDrag: { begin: (e: ReactPointerEvent, uid: string, kind: string) => void; wasDragged: () => boolean }
   selectedDef: CardDef | undefined
   selectedKind: string | undefined
@@ -80,7 +82,6 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
             <PlayerBoard
               player={opp}
               isOpponent
-              who="cpu"
               active={game.turn === 1 && game.phase !== 'roundOver'}
               impact={play && play.impact?.seat === opp.seat ? play.impact.tone : null}
               momentum={oppMomentum}
@@ -122,7 +123,6 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
               ) : (
                 <div className="pile__empty" />
               )}
-              <span className="pile__label" aria-label="Discard pile">{play?.canDrawDiscard ? null : <Icon name="bin" size={16} />}</span>
             </div>
           </div>
 
@@ -135,7 +135,6 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
             <PlayerBoard
               player={human}
               isOpponent={false}
-              who="you"
               active={selfActive}
               impact={play && play.impact?.seat === human.seat ? play.impact.tone : null}
               momentum={humanMomentum}
@@ -167,6 +166,7 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
               draggingUid={play.dragUid}
               incomingUid={play.incomingUid}
               yourTurn={play.yourTurn}
+              showLabels={play.showLabels}
               onSelect={(uid) => play.setSelectedUid((c) => (c === uid ? null : uid))}
               onDragStart={(e, uid) => play.cardDrag.begin(e, uid, human.hand.find((c) => c.uid === uid)?.kind ?? '')}
               wasDragged={play.cardDrag.wasDragged}
