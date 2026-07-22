@@ -1,0 +1,13 @@
+.ptag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.6em; /* reads at the avatars' visual weight inside 1em slots */
+  line-height: 1;
+  letter-spacing: 0.14em;
+  padding-right: 0; /* letter-spacing adds a trailing gap; keep boxes tight */
+  user-select: none;
+}
+.ptag--you { color: #7df0ff; }
+.ptag--cpu { color: #ff9d7a; }

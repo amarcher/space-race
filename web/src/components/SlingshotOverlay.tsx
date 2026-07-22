@@ -1,21 +1,24 @@
 import { SLINGSHOT_MILEAGE } from '../game/cards'
 import type { SlingshotEvent } from '../game/engine'
-import { Avatar, type Who } from './Avatar'
 import { Card } from './Card'
 import { Icon } from './Icon'
 import './SlingshotOverlay.css'
 
 /**
- * The hero moment. Staged so you actually watch it happen:
+ * The hero moment (compact DOM fallback — reduced motion / no cinematic clip).
+ * Staged so you actually watch it happen:
  * 1. the enemy hazard flies in at you,
  * 2. your safety swoops up from hand and intercepts (flash),
  * 3. "SLINGSHOT!" bursts,
  * 4. the hazard is flung to the discard pile,
  * 5. you draw a fresh card.
+ * When the OPPONENT pulls it off (your hazard dodged), the banner burns red
+ * instead of gold — same spectacle, bad news for you.
  */
-export function SlingshotOverlay({ event, who }: { event: SlingshotEvent; who: Who }) {
+export function SlingshotOverlay({ event }: { event: SlingshotEvent }) {
+  const foe = event.seat !== 0
   return (
-    <div className="sling" key={event.id} aria-label="Slingshot!">
+    <div className={`sling ${foe ? 'sling--foe' : ''}`} key={event.id} aria-label="Slingshot!">
       <div className="sling__scene">
         <div className="sling__hazard">
           <Card kind={event.hazardKind} size="lg" showName={false} ambient />
@@ -29,7 +32,6 @@ export function SlingshotOverlay({ event, who }: { event: SlingshotEvent; who: W
         </div>
       </div>
       <div className="sling__banner">
-        <span className="sling__avatar"><Avatar who={who} /></span>
         <span className="sling__word">SLINGSHOT!</span>
         <span className="sling__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
       </div>

@@ -10,7 +10,7 @@
   transition: border-color 200ms ease, box-shadow 200ms ease, filter 320ms ease;
 }
 /* the active player's board breathes a violet glow — the primary, word-free
-   "whose turn is it" cue (paired with the avatar bob below) */
+   "whose turn is it" cue */
 .board--active {
   border-color: rgba(139, 123, 255, 0.6);
   animation: activePulse 2.4s ease-in-out infinite;
@@ -57,8 +57,6 @@
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.65);
   animation: none;
 }
-.board--blocked .board__rocket { filter: grayscale(1) brightness(0.55); }
-.board--blocked .board__avatar { filter: grayscale(0.6) brightness(0.75); }
 @keyframes alarmPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 
 /* LIMITED — a milder amber "tethered"/restrained pulse (tractor speed-limit).
@@ -141,16 +139,8 @@
   35% { transform: scale(1.045); box-shadow: 0 0 0 2px rgba(79, 224, 139, 0.85), 0 0 40px rgba(79, 224, 139, 0.45); }
   100% { transform: scale(1); box-shadow: 0 0 0 1px rgba(79, 224, 139, 0); }
 }
-/* the rocket lunges forward as we get back on track */
-.board--recover .board__rocket { animation: rocketLunge 560ms cubic-bezier(0.34, 1.56, 0.64, 1); }
-@keyframes rocketLunge {
-  0% { transform: translateX(0); }
-  40% { transform: translateX(10px) scale(1.18); }
-  100% { transform: translateX(0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .board--hit, .board--recover, .board--recover .board__rocket { animation: none; }
+  .board--hit, .board--recover { animation: none; }
 }
 
 .board__head {
@@ -160,26 +150,13 @@
   gap: 8px 14px;
   margin-bottom: 8px;
 }
-/* the momentum gauge drops to its own full-width row under the avatar + distance
-   bar (the header wraps), so it never squeezes the distance meter */
+/* the momentum gauge drops to its own full-width row under the distance bar
+   (the header wraps), so it never squeezes the meter */
 .board__head .momentum {
   flex: 0 0 100%;
   justify-content: flex-start;
   align-self: flex-start;
 }
-.board__avatar {
-  font-size: 30px;
-  line-height: 1;
-  filter: grayscale(0.2) brightness(0.92);
-  transition: filter 200ms ease, transform 200ms ease;
-}
-.board__avatar--active {
-  filter: none;
-  transform: scale(1.12);
-  animation: bob 1.2s ease-in-out infinite;
-}
-@keyframes bob { 0%, 100% { transform: scale(1.12) translateY(0); } 50% { transform: scale(1.12) translateY(-4px); } }
-
 .board__meter {
   position: relative;
   flex: 1;
@@ -196,28 +173,6 @@
   background: linear-gradient(90deg, #5b6bff, #6fb7ff 60%, #7df0ff);
   box-shadow: 0 0 18px rgba(111, 183, 255, 0.5);
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-.board__rocket {
-  position: absolute;
-  right: -12px;
-  top: 50%;
-  transform: translateY(-50%);
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
-}
-.board__rocket-img {
-  display: block;
-  width: 26px;
-  height: 26px;
-  object-fit: contain;
-}
-.board__flag {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  z-index: 1;
-  opacity: 0.9;
 }
 .board__meter-num {
   position: absolute;

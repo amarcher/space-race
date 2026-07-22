@@ -1,9 +1,0 @@
-/* Avatars size to the surrounding font-size (1em) and round-crop to a clean
-   circle, framed toward the face. object-fit:cover keeps the portrait centred. */
-.avatar {
-  display: block;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  object-fit: cover;
-  object-position: center 30%;
-}

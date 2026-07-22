@@ -10,6 +10,8 @@ interface HandProps {
   /** a just-drawn card that's hidden until its incoming flight lands on it */
   incomingUid: string | null
   yourTurn: boolean
+  /** card-name overlays (hidden once the label auto-hide preference kicks in) */
+  showLabels: boolean
   onSelect: (uid: string) => void
   /** start a crane drag for this card (pointer-driven) */
   onDragStart: (e: React.PointerEvent, uid: string, kind: string) => void
@@ -24,6 +26,7 @@ export function Hand({
   draggingUid,
   incomingUid,
   yourTurn,
+  showLabels,
   onSelect,
   onDragStart,
   wasDragged,
@@ -49,7 +52,7 @@ export function Hand({
               selectedUid === card.uid ? 'hand__slot--selected' : ''
             } ${draggingUid === card.uid ? 'hand__slot--dragging' : ''} ${
               incomingUid === card.uid ? 'hand__slot--incoming' : ''
-            }`}
+            } ${!yourTurn ? 'hand__slot--inert' : ''}`}
             style={{ '--rot': `${rot}deg`, '--ty': `${lift}px` } as React.CSSProperties}
             onPointerDown={yourTurn ? (e) => onDragStart(e, card.uid, card.kind) : undefined}
             // a press that became a drag fires a trailing click on release — swallow it
@@ -66,6 +69,11 @@ export function Hand({
               size="md"
               selected={selectedUid === card.uid}
               muted={!yourTurn}
+              showName={showLabels}
+              // off-turn the hand is fully inert: no hover clip/tilt, nothing to
+              // inspect or mis-tap before you've drawn — presses fall through the
+              // slot (pointer-events: none) so the draw nudge still catches them
+              noHover={!yourTurn}
               onClick={yourTurn ? () => onSelect(card.uid) : undefined}
             />
           </div>

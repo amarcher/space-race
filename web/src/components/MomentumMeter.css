@@ -11,7 +11,7 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   line-height: 0;
-  /* sits as its own row in the board header (full width under the avatar+meter) */
+  /* sits as its own row in the board header (full width under the distance meter) */
 }
 
 .momentum__pips {

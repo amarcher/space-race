@@ -102,6 +102,17 @@
   color: #7df0ff;
   text-shadow: 0 2px 12px rgba(60, 210, 255, 0.5);
 }
+/* the OPPONENT dodged YOUR hazard — the caption burns red, not gold */
+.takeover__caption .sling-cap__word--foe {
+  background: linear-gradient(120deg, #fff, #ff9d8f 55%, #ff4b3d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 2px 14px rgba(255, 90, 70, 0.55));
+}
+.takeover__caption .sling-cap__pts--foe {
+  color: #ff8d7d;
+  text-shadow: 0 2px 12px rgba(255, 110, 90, 0.5);
+}
 @keyframes slingCaptionIn {
   0% { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.94); }
   100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }

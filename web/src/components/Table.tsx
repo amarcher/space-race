@@ -15,6 +15,7 @@ import {
 } from '../game'
 import { MOMENTUM_CAP } from '../game/rules'
 import { loadRules } from '../settings'
+import { bumpGamesPlayed, LABEL_HIDE_GAMES, loadGamesPlayed, loadPrefs, savePrefs, type Prefs } from '../prefs'
 import { Settings } from './Settings'
 import { cardHeroVideo, cardSlingshotHeroVideo, cardSlingshotVideo, cardVideo } from '../game/cardArt'
 import { SLINGSHOT_MILEAGE } from '../game/cards'
@@ -27,7 +28,7 @@ import { type BurstType, useBurstLayer } from './BurstLayer'
 import { Card } from './Card'
 import { Icon, type IconName } from './Icon'
 import { AudioDebug } from './AudioDebug'
-import { Avatar } from './Avatar'
+import { PlayerTag } from './PlayerTag'
 import { CardTakeover, type TakeoverVariant } from './CardTakeover'
 import { DragLayer, useCardDrag } from './DragLayer'
 import { FlightLayer, useFlights } from './FlightLayer'
@@ -217,6 +218,10 @@ export function Table({
   // mid-game — flipping a toggle takes effect on the next new round).
   const [rules, setRules] = useState<GameRules>(() => loadRules())
   const [state, setState] = useState<GameState>(() => buildInitialGame())
+  // interface prefs (label auto-hide, auto-draw) — unlike rules these apply
+  // immediately; Settings persists + lifts them here.
+  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs())
+  const [gamesPlayed, setGamesPlayed] = useState<number>(() => loadGamesPlayed())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [slingshot, setSlingshot] = useState<SlingshotEvent | null>(null)
@@ -490,6 +495,23 @@ export function Table({
     })
   }
 
+  // count each finished round exactly once — drives the card-label auto-hide
+  const roundCounted = useRef(false)
+  useEffect(() => {
+    if (state.phase !== 'roundOver') {
+      roundCounted.current = false
+      return
+    }
+    if (roundCounted.current) return
+    roundCounted.current = true
+    setGamesPlayed(bumpGamesPlayed())
+  }, [state.phase])
+
+  // card-name overlays: on until the auto-hide preference kicks in (you know
+  // the cards by art after LABEL_HIDE_GAMES rounds; flip the setting off to
+  // keep them forever)
+  const showLabels = !(prefs.autoHideLabels && gamesPlayed >= LABEL_HIDE_GAMES)
+
   // pop the win takeover (and scoreboard backup) each time a round ends
   useEffect(() => {
     if (state.phase !== 'roundOver') return
@@ -553,18 +575,30 @@ export function Table({
     } else if (state.phase === 'play' && cur.isAI) {
       delay = AI_DELAY
       action = () => animateAndCommit(chooseMove(state) ?? { type: 'pass' as const })
+    } else if (
+      state.phase === 'draw' &&
+      !cur.isAI &&
+      prefs.autoDraw &&
+      state.discard.length === 0 &&
+      state.deck.length > 0
+    ) {
+      // AUTO-DRAW (opt-in pref): an empty discard pile means there's no pickup
+      // decision — start your turn by drawing from the deck without the tap.
+      delay = DRAW_DELAY
+      action = () => animateAndCommit({ type: 'draw', source: 'deck' as const })
     }
     if (!action) return
     const t = setTimeout(action, delay)
     return () => clearTimeout(t)
-  }, [state, cur.isAI, animating, takeover])
+  }, [state, cur.isAI, animating, takeover, prefs.autoDraw])
 
   // ---- Slingshot hero moment: play it, and pause the loop while it runs -------
-  // When YOU pull off the Slingshot and its safety ships a cinematic, play the
-  // full ~8s "you dodged it" clip (in place of the suppressed hazard takeover),
-  // captioned SLINGSHOT! / +200 ly, then chain straight into the safety-reveal
-  // clip. Otherwise (the AI dodged you, no clip, or reduced motion) fall back to
-  // the compact DOM overlay — an 8s hero clip shouldn't celebrate the opponent.
+  // When a Slingshot's safety ships a cinematic, play the full ~8s "dodged it"
+  // clip (in place of the suppressed hazard takeover), captioned SLINGSHOT! /
+  // +200 ly, then chain straight into the safety-reveal clip. YOUR dodge wears
+  // the gold caption; the OPPONENT dodging your hazard gets the same cinematic
+  // with the caption burned red — spectacular, but clearly bad news for you.
+  // Fallback (no clip, or reduced motion): the compact DOM overlay.
   useEffect(() => {
     const ev = state.lastSlingshot
     if (!ev || ev.id === lastSlingId.current) return
@@ -578,17 +612,19 @@ export function Table({
     // prefer a hazard-specific clip (Rescue Shuttle dodges Tractor Beam AND Black
     // Hole) — falls back to the safety's generic Slingshot clip when absent
     const cinematic = cardSlingshotVideo(ev.safetyKind, ev.hazardKind)
-    const youDodged = ev.seat === 0
+    const foe = ev.seat !== 0
     const safetyClip = cardVideo(ev.safetyKind, ['idle', 'hover'])
-    if (youDodged && cinematic && safetyClip && !prefersReducedMotion()) {
+    if (cinematic && safetyClip && !prefersReducedMotion()) {
       // cinematic → safety-reveal, chained via `next` (onDone advances the chain).
       // The SLINGSHOT! caption rides BOTH clips, and the handoff is seamless
       // (no exit/entry fade) so the pair reads as one continuous cinematic.
       const key = ++impactSeq.current
       const caption = (
         <>
-          <span className="sling-cap__word">SLINGSHOT!</span>
-          <span className="sling-cap__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
+          <span className={`sling-cap__word${foe ? ' sling-cap__word--foe' : ''}`}>SLINGSHOT!</span>
+          <span className={`sling-cap__pts${foe ? ' sling-cap__pts--foe' : ''}`}>
+            <Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly
+          </span>
         </>
       )
       setTakeover({
@@ -759,9 +795,32 @@ export function Table({
   // The key changes only when the relevant kinds change; preloadClips dedupes.
   const heroPreloadKey = useMemo(() => {
     const mine = human.hand.map((c) => c.kind)
-    const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard').map((c) => c.kind)
-    return `${mine.join(',')}|${aiHazards.join(',')}`
+    const theirs = opp.hand.map((c) => c.kind)
+    return `${mine.join(',')}|${theirs.join(',')}`
   }, [human.hand, opp.hand])
+  // Potential Slingshot pairs, BOTH directions: a hazard in one hand whose
+  // matching safety sits in the other hand → that play would fire the dodge
+  // cinematic (gold for your dodge, red for the opponent's). Warm the cinematic
+  // + the chained safety-reveal clip so the chain never fetches cold.
+  const slingshotWarmups = (hero: boolean): (string | undefined)[] => {
+    const pairs: { safety: string; hazard: string }[] = []
+    const collect = (hazardHand: CardInstance[], safetyHand: CardInstance[]) => {
+      for (const hz of hazardHand) {
+        if (CARD_DEFS[hz.kind]?.type !== 'hazard') continue
+        for (const sf of safetyHand) {
+          if ((CARD_DEFS[sf.kind].immuneTo ?? []).includes(hz.kind))
+            pairs.push({ safety: sf.kind, hazard: hz.kind })
+        }
+      }
+    }
+    collect(opp.hand, human.hand) // the AI hazards you → YOUR dodge
+    collect(human.hand, opp.hand) // you hazard the AI → ITS dodge
+    return pairs.flatMap((p) =>
+      hero
+        ? [cardSlingshotHeroVideo(p.safety, p.hazard), cardHeroVideo(p.safety)]
+        : [cardSlingshotVideo(p.safety, p.hazard), cardVideo(p.safety, ['idle'])],
+    )
+  }
   useEffect(() => {
     if (typeof window === 'undefined') return
     const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard')
@@ -772,6 +831,7 @@ export function Table({
       preloadClips([
         ...human.hand.map((c) => cardHeroVideo(c.kind)),
         ...aiHazards.map((c) => cardHeroVideo(c.kind)),
+        ...slingshotWarmups(true),
       ])
     } else {
       // MOBILE: the takeover uses the STANDARD clip. The AI's hazard cards render
@@ -780,7 +840,7 @@ export function Table({
       // iOS) surface a native play button. Warm the AI's hazard standard clips so
       // the takeover plays from cache. (Your own plays carry a user gesture, so
       // their takeover autoplays even cold — no need to warm those on mobile.)
-      preloadClips(aiHazards.map((c) => cardVideo(c.kind, ['idle'])))
+      preloadClips([...aiHazards.map((c) => cardVideo(c.kind, ['idle'])), ...slingshotWarmups(false)])
     }
     // human.hand/opp.hand are captured via heroPreloadKey (their relevant kinds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -917,6 +977,7 @@ export function Table({
           setSelectedUid,
           playableUids,
           incomingUid,
+          showLabels,
           cardDrag,
           selectedDef,
           selectedKind,
@@ -947,9 +1008,7 @@ export function Table({
       )}
 
 
-      {slingshot && (
-        <SlingshotOverlay event={slingshot} who={whoFor(slingshot.seat)} />
-      )}
+      {slingshot && <SlingshotOverlay event={slingshot} />}
 
       {/* SCRY: the human peeks the top of the deck and picks one card. */}
       {scryPhaseHuman && state.scry && (
@@ -960,6 +1019,11 @@ export function Table({
         <Settings
           rules={rules}
           onChange={setRules}
+          prefs={prefs}
+          onChangePrefs={(p) => {
+            savePrefs(p)
+            setPrefs(p)
+          }}
           onClose={() => setSettingsOpen(false)}
           gameInProgress={gameInProgress}
         />
@@ -1101,13 +1165,13 @@ function Scoreboard({
         <div className="scoreboard__trophy" aria-label={state.winner != null ? `${state.players[state.winner].name} wins` : 'Round over'}>
           <img className="scoreboard__trophy-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
           {state.winner != null && (
-            <span className="scoreboard__winner"><Avatar who={whoFor(state.winner)} /></span>
+            <span className="scoreboard__winner"><PlayerTag who={whoFor(state.winner)} /></span>
           )}
         </div>
         <div className="scoreboard__cols">
           {scores.map((s) => (
             <div key={s.seat} className={`scorecol ${state.winner === s.seat ? 'scorecol--win' : ''}`}>
-              <h3 aria-label={s.name}><Avatar who={whoFor(s.seat)} /></h3>
+              <h3 aria-label={s.name}><PlayerTag who={whoFor(s.seat)} /></h3>
               <ul>
                 {s.lines.map((l, i) => (
                   <li key={i} title={l.label}>

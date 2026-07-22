@@ -1,6 +1,6 @@
 import { CARD_DEFS } from '../game/cards'
 import type { LogEntry } from '../game'
-import { Avatar } from './Avatar'
+import { PlayerTag } from './PlayerTag'
 import { Icon, type IconName } from './Icon'
 import { useCardPreview } from './useCardPreview'
 
@@ -53,7 +53,7 @@ export function LogRow({ entry, who }: { entry: LogEntry; who: (seat: number) =>
     >
       {entry.seat >= 0 && (
         <span className="log__who">
-          <Avatar who={who(entry.seat)} />
+          <PlayerTag who={who(entry.seat)} />
         </span>
       )}
       <span className="log__icon">

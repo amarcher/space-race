@@ -310,25 +310,6 @@
   padding: 2px 7px;
   font-variant-numeric: tabular-nums;
 }
-.pile__label {
-  /* out of flow (pinned just below the card) so swapping its content can never
-     change the pile height. */
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 6px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: rgba(255, 255, 255, 0.4);
-  pointer-events: none;
-}
 .table__center .pile .card { width: var(--deck-w); }
 .pile--draw { cursor: pointer; }
 .pile--draw .card,
@@ -603,7 +584,7 @@
   object-fit: contain;
   filter: drop-shadow(0 6px 18px rgba(255, 200, 80, 0.45));
 }
-/* winner avatar as a badge tucked at the base of the trophy */
+/* winner tag as a badge tucked at the base of the trophy */
 .scoreboard__winner {
   position: absolute;
   bottom: -6px;
@@ -665,8 +646,6 @@
   .board { --tab-w: clamp(38px, 6.2vh, 60px); padding: 6px 10px 7px; }
   .board__head { gap: 10px; margin-bottom: 5px; }
   .board__meter { height: 24px; }
-  .board__avatar { font-size: 24px; }
-  .board__rocket-img { width: 20px; height: 20px; }
 
   /* the deck + discard sit closer together */
   .table__center { gap: clamp(18px, 9vw, 56px); padding: 0 8px; }
