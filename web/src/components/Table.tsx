@@ -41,9 +41,11 @@ import './Table.css'
 const DRAW_DELAY = 480
 const AI_DELAY = 780
 const SLINGSHOT_MS = 2800
-// The Slingshot cinematic runs its full length; cap slightly past the 8s clip so
-// it always dismisses even if `ended` never fires (some WebViews swallow it).
-const SLINGSHOT_CINEMATIC_MS = 8200
+// The Slingshot cinematic runs its full length — it advances on the clip's own
+// `ended` event; this cap is only the safety net for WebViews that swallow
+// `ended`. Sized past the LONGEST clip (diamond-thruster at 10s; the rest 8s —
+// they still advance at their natural end).
+const SLINGSHOT_CINEMATIC_MS = 10400
 // SCRY: the AI "reads" the revealed cards for a beat before picking one.
 const SCRY_DELAY = 620
 

@@ -70,7 +70,7 @@ export function cardHeroVideo(kind: string | undefined): string | undefined {
 // instant that safety pulls off a Slingshot. Add a kind here once its
 // `<kind>.slingshot.mp4` (+ `.slingshot.hero.mp4`) clips exist; kinds not listed
 // fall back to the built-in DOM Slingshot overlay.
-const SLINGSHOT_CLIP_KINDS = new Set<string>(['ace-pilot', 'antimatter-fuel-cell'])
+const SLINGSHOT_CLIP_KINDS = new Set<string>(['ace-pilot', 'antimatter-fuel-cell', 'diamond-thruster'])
 
 // A safety that dodges MORE than one hazard (Rescue Shuttle → Tractor Beam +
 // Black Hole) can ship a HAZARD-SPECIFIC clip that's preferred over the generic
@@ -78,7 +78,8 @@ const SLINGSHOT_CLIP_KINDS = new Set<string>(['ace-pilot', 'antimatter-fuel-cell
 // `<safety>.vs-<hazard>.slingshot.mp4` (+ `.slingshot.hero.mp4`). Falls back to
 // the generic `<safety>.slingshot.*` (SLINGSHOT_CLIP_KINDS) when absent.
 const SLINGSHOT_HAZARD_CLIPS = new Set<string>([
-  // e.g. 'rescue-shuttle:black-hole', 'rescue-shuttle:tractor-beam',
+  'rescue-shuttle:black-hole',
+  'rescue-shuttle:tractor-beam',
 ])
 
 /** Resolve the asset basename for a Slingshot clip: prefer a hazard-specific
