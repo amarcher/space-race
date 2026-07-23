@@ -20,6 +20,13 @@
   height: 100%;
   object-fit: cover;
 }
+/* poster still shown when autoplay is policy-blocked (iOS Low Power Mode) —
+   overlays the (hidden) video and inherits the variant's scale-in animation
+   via the shared .takeover__video class */
+.takeover__video--poster {
+  position: absolute;
+  inset: 0;
+}
 /* motion spans the short ~2.5s window: warp dives, the others ease in + settle */
 .takeover--warp .takeover__video { animation: takeoverDive 2600ms ease-out both; }
 .takeover--hazard .takeover__video,

@@ -81,6 +81,9 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoError, setVideoError] = useState(false)
+  // autoplay policy-blocked (iOS Low Power Mode, no user gesture): hide the
+  // video so WebKit's play glyph never shows — the poster still carries the hero
+  const [blocked, setBlocked] = useState(false)
   const [phase, setPhase] = useState<'hero' | 'tally'>(
     prefersReducedMotion() ? 'tally' : 'hero',
   )
@@ -198,20 +201,29 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
               className="win-takeover__video"
               src={chosenSrc}
               poster={posterSrc}
+              style={blocked ? { visibility: 'hidden' } : undefined}
               autoPlay
               muted
               playsInline
               preload="auto"
               onCanPlay={(e) => {
-                // mobile autoplay-gate retry only — resume if paused, never seek
+                // mobile autoplay-gate retry only — resume if paused, never seek.
+                // A NotAllowedError here means autoplay is policy-blocked (iOS
+                // Low Power Mode) — swap to the poster still, no play glyph.
                 const v = e.currentTarget
                 if (v.paused) {
                   v.muted = true
-                  v.play?.().catch(() => {})
+                  v.play?.().catch((err: unknown) => {
+                    if ((err as DOMException)?.name === 'NotAllowedError') setBlocked(true)
+                  })
                 }
               }}
+              onPlaying={() => setBlocked(false)}
               onError={() => setVideoError(true)}
             />
+          )}
+          {blocked && !videoError && (
+            <img className="win-takeover__video" src={posterSrc} alt="" draggable={false} />
           )}
 
           {/* vignette */}
@@ -233,15 +245,13 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
               ✕
             </button>
           )}
-          {/* trophy / outcome icon */}
+          {/* trophy / outcome icon — the app's own SVG set, same as the score
+              rows (the cartoon trophy PNG went out with the mascots) */}
           <div className={`win-takeover__outcome win-takeover__outcome--${variant}`} aria-hidden>
             {humanWon ? (
-              <img
-                className="win-takeover__trophy"
-                src="/ui/trophy-hero.png"
-                alt=""
-                draggable={false}
-              />
+              <span className="win-takeover__outcome-icon win-takeover__outcome-icon--win">
+                <Icon name="trophy" size={64} />
+              </span>
             ) : (
               <span className="win-takeover__outcome-icon">
                 <Icon name="gate" size={64} />

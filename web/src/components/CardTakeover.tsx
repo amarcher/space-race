@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cardHeroVideo } from '../game/cardArt'
+import { cardHeroVideo, cardPoster } from '../game/cardArt'
 import './CardTakeover.css'
 
 export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety' | 'slingshot'
@@ -82,6 +82,11 @@ export function CardTakeover({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [leaving, setLeaving] = useState(false)
   const [playing, setPlaying] = useState(false) // stage: gate visibility on real playback
+  // iOS Low Power Mode refuses gesture-less play() (NotAllowedError) and paints
+  // its own play-button glyph over the paused video. When that happens, hide the
+  // video and show the clip's frame-0 poster instead — a clean still takeover
+  // beat rather than Apple's glyph. Cleared if playback does start after all.
+  const [blocked, setBlocked] = useState(false)
   // Pick the source ONCE per play: on a wide viewport, prefer the crisper hero
   // clip when the kind ships one; otherwise (mobile, or no hero asset) use the
   // standard clip. Read width eagerly so the chosen <video src> is correct on
@@ -118,19 +123,24 @@ export function CardTakeover({
     v.defaultMuted = true
     // Robust play: try eagerly AND once data is ready (a cold/uncached clip isn't
     // buffered yet — eager play() can reject before any frame, which on iOS shows
-    // a play button). On any rejection, re-assert muted and retry once. We never
-    // expose native controls, so the worst case is a still first frame, never a
-    // tap-to-play affordance.
+    // a play button). On any rejection, re-assert muted and retry once. If the
+    // retry ALSO rejects with NotAllowedError, autoplay is policy-blocked (iOS
+    // Low Power Mode requires a user gesture) — flip to the poster still so the
+    // user never sees WebKit's play-button glyph.
     const tryPlay = () => {
       v.muted = true
       const p = v.play?.()
       if (p && typeof p.catch === 'function') {
         p.catch(() => {
           v.muted = true
-          v.play?.().catch(() => {})
+          v.play?.().catch((err: unknown) => {
+            if ((err as DOMException)?.name === 'NotAllowedError') setBlocked(true)
+          })
         })
       }
     }
+    const onPlaying = () => setBlocked(false) // it started after all — video wins
+    v.addEventListener('playing', onPlaying)
     try {
       v.currentTime = 0
     } catch {
@@ -163,6 +173,7 @@ export function CardTakeover({
       v.removeEventListener('loadeddata', tryPlay)
       v.removeEventListener('canplay', tryPlay)
       v.removeEventListener('ended', finish)
+      v.removeEventListener('playing', onPlaying)
     }
     // run once on mount — onDone is read via the ref above
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,9 +202,13 @@ export function CardTakeover({
         style={
           stage
             ? { objectFit: 'cover', objectPosition, opacity: playing ? 1 : 0, transition: 'opacity 200ms ease' }
-            : objectPosition
-              ? { objectPosition }
-              : undefined
+            : {
+                ...(objectPosition ? { objectPosition } : undefined),
+                // policy-blocked (Low Power Mode): hide the paused video so
+                // WebKit's play-button glyph never shows; the poster still below
+                // carries the takeover instead
+                ...(blocked ? { visibility: 'hidden' as const } : undefined),
+              }
         }
         autoPlay
         muted
@@ -202,6 +217,15 @@ export function CardTakeover({
         onPlaying={stage ? () => setPlaying(true) : undefined}
         onTimeUpdate={stage ? (e) => { if (e.currentTarget.currentTime > 0) setPlaying(true) } : undefined}
       />
+      {blocked && !stage && cardPoster(kind) && (
+        <img
+          className="takeover__video takeover__video--poster"
+          src={cardPoster(kind)}
+          style={objectPosition ? { objectPosition } : undefined}
+          alt=""
+          draggable={false}
+        />
+      )}
       <span className="takeover__tint" />
       {caption && <div className="takeover__caption">{caption}</div>}
     </div>,

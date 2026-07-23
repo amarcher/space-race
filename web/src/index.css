@@ -108,8 +108,9 @@ body {
      - manipulation kills the 300ms double-tap-to-zoom delay on every tap target
      - the game surface is not a document: no long-press text selection, and no
        iOS callout (copy / "look up" / image-preview) bubble on cards or chrome.
-     Re-enabled for the one scrollable reading view below. There are no text
-     inputs in the app, so nothing legitimate loses selection. */
+     Applies everywhere, rules/gallery included — card counts and rule text
+     read as app chrome, not copyable prose. There are no text inputs in the
+     app, so nothing legitimate loses selection. */
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
@@ -125,10 +126,6 @@ button { font-family: inherit; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  /* the rules/gallery is real reading content — let it be selectable again */
-  -webkit-user-select: text;
-  user-select: text;
-  -webkit-touch-callout: default;
   /* start content below the notch / beside the corner cutouts; scrolled content
      may slide under them, which is standard scroll behaviour */
   padding-top: var(--safe-top);
