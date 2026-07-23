@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Marketing QR card — replaces the "Milo Reads the Rules" personalization card.
+  Promotes the digital game: QR to game.spaceexplorer.tech (the site smart-routes
+  iOS users to the App Store via the app banner; everyone else plays in-browser).
+  Same 825x1125 @300dpi poker spec as the deck. Render via render-qr-card.sh.
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 600; src: url('../web/public/fonts/inter-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 825px; height: 1125px; overflow: hidden; }
+  body { position: relative; background: #f4eee0; font-family: 'Inter', sans-serif; color: #3a2f1e; text-align: center; }
+  .tile { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.18; }
+  .inner { position: absolute; inset: 95px 85px; display: flex; flex-direction: column; align-items: center; }
+  h1 { font-family: 'Unbounded'; font-weight: 700; font-size: 54px; color: #7a5c14; letter-spacing: 0.02em; }
+  .rule { width: 110px; height: 5px; background: #a8842c; border-radius: 3px; margin: 26px 0 40px; }
+  .qrwrap { background: #f4eee0; padding: 40px; border: 3px solid #d8cdb4; border-radius: 18px; }
+  .qrwrap img { display: block; width: 430px; height: 430px; image-rendering: pixelated; }
+  .url { margin-top: 34px; font-family: 'Unbounded'; font-weight: 700; font-size: 30px; color: #3a2f1e; }
+  .sub { margin-top: 22px; font-size: 24px; line-height: 1.55; font-weight: 500; color: #6b5d43; max-width: 560px; }
+  .est { position: absolute; left: 0; right: 0; bottom: 92px; font-family: 'Unbounded'; font-weight: 700;
+    font-size: 17px; letter-spacing: 0.3em; color: #a8842c; }
+</style>
+</head>
+<body>
+  <img class="tile" src="../artbin/s3-02-card-back-tile_v1.jpg">
+  <div class="inner">
+    <h1>Play Online</h1>
+    <div class="rule"></div>
+    <div class="qrwrap"><img src="qr-play-online.png"></div>
+    <div class="url">game.spaceexplorer.tech</div>
+    <div class="sub">Scan to play free in your browser —<br>or get the app for iPhone &amp; iPad.</div>
+  </div>
+  <div class="est">1000 LIGHT-YEARS · EST 2026</div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Marketing card FRONT — invites deck owners to the digital game.
+  825x1125 @300dpi poker spec (bleed incl., trim 37.5, safe 75).
+  Generated halo backdrop + real App Store screenshot in a phone frame.
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 600; src: url('../web/public/fonts/inter-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 900; src: url('../web/public/fonts/unbounded-900.woff2') format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 825px; height: 1125px; overflow: hidden; }
+  body { position: relative; background: #0b0c22; font-family: 'Inter', sans-serif; }
+  .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  .headline { position: absolute; left: 0; right: 0; top: 96px; text-align: center;
+    font-family: 'Unbounded'; font-weight: 900; font-size: 56px; line-height: 1.1;
+    color: #ffd93d; letter-spacing: 0.015em;
+    -webkit-text-stroke: 3px rgba(30, 18, 2, 0.4); paint-order: stroke fill;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7); }
+  .headline small { display: block; margin-top: 14px; font-family: 'Inter'; font-weight: 600;
+    -webkit-text-stroke: 0; font-size: 27px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(255, 250, 235, 0.95); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8); }
+
+  /* floating phone */
+  .phone { position: absolute; left: 50%; top: 358px; transform: translateX(-50%) rotate(-3deg);
+    width: 292px; padding: 11px; background: #101014; border-radius: 50px;
+    box-shadow: 0 0 90px 24px rgba(255, 219, 130, 0.55), 0 26px 60px rgba(0, 0, 0, 0.65),
+      inset 0 0 0 3px #3a3a42; }
+  .phone img { display: block; width: 100%; border-radius: 40px; }
+
+  .foot { position: absolute; left: 0; right: 0; bottom: 84px; text-align: center;
+    font-family: 'Unbounded'; font-weight: 700; font-size: 25px; letter-spacing: 0.12em;
+    color: #fff7e0; text-transform: uppercase; text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8); }
+</style>
+</head>
+<body>
+  <img class="bg" src="marketing-front-art.png">
+  <div class="headline">Take the race<br>anywhere<small>The deck's digital twin</small></div>
+  <div class="phone"><img src="../docs/app-store/screenshots/iphone-6.9-05-board-race.png"></div>
+  <div class="foot">Free · iPhone · iPad · Web</div>
+</body>
+</html>

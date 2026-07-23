@@ -19,3 +19,6 @@ __pycache__/
 *.local
 .env
 .env.*
+
+# firecrawl scratch
+.firecrawl/

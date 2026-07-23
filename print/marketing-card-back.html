@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Marketing card BACK — QR + official App Store badge set inside the
+  ChatGPT-commissioned celestial etched frame (print/celestial-frame.png),
+  the same art family as the deck card back. 825x1125 @300dpi poker spec.
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 825px; height: 1125px; overflow: hidden; }
+  body { position: relative; background: rgb(250, 236, 208); font-family: 'Inter', sans-serif; color: #3a2f1e; text-align: center; }
+  .frame { position: absolute; left: 82px; top: 67px; width: 660px; height: 990px; }
+  .inner { position: absolute; left: 170px; right: 170px; top: 235px; bottom: 250px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  h1 { font-family: 'Unbounded'; font-weight: 700; font-size: 38px; color: #7a5c14; }
+  .qrwrap { margin-top: 30px; }
+  .qrwrap img { display: block; width: 330px; height: 330px; image-rendering: pixelated; }
+  .url { margin-top: 30px; font-family: 'Unbounded'; font-weight: 700; font-size: 25px; color: #3a2f1e; }
+  .sub { margin-top: 14px; font-size: 21px; line-height: 1.5; font-weight: 500; color: #6b5d43; }
+  .badge { margin-top: 26px; height: 108px; }
+</style>
+</head>
+<body>
+  <img class="frame" src="celestial-frame.png">
+  <div class="inner">
+    <h1>Scan to play</h1>
+    <div class="qrwrap"><img src="qr-play-online.png"></div>
+    <div class="url">game.spaceexplorer.tech</div>
+    <div class="sub">Free in your browser — or get the app.</div>
+    <img class="badge" src="app-store-badge.svg">
+  </div>
+</body>
+</html>

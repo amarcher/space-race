@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Print renderer for one card front. Open with ?kind=<card-kind>.
+  Canvas is the full Game Crafter poker bleed: 825x1125 px @300dpi
+  (2.75"x3.75"). Trim = 750x1050 (37.5px in), safe = 675x975 (75px in).
+  Screenshot at window-size 825,1125 via print/render-cards.sh.
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 700; src: url('../web/public/fonts/inter-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 900; src: url('../web/public/fonts/unbounded-900.woff2') format('woff2'); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 825px; height: 1125px; overflow: hidden; }
+  body { font-family: 'Inter', sans-serif; background: #05050f; position: relative; }
+
+  .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* centered light-year numeral — distance cards only (mirrors .card__value) */
+  .value {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Unbounded'; font-weight: 900; font-size: 280px; line-height: 0.86;
+    letter-spacing: -6px; color: #ffd93d;
+    -webkit-text-stroke: 8px rgba(0, 0, 0, 0.6); paint-order: stroke fill;
+    text-shadow: 0 6px 30px rgba(0, 0, 0, 0.85), 0 0 78px rgba(0, 0, 0, 0.55);
+    background: radial-gradient(closest-side at 50% 50%,
+      rgba(2, 3, 16, 0.5), rgba(2, 3, 16, 0.12) 55%, transparent 72%);
+  }
+
+  /* bottom caption — always-on print version of the app's hover .card__name */
+  .name {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 150px 85px 82px; /* bottom padding keeps baselines inside safe */
+    background: linear-gradient(transparent, rgba(3, 3, 18, 0.55) 34%, rgba(3, 3, 18, 0.94));
+    color: #fff;
+  }
+  .name .rule { width: 64px; height: 6px; border-radius: 3px; background: var(--ring); margin-bottom: 18px; }
+  .name strong { display: block; font-size: 46px; font-weight: 700; letter-spacing: 0.5px; line-height: 1.12; }
+  .name em { display: block; font-style: normal; font-size: 29px; font-weight: 500; margin-top: 8px; color: rgba(255, 255, 255, 0.72); }
+
+  /* corner indices — glyph readable in a fanned hand; mirrored bottom-right */
+  .corner {
+    position: absolute; top: 78px; left: 85px; z-index: 4;
+    font-family: 'Unbounded'; font-weight: 700; font-size: 54px; line-height: 1;
+    color: var(--ring);
+    -webkit-text-stroke: 3px rgba(0, 0, 0, 0.55); paint-order: stroke fill;
+    text-shadow: 0 3px 14px rgba(0, 0, 0, 0.9);
+  }
+  .corner.br { top: auto; left: auto; bottom: 78px; right: 85px; transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<script>
+const RING = { distance: '#6fb7ff', hazard: '#ff5a6e', remedy: '#4fe08b', safety: '#ffd76a' };
+// kind: [title, subtitle, type, corner glyph, artbin source]
+const CARDS = {
+  'warp-25':              ['25 Light-Years', 'warm-up jump', 'distance', '25', 's1-07-25ly-warp_v2.jpg'],
+  'warp-50':              ['50 Light-Years', 'light jump', 'distance', '50', 's1-06-50ly-warp_v1.jpg'],
+  'warp-75':              ['75 Light-Years', 'half warp', 'distance', '75', 's1-05-75ly-warp_v1.jpg'],
+  'warp-100':             ['100 Light-Years', 'full warp', 'distance', '100', 's1-04-100ly-warp_v1.jpg'],
+  'warp-200':             ['200 Light-Years', 'hyperwarp', 'distance', '200', 's1-03-200ly-warp_v1.jpg'],
+  'asteroid-strike':      ['Asteroid Strike', 'fixed by Repair Drone', 'hazard', 'H', 's1-08-asteroid-strike_v1.jpg'],
+  'empty-tank':           ['Empty Tank', 'fixed by Fuel Cell', 'hazard', 'H', 's1-09-empty-tank_v1.jpg'],
+  'busted-thruster':      ['Busted Thruster', 'fixed by New Thruster', 'hazard', 'H', 's1-10-busted-thruster_v1.jpg'],
+  'tractor-beam':         ['Tractor Beam', 'fixed by Beam Cutter', 'hazard', 'H', 's1-02-tractor-beam_v1.jpg'],
+  'black-hole':           ['Black Hole', 'fixed by Ignition', 'hazard', 'H', 's1-01-black-hole_v2.jpg'],
+  'repair-drone':         ['Repair Drone', 'fixes Asteroid Strike', 'remedy', 'R', 's1-11-repair-drone_v1.jpg'],
+  'fuel-cell':            ['Fuel Cell', 'fixes Empty Tank', 'remedy', 'R', 's1-12-fuel-cell_v1.jpg'],
+  'new-thruster':         ['New Thruster', 'fixes Busted Thruster', 'remedy', 'R', 's1-13-new-thruster_v1.jpg'],
+  'beam-cutter':          ['Beam Cutter', 'fixes Tractor Beam', 'remedy', 'R', 's1-14-beam-cutter_v1.jpg'],
+  'ignition':             ['Ignition', 'required to start · fixes Black Hole', 'remedy', 'R', 's1-15-ignition_v1.jpg'],
+  'ace-pilot':            ['Ace Pilot', 'immune to Asteroid Strike', 'safety', '★', 's2-02-ace-pilot_v1.jpg'],
+  'antimatter-fuel-cell': ['Antimatter Fuel Cell', 'immune to Empty Tank', 'safety', '★', 's2-04-antimatter-fuel-cell_v1.jpg'],
+  'diamond-thruster':     ['Diamond Thruster', 'immune to Busted Thruster', 'safety', '★', 's2-03-diamond-thruster_v1.jpg'],
+  'rescue-shuttle':       ['Rescue Shuttle', 'immune to Tractor Beam + Black Hole', 'safety', '★', 's2-01-rescue-shuttle_v1.jpg'],
+};
+
+const params = new URLSearchParams(location.search);
+const kind = params.get('kind');
+const variant = params.get('variant') || '';
+const def = CARDS[kind];
+if (!def) { document.body.textContent = 'unknown kind: ' + kind; }
+else {
+  const [title, subtitle, type, glyph, art] = def;
+  document.body.style.setProperty('--ring', RING[type]);
+  document.body.innerHTML = `
+    <img class="art" src="../artbin/${art}">
+    ${type === 'distance' ? `<div class="value">${glyph}</div>` : `
+    <div class="name" style="--ring:${RING[type]}">
+      <div class="rule"></div>
+      <strong>${title}</strong>
+      <em>${subtitle}</em>
+    </div>`}`;
+  if (variant === 'notext') document.querySelectorAll('.name').forEach(e => e.remove());
+  if (variant === 'noscrim') document.querySelectorAll('.name').forEach(e => {
+    e.style.background = 'none';
+    e.querySelectorAll('strong, em').forEach(t => t.style.textShadow = '0 2px 8px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,1)');
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Rulebook for TGC Small Booklet (2.5"x3.5", saddle-stitched, pages 825x1125
+  @300dpi, count multiple of 4). Classic dark rulebook style: cosmic art
+  backgrounds, translucent panels, embedded card photos with counts.
+  Open with ?page=1..8. Render via print/render-booklet.sh.
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 600; src: url('../web/public/fonts/inter-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 700; src: url('../web/public/fonts/inter-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 900; src: url('../web/public/fonts/unbounded-900.woff2') format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 825px; height: 1125px; overflow: hidden; }
+  body { position: relative; background: #0b0c22; font-family: 'Inter', sans-serif; color: #fff; }
+  .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .bg.faint { opacity: 0.3; }
+  .shade { position: absolute; inset: 0; background: linear-gradient(rgba(9,10,28,0.35), rgba(9,10,28,0.55)); }
+  .inner { position: absolute; inset: 92px; }
+  .panel { background: rgba(9, 10, 28, 0.78); border: 1px solid rgba(255, 217, 61, 0.28);
+    border-radius: 18px; padding: 30px 32px; }
+  h2 { font-family: 'Unbounded'; font-weight: 700; font-size: 33px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #ffd93d; margin-bottom: 18px; }
+  p, li { font-size: 27px; line-height: 1.45; font-weight: 500; color: rgba(255, 252, 244, 0.95); }
+  ol, ul { padding-left: 36px; }
+  li { margin-bottom: 10px; }
+  em { font-style: italic; color: rgba(255, 235, 180, 0.9); }
+  strong { font-weight: 700; color: #ffd93d; }
+  .pagenum { position: absolute; bottom: 40px; left: 0; right: 0; text-align: center;
+    font-family: 'Unbounded'; font-weight: 700; font-size: 17px; color: rgba(255, 217, 61, 0.75); }
+
+  /* card gallery */
+  .cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px 22px; margin-top: 22px; }
+  .cardth { width: 180px; text-align: center; }
+  .cardth img { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.55); display: block; }
+  .cardth .n { font-size: 20px; font-weight: 600; margin-top: 8px; line-height: 1.2; }
+  .cardth .q { font-family: 'Unbounded'; font-weight: 700; font-size: 22px; color: #ffd93d; margin-top: 2px; }
+
+  /* cover */
+  .cover-title { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 50px 84px; text-align: center;
+    background: linear-gradient(transparent, rgba(9, 10, 28, 0.82) 45%, rgba(9, 10, 28, 0.95)); }
+  .cover-title .sr { font-family: 'Unbounded'; font-weight: 900; font-size: 92px; line-height: 1; color: #ffd93d;
+    -webkit-text-stroke: 3px rgba(30,20,2,0.4); paint-order: stroke fill; }
+  .cover-title .ly { font-family: 'Unbounded'; font-weight: 700; font-size: 38px; color: #fff; margin-top: 14px; letter-spacing: 0.04em; }
+  .cover-title .rb { font-size: 30px; font-weight: 600; font-style: italic; color: rgba(255, 235, 180, 0.95); margin-top: 26px; }
+  .scoring td { font-size: 26px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.18); }
+  .scoring { width: 100%; border-collapse: collapse; }
+  .scoring td:last-child { text-align: right; font-weight: 700; color: #ffd93d; }
+  .scoring tr:last-child td { border-bottom: none; }
+  .copyright { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center;
+    font-size: 20px; font-weight: 600; color: #d9b25a; }
+</style>
+</head>
+<body>
+<script>
+const th = (kind, name, q) =>
+  `<div class="cardth"><img src="../exports/cards/${kind}.png"><div class="n">${name}</div><div class="q">×${q}</div></div>`;
+const BG_COSMIC = `<img class="bg faint" src="../artbin/candidates/print-refresh/marketing/mk-01-halo-stage.jpg"><div class="shade"></div>`;
+const PAGES = {
+  1: `<img class="bg" src="../artbin/s2-02-ace-pilot_v1.jpg">
+      <div class="cover-title">
+        <div class="sr">SPACE<br>RACE</div>
+        <div class="ly">1000 LIGHT-YEARS</div>
+        <div class="rb">The Rulebook</div>
+      </div>`,
+  2: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:24px 32px;"><h2 style="margin-bottom:10px;">The Game</h2>
+      <p style="font-size:25px;">You are a pilot. The first player to fly <strong>1000 light-years</strong> wins the round.</p></div>
+      <div class="panel" style="margin-top:22px; padding:24px 32px;"><h2 style="margin-bottom:10px;">Setup</h2>
+      <p style="font-size:25px;">Shuffle the deck. Deal <strong>6 cards</strong> to each player. Place the rest face-down as the draw pile. Choose who goes first.</p></div>
+      <div class="panel" style="margin-top:22px; padding:24px 32px;"><h2 style="margin-bottom:10px;">Your Turn</h2>
+      <ol style="font-size:24px;">
+        <li style="font-size:24px;">Look at the <strong>top two cards</strong> of the deck. Draw one and slide the other to the bottom of the deck — or draw from the <strong>discard pile</strong>.</li>
+        <li style="font-size:24px;">Play one card <em>or</em> discard one.</li>
+        <li style="font-size:24px;">Pass to the next pilot.</li>
+      </ol></div>`,
+  3: BG_COSMIC + `<style>.cardth{width:150px}</style><div class="inner" style="inset:80px 80px;">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:8px;">To Move</h2>
+      <p style="font-size:23px;">You can't move until you light your engines: play an <strong>Ignition</strong> — or play the <strong>Rescue Shuttle</strong>. Once you have, you may play distance cards on your next turn to fly that many light-years.</p></div>
+      <div class="cards" style="margin-top:18px;">${th('ignition','Ignition',14)}${th('rescue-shuttle','Rescue Shuttle',1)}</div>
+      <div class="panel" style="margin-top:18px; padding:22px 32px;">
+      <p style="font-size:23px;"><strong>Attack:</strong> play a hazard from your hand on an opponent to slow them down.</p></div>
+      <div class="panel" style="margin-top:18px; padding:22px 32px;">
+      <p style="font-size:23px;"><strong>Blocked?</strong> If a hazard is on you, you must clear it with the matching <strong>remedy</strong> or <strong>safety</strong> — that's your turn. Next turn you can fly again, if unimpeded.</p></div>`,
+  4: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:6px;">Distance Cards</h2>
+      <p style="font-size:24px;"><em>Maximum two 200-cards per player, per game.</em></p></div>
+      <div class="cards">
+        ${th('warp-25','25',10)}${th('warp-50','50',10)}${th('warp-75','75',10)}
+        ${th('warp-100','100',12)}${th('warp-200','200',4)}
+      </div>`,
+  5: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:6px;">Hazards</h2>
+      <p style="font-size:22px;">Played on an opponent. They cannot advance until they play the matching remedy. <strong>Except the Tractor Beam</strong> — it doesn't block you, it limits you to <strong>50 light-years per turn</strong> until you cut it.</p></div>
+      <div class="cards">
+        ${th('asteroid-strike','Asteroid Strike',3)}${th('empty-tank','Empty Tank',3)}${th('busted-thruster','Busted Thruster',3)}
+        ${th('tractor-beam','Tractor Beam',4)}${th('black-hole','Black Hole',5)}
+      </div>`,
+  6: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:6px;">Remedies</h2>
+      <p style="font-size:24px;">Each remedy clears its matching hazard, named on the card.</p></div>
+      <div class="cards">
+        ${th('repair-drone','Repair Drone',6)}${th('fuel-cell','Fuel Cell',6)}${th('new-thruster','New Thruster',6)}
+        ${th('beam-cutter','Beam Cutter',6)}${th('ignition','Ignition',14)}
+      </div>`,
+  7: BG_COSMIC + `<style>.cardth{width:150px}.cardth .n{font-size:17px}.cards{gap:12px 16px}</style><div class="inner" style="inset:80px 70px;">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:6px;">Safeties</h2>
+      <p style="font-size:24px;">Play a safety to remove a hazard and/or permanently become immune to that hazard. Playing a safety also advances you <strong>100 light-years</strong>.</p></div>
+      <div class="cards">
+        ${th('ace-pilot','Ace Pilot',1)}${th('antimatter-fuel-cell','Antimatter Fuel Cell',1)}
+        ${th('diamond-thruster','Diamond Thruster',1)}${th('rescue-shuttle','Rescue Shuttle',1)}
+      </div>
+      <div class="panel" style="margin-top:24px; padding:20px 32px;">
+      <p style="font-size:24px;"><strong>Slingshot:</strong> if a hazard is played on you and you hold the matching safety, reveal it immediately. The hazard goes straight to the discard pile, you draw an extra card, and the safety counts for <strong>+200 light-years</strong>.</p></div>`,
+  8: `<img class="bg" src="marketing-front-art.png"><div class="shade"></div><div class="inner">
+      <div class="panel" style="padding:24px 32px;"><h2 style="margin-bottom:10px;">Winning</h2>
+      <p style="font-size:25px;">The first pilot to reach <strong>1000 light-years</strong> wins the race.</p></div>
+      <div style="margin-top:28px; background:#f4eee0; border-radius:18px; padding:34px 30px 30px; text-align:center;">
+        <p style="font-family:'Unbounded'; font-weight:700; font-size:26px; color:#7a5c14;">TAKE THE RACE ANYWHERE</p>
+        <img src="qr-play-online.png" style="width:300px; height:300px; margin:22px auto 0; display:block; image-rendering:pixelated;">
+        <p style="font-family:'Unbounded'; font-weight:700; font-size:22px; color:#3a2f1e; margin-top:20px;">game.spaceexplorer.tech</p>
+        <img src="app-store-badge.svg" style="height:88px; margin-top:18px;">
+      </div>
+      <div class="copyright" style="text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7);">© 2026 Andrew Archer</div>`,
+};
+const n = +(new URLSearchParams(location.search).get('page') || 1);
+document.body.innerHTML = PAGES[n] + (n > 1 && n < 8 ? `<div class="pagenum">${n - 1}</div>` : '');
+</script>
+</body>
+</html>

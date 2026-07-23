@@ -1,13 +1,22 @@
-# Space Race
+# Space Race: 1000 Light-Years
 
-A cosmic race to 1,000 light-years — a free space card game (a Mille Bornes
-reskin, formerly titled "1000 Light-Years"). Playable in the browser today; an
-iOS app (Capacitor) is in progress — see [`docs/ios-roadmap.md`](./docs/ios-roadmap.md).
+A cosmic race to 1,000 light-years — a Mille Bornes-style space card game that
+now exists in **three forms**:
+
+1. **Web app** — free in the browser: https://game.spaceexplorer.tech
+2. **iOS app** — [Space Race: 1000 Light-Years on the App Store](https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058)
+3. **Physical board game** — *First Edition*, printed via The Game Crafter
+   (107-card poker deck, tuck box, illustrated rulebook). First production run
+   ordered 2026-07-23.
+
+Possible next chapter (TBD): use the app and website as a sales channel for
+the physical game once copies are in hand.
 
 ## Live links
 
 - **Play the game** — https://game.spaceexplorer.tech (also https://web-phi-tawny-67.vercel.app)
-- **Figma file** — https://www.figma.com/design/THJUuA3J8VpDYejlGWggQU/1000-Years
+- **App Store** — https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058
+- **The Game Crafter (game editor)** — https://www.thegamecrafter.com/make/games/AE2D3926-864B-11F1-B4CD-6383B6BFA688
 
 ## Web game
 
@@ -22,26 +31,23 @@ cd web && npm install && npm run dev   # http://localhost:5180
 
 ## iOS app
 
-The roadmap for wrapping the web game with Capacitor and shipping it to the App
-Store — fully offline, assets bundled — is at
-[`docs/ios-roadmap.md`](./docs/ios-roadmap.md).
+Shipped. Capacitor wrapper around the web game, fully offline with bundled
+assets. History and release process: [`docs/ios-roadmap.md`](./docs/ios-roadmap.md).
 
-## Physical deck archive
+## Physical board game (First Edition)
 
-This repo began as the workspace for a printed deck of the same game. Those
-materials are kept as an archive:
+The print pipeline, The Game Crafter product details, locked design decisions,
+and the arrival-QA checklist all live in [`print/README.md`](./print/README.md).
 
 ```
 space-race/
-├── index.html              pitch deck (original design decisions)
-├── TODAY.md                kickoff moves (archive)
-├── CHECKLIST.md            day-by-day build tracker (archive)
-├── manifest.csv            deck contents for Figma batch-fill
-├── prompts/                card-art prompts, ready to paste
-├── artbin/                 art generations land here
-└── exports/                Figma PDF exports land here (for Game Crafter)
+├── print/                  HTML renderers → exact TGC pixel specs + key art
+├── exports/                final uploaded print files (cards, box, booklet)
+├── manifest.csv            deck contents (card names, counts, art mapping)
+├── artbin/                 source art + candidate generations
+├── picker/                 local web app to compare/promote art candidates
+├── prompts/                original card-art prompt archive
+├── index.html              original pitch deck (historical)
+├── TODAY.md / CHECKLIST.md / FINISH_LINE_BRIEF.md   archived planning docs
+└── web/                    the game itself (web + iOS)
 ```
-
-- **Art generations** → `artbin/` · name per manifest: `s1-01-black-hole_v2.png`
-- **PDF exports** (from Figma) → `exports/` · one file per card, plus back + tuck box + insert
-- **Reference images** → `artbin/` alongside the generations

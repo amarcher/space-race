@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Rules insert: 8"x6" open sheet, folds to 4"x6". Two pages with bleed
+  (8.25" x 6.25"): page 1 = outside (back panel | front cover),
+  page 2 = inside spread. Render via print/render-insert.sh.
+  Text is the neutral-voice rules draft (index.html "Rules insert · generic").
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 600; src: url('../web/public/fonts/inter-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 700; src: url('../web/public/fonts/inter-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 900; src: url('../web/public/fonts/unbounded-900.woff2') format('woff2'); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: 8.25in 6.25in; margin: 0; }
+
+  :root {
+    --ink: #3a2f1e;        /* sepia ink, echoes the etched card back */
+    --ink-soft: #6b5d43;
+    --gold: #a8842c;
+    --cream: #f4eee0;
+    --line: #d8cdb4;
+  }
+
+  body { font-family: 'Inter', sans-serif; color: var(--ink); }
+
+  .page {
+    width: 8.25in; height: 6.25in; page-break-after: always;
+    display: flex; background: var(--cream); position: relative; overflow: hidden;
+  }
+  /* each panel: 4.125in wide incl. its outer 0.125 bleed; keep content
+     0.375in off the outer edges (bleed + safe) and 0.25in off the fold */
+  .panel { width: 4.125in; height: 6.25in; position: relative; }
+  .panel .inner { position: absolute; inset: 0.375in 0.25in 0.375in 0.375in; }
+  .panel.right .inner { inset: 0.375in 0.375in 0.375in 0.25in; }
+
+  .fold { position: absolute; left: 50%; top: 0; bottom: 0; width: 0; }
+
+  h1 { font-family: 'Unbounded'; font-weight: 900; font-size: 30px; line-height: 1.06; letter-spacing: 0.01em; }
+  h2 { font-family: 'Unbounded'; font-weight: 700; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); margin: 11px 0 4px; }
+  p, li { font-size: 9.6px; line-height: 1.45; }
+  ol, ul { padding-left: 13px; }
+  li { margin-bottom: 1px; }
+  em { font-style: italic; color: var(--ink-soft); }
+
+  .pairs { width: 100%; border-collapse: collapse; margin-top: 2px; }
+  .pairs td { font-size: 9.4px; padding: 2.5px 0; border-bottom: 1px solid var(--line); }
+  .pairs td:last-child { text-align: right; font-weight: 600; }
+  .pairs tr:last-child td { border-bottom: none; }
+
+  .rule-gold { height: 2.5px; width: 42px; background: var(--gold); border-radius: 2px; margin: 10px 0; }
+
+  /* front cover */
+  .cover .inner { display: flex; flex-direction: column; text-align: center; align-items: center; justify-content: center; }
+  .cover .eyebrow { font-family: 'Unbounded'; font-weight: 700; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .cover h1 { font-size: 40px; }
+  .cover .sub { font-size: 12.5px; font-style: italic; color: var(--ink-soft); margin-top: 10px; }
+  .cover .premise { font-size: 10.5px; line-height: 1.55; margin-top: 26px; max-width: 2.9in; }
+  .cover .tile { width: 1.15in; margin: 26px auto 0; opacity: 0.9; }
+
+  /* back panel */
+  .back .inner { display: flex; flex-direction: column; }
+  .back .spacer { flex: 1; }
+  .deck td:first-child { color: var(--ink-soft); }
+  .colophon { text-align: center; font-family: 'Unbounded'; font-weight: 700; font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ PAGE 1 · OUTSIDE: back panel (left) | front cover (right) ═══ -->
+<div class="page">
+  <div class="panel back">
+    <div class="inner">
+      <h2>In the box</h2>
+      <table class="pairs deck">
+        <tr><td>Distance cards · 25 / 50 / 75 / 100 / 200</td><td>46</td></tr>
+        <tr><td>Hazards</td><td>18</td></tr>
+        <tr><td>Remedies (incl. 14 Ignition)</td><td>38</td></tr>
+        <tr><td>Safeties</td><td>4</td></tr>
+        <tr><td>Total</td><td>106</td></tr>
+      </table>
+      <h2 style="margin-top: 16px;">Quick reference</h2>
+      <table class="pairs">
+        <tr><td>Reach 1000 light-years</td><td>ends the round</td></tr>
+        <tr><td>Each light-year traveled</td><td>1 pt</td></tr>
+        <tr><td>Safety revealed</td><td>+100</td></tr>
+        <tr><td>Counter-Thrust</td><td>+300</td></tr>
+        <tr><td>First to 1000</td><td>+400</td></tr>
+        <tr><td>All 4 safeties (one pilot)</td><td>+300</td></tr>
+      </table>
+      <div class="spacer"></div>
+      <p style="text-align:center; font-size: 10px;"><em>Race to the stars.</em> ✦</p>
+      <div class="colophon">1000 Light-Years · Est 2026</div>
+    </div>
+  </div>
+  <div class="panel right cover">
+    <div class="inner">
+      <div class="eyebrow">A galactic card game</div>
+      <h1>1000<br>Light-Years</h1>
+      <div class="sub">for 2–4 pilots</div>
+      <p class="premise">You are a pilot. Shuffle the deck, deal 6 cards to each player, place the rest face-down as the draw pile. The first pilot to fly 1000 light-years wins the round.</p>
+      <img class="tile" src="../artbin/s3-02-card-back-tile_v1.jpg">
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE 2 · INSIDE SPREAD ═══ -->
+<div class="page">
+  <div class="panel">
+    <div class="inner">
+      <h2 style="margin-top:0;">Your turn</h2>
+      <ol>
+        <li>Draw one card.</li>
+        <li>Play one card <em>or</em> discard one.</li>
+        <li>Pass to the next pilot.</li>
+      </ol>
+      <h2>To move</h2>
+      <p>Play <strong>Ignition</strong> to start. Once ignited, play distance cards — 25, 50, 75, 100, or 200 light-years. Maximum two 200-cards per player, per game.</p>
+      <h2>Hazards &amp; remedies</h2>
+      <p>An opponent may play a hazard on you. You cannot advance until you play the matching remedy.</p>
+      <table class="pairs">
+        <tr><td>Asteroid Strike</td><td>Repair Drone</td></tr>
+        <tr><td>Empty Tank</td><td>Fuel Cell</td></tr>
+        <tr><td>Busted Thruster</td><td>New Thruster</td></tr>
+        <tr><td>Tractor Beam</td><td>Beam Cutter</td></tr>
+        <tr><td>Black Hole</td><td>Ignition</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="panel right">
+    <div class="inner">
+      <h2 style="margin-top:0;">Safeties</h2>
+      <p>Four safety cards in the deck. Reveal one to become permanently immune to its matching hazard for the rest of the round. +100 points each.</p>
+      <ul>
+        <li><strong>Ace Pilot</strong> — immune to Asteroid Strike</li>
+        <li><strong>Antimatter Fuel Cell</strong> — immune to Empty Tank</li>
+        <li><strong>Diamond Thruster</strong> — immune to Busted Thruster</li>
+        <li><strong>Rescue Shuttle</strong> — immune to Tractor Beam and Black Hole</li>
+      </ul>
+      <h2>The Counter-Thrust</h2>
+      <p>If an opponent plays a hazard on you and you hold the matching safety, reveal it immediately. That move is a <strong>Counter-Thrust</strong>. +300 points. The largest scoring play in the game.</p>
+      <h2>Scoring</h2>
+      <p>When one pilot reaches 1000 light-years, the round ends. Tally:</p>
+      <ul>
+        <li>1 point per light-year traveled</li>
+        <li>+100 per safety revealed · +300 per Counter-Thrust</li>
+        <li>+400 to the pilot who reached 1000 first</li>
+        <li>+300 if a pilot revealed all 4 safeties</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
