@@ -132,7 +132,10 @@ export function Card({
           muted
           playsInline
           preload="auto"
-          onLoadedData={() => setVideoReady(true)}
+          // reveal on PLAYING, not loadeddata: if autoplay is policy-blocked
+          // (iOS Low Power Mode) the paused video stays hidden behind the still
+          // instead of surfacing WebKit's play-button glyph
+          onPlaying={() => setVideoReady(true)}
           aria-hidden
         />
       )}

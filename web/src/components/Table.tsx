@@ -802,6 +802,26 @@ export function Table({
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [gameInProgress])
 
+  // Compositor hardening: returning from background, force the board tableaus
+  // to rebuild their render subtrees. iOS suspends the webview when the app is
+  // backgrounded and can restore a composited card layer with a corrupted
+  // transform (seen once in the wild: a landed safety painted stuck at ~45°,
+  // matching no CSS state). A display toggle + reflow discards those layers for
+  // fresh ones; it runs only on the resume edge, so it costs nothing in play.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      document.querySelectorAll<HTMLElement>('.board__tableau').forEach((el) => {
+        const prev = el.style.display
+        el.style.display = 'none'
+        void el.offsetHeight // force the reflow while hidden
+        el.style.display = prev
+      })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   // Idle-warm the takeover clips BEFORE a takeover needs them so it plays
   // instantly (no cold-fetch stall / iOS play button on the gesture-less AI path).
   // The key changes only when the relevant kinds change; preloadClips dedupes.
@@ -1116,7 +1136,7 @@ export function Table({
           title="Show results"
           aria-label="Show results"
         >
-          <img className="scoreboard__reopen-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
+          <Icon name="trophy" size={26} />
         </button>
       )}
     </div>
@@ -1222,7 +1242,7 @@ function Scoreboard({
           ✕
         </button>
         <div className="scoreboard__trophy" aria-label={state.winner != null ? `${state.players[state.winner].name} wins` : 'Round over'}>
-          <img className="scoreboard__trophy-img" src="/ui/trophy-hero.png" alt="" aria-hidden draggable={false} />
+          <span className="scoreboard__trophy-icon" aria-hidden><Icon name="trophy" size={52} /></span>
           {state.winner != null && (
             <span className="scoreboard__winner"><PlayerTag who={whoFor(state.winner)} /></span>
           )}
