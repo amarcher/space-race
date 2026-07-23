@@ -1,3 +1,8 @@
+> **ARCHIVED — 2026-07-23.** This plan is history: the game shipped as a web
+> app and iOS app, and the physical **First Edition** was produced through a
+> code-driven pipeline (no Figma) — see [`print/README.md`](./print/README.md).
+> The first print run (4 copies) was ordered 2026-07-23. Kept for posterity.
+
 # Finish Line Brief
 
 This is the decision document for getting `1000 Light-Years` out of the image loop and into a printable party favor.

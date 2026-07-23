@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<!--
+  Tuck box dieline art — The Game Crafter Poker Tuck Box (108 cards).
+  Canvas 3075x2250 @300dpi. Panel geometry measured from TGC's template
+  (print/tgc-templates/108-card-tuck-box.png):
+    main band y 672-1730 · folds x 555 / 1313 / 1792 / 2551 · outer cuts x 74 / 3001
+    A side 74-555 | B FRONT 555-1313 (lid + tuck flap above; lid overlap line y 791)
+    C side 1313-1792 | D BACK 1792-2551 (thumb notch top center) | glue tab 2551-3001
+    lid top face 555-1313 x 190-672 · tuck flap above y 190 (rounded)
+  Render: headless Chrome screenshot at 3075x2250 (see render-tuck-box.sh).
+-->
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 500; src: url('../web/public/fonts/inter-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Inter'; font-weight: 600; src: url('../web/public/fonts/inter-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../web/public/fonts/unbounded-700.woff2') format('woff2'); }
+  @font-face { font-family: 'Unbounded'; font-weight: 900; src: url('../web/public/fonts/unbounded-900.woff2') format('woff2'); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 3075px; height: 2250px; overflow: hidden; }
+  body { position: relative; background: #0b0c22; font-family: 'Inter', sans-serif; }
+  .panel { position: absolute; overflow: hidden; }
+
+  /* ── front (B) — title at TOP over the sky ── */
+  .front { left: 555px; top: 672px; width: 758px; height: 1058px; }
+  .front img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .front .titleblock { position: absolute; left: 0; right: 0; top: 0; padding: 150px 30px 40px; text-align: center;
+    background: linear-gradient(rgba(9, 10, 30, 0.55), rgba(9, 10, 30, 0.28) 62%, transparent); }
+  .wordmark { font-family: 'Unbounded'; font-weight: 900; color: #ffd93d;
+    -webkit-text-stroke: 4px rgba(30, 20, 2, 0.45); paint-order: stroke fill;
+    text-shadow: 0 4px 22px rgba(0, 0, 0, 0.65); line-height: 0.98; }
+  .front .wordmark .sr { font-size: 118px; display: block; }
+  .front .wordmark .ly { font-size: 52px; display: block; letter-spacing: 0.03em; margin-top: 10px; color: #e8e6df; -webkit-text-stroke: 3px rgba(20, 20, 24, 0.4); }
+  .frontbottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 90px 30px 54px; text-align: center;
+    background: linear-gradient(transparent, rgba(9, 10, 30, 0.6) 55%, rgba(9, 10, 30, 0.8)); }
+  .edition { margin-top: 16px; font-size: 24px; font-weight: 600; color: #d9b25a;
+    letter-spacing: 0.28em; text-transform: uppercase; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); }
+
+  /* ── lid top + tuck flap (no star emblem) ── */
+  .lid { left: 555px; top: 0; width: 758px; height: 672px; }
+  .lid img { position: absolute; left: 0; top: 190px; width: 100%; height: 482px; object-fit: cover; object-position: 50% 0%; }
+  .lid .flapfill { position: absolute; left: 0; top: 0; width: 100%; height: 190px;
+    background: linear-gradient(#f6dfae, #ecc87f); }
+
+  /* ── sides (A, C): vertical wordmark, no glyphs ── */
+  .side { top: 672px; height: 1058px; background: #0b0c22; display: flex; align-items: center; justify-content: center; }
+  .side.a { left: 74px; width: 481px; }
+  .side.c { left: 1313px; width: 479px; }
+  .side img { display: none; }
+  .side.a { background: url('../artbin/s3-01-tuck-box-bg_v1.jpg') 0% 12% / 420% auto no-repeat #0b0c22; }
+  .side.c { background: url('../artbin/s3-01-tuck-box-bg_v1.jpg') 100% 12% / 420% auto no-repeat #0b0c22; }
+  .side .shade { position: absolute; inset: 0; background: rgba(9, 10, 30, 0.48); }
+  .side span { position: relative; z-index: 2; text-shadow: 0 3px 14px rgba(0, 0, 0, 0.85); }
+  .side span { transform: rotate(90deg); white-space: nowrap; font-family: 'Unbounded'; font-weight: 700;
+    font-size: 36px; letter-spacing: 0.1em; color: #ffd93d; }
+  .side .dim { color: #e8e6df; }
+
+  /* ── back (D): illustrative — golden beam art + overlay panel ── */
+  .back { left: 1792px; top: 670px; width: 759px; height: 1060px; background: #0b0c22; color: #fff; }
+  .back .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .back .shade { position: absolute; inset: 0; background: linear-gradient(rgba(9, 10, 28, 0.72), rgba(9, 10, 28, 0.5) 40%, rgba(9, 10, 28, 0.66)); }
+  .back .inner { position: absolute; inset: 150px 80px 60px; text-align: center; }
+  .back h2 { font-family: 'Unbounded'; font-weight: 900; font-size: 52px; line-height: 1.1; color: #ffd93d;
+    -webkit-text-stroke: 2px rgba(30, 20, 2, 0.4); paint-order: stroke fill; text-shadow: 0 3px 16px rgba(0,0,0,0.7); }
+  .back h2 small { display: block; font-size: 30px; letter-spacing: 0.04em; margin-top: 8px; color: #e8e6df; -webkit-text-stroke: 2px rgba(20, 20, 24, 0.35); }
+  .back p { font-size: 26.5px; line-height: 1.52; font-weight: 500; color: rgba(255, 252, 244, 0.96);
+    margin-top: 36px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
+  .chips { display: flex; justify-content: center; gap: 26px; margin-top: 44px; }
+  .chip { width: 170px; height: 168px; padding: 20px 10px 16px; border: 3px solid #d9b25a; border-radius: 16px;
+    background: rgba(9, 10, 28, 0.55); display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+  .chip svg { display: block; margin: 0 auto 10px; }
+  .chip .big { font-family: 'Unbounded'; font-weight: 700; font-size: 34px; color: #ffd93d; line-height: 1; }
+  .chip .lbl { font-size: 19px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255, 250, 235, 0.85); margin-top: 8px; }
+  .back .copyright { position: absolute; left: 0; right: 0; bottom: 0; font-size: 21px; font-weight: 600;
+    letter-spacing: 0.06em; color: #e8e6df; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+
+  .bottomflap { left: 555px; top: 1730px; width: 758px; height: 478px; background: linear-gradient(#ecc87f, #d9b264); }
+</style>
+</head>
+<body>
+  <div class="panel bottomflap"></div>
+
+  <div class="panel lid">
+    <div class="flapfill"></div>
+    <img src="../artbin/s3-01-tuck-box-bg_v1.jpg">
+  </div>
+
+  <div class="panel front">
+    <img src="../artbin/s3-01-tuck-box-bg_v1.jpg">
+    <div class="titleblock">
+      <div class="wordmark"><span class="sr">SPACE<br>RACE</span></div>
+    </div>
+    <div class="frontbottom">
+      <div class="wordmark"><span class="ly">1000 LIGHT-YEARS</span></div>
+      <div class="edition">First Edition</div>
+    </div>
+  </div>
+
+  <div class="panel side a"><img src="../artbin/s3-01-tuck-box-bg_v1.jpg"><div class="shade"></div><span>SPACE RACE <span class="dim">· 1000 LIGHT-YEARS</span></span></div>
+  <div class="panel side c"><img src="../artbin/s3-01-tuck-box-bg_v1.jpg"><div class="shade"></div><span>SPACE RACE <span class="dim">· 1000 LIGHT-YEARS</span></span></div>
+
+  <div class="panel back">
+    <img class="bg" src="../artbin/candidates/print-refresh/marketing/mk-02-ascend-beam.jpg">
+    <div class="shade"></div>
+    <div class="inner">
+      <h2>SPACE RACE<small>1000 LIGHT-YEARS</small></h2>
+      <p>You are a pilot. Ignite your engines, dodge asteroids, black holes and tractor beams, and be the first to fly 1000 light-years. Every hazard has a fix — and four legendary safeties make you untouchable.</p>
+      <div class="chips">
+        <div class="chip">
+          <svg width="64" height="40" viewBox="0 0 64 40" fill="none">
+            <circle cx="18" cy="12" r="8" fill="#ffd93d"/><path d="M4 40c0-9 6-15 14-15s14 6 14 15" fill="#ffd93d"/>
+            <circle cx="46" cy="12" r="8" fill="#d9b25a"/><path d="M32 40c0-9 6-15 14-15s14 6 14 15" fill="#d9b25a"/>
+          </svg>
+          <div class="big">2–4</div><div class="lbl">Players</div>
+        </div>
+        <div class="chip">
+          <div style="width: 78px; height: 60px; border: 4px solid #ffd93d; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <span class="big">4+</span>
+          </div>
+          <div class="lbl">Ages</div>
+        </div>
+        <div class="chip">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="16" stroke="#ffd93d" stroke-width="4"/>
+            <path d="M20 10v10l7 5" stroke="#ffd93d" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+          <div class="big">15–30</div><div class="lbl">Minutes</div>
+        </div>
+      </div>
+      <div class="copyright">© 2026 Andrew Archer</div>
+    </div>
+  </div>
+</body>
+</html>
