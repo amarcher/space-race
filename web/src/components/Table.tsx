@@ -193,13 +193,48 @@ function buildSelfHealDemoGame(): GameState {
   return s
 }
 
+// ?tractor=demo → mid-race game with a Tractor Beam already tethering YOU and
+// warps both under and over the cap in hand — a dev / playtest seam to see the
+// ≤50 cap tag + amber tether ambient instantly; inert when the param is absent.
+const TRACTOR_DEMO = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('tractor') === 'demo'
+  : false
+function buildTractorDemoGame(): GameState {
+  const s = createGame({ rules: loadRules() })
+  const [me, opp] = s.players
+  me.started = true
+  me.distance = 425
+  me.distancePile = [
+    { uid: 'tb-d1', kind: 'warp-200' }, { uid: 'tb-d2', kind: 'warp-100' },
+    { uid: 'tb-d3', kind: 'warp-100' }, { uid: 'tb-d4', kind: 'warp-25' },
+  ]
+  me.battle.restraint = [{ uid: 'tb-hz', kind: 'tractor-beam' }]
+  me.hand = [
+    { uid: 'tb-w1', kind: 'warp-100' },
+    { uid: 'tb-w2', kind: 'warp-50' },
+    { uid: 'tb-w3', kind: 'warp-25' },
+    ...me.hand.slice(3),
+  ]
+  opp.started = true
+  opp.distance = 350
+  opp.distancePile = [
+    { uid: 'tb-e1', kind: 'warp-200' }, { uid: 'tb-e2', kind: 'warp-100' },
+    { uid: 'tb-e3', kind: 'warp-50' },
+  ]
+  s.phase = 'play' // straight to your play phase — only ≤50 warps light up
+  s.turn = 0
+  return s
+}
+
 /** Build the initial game state, honoring any dev-preview URL param (momentum
- * meter / catch-up valve / self-heal demos), else a normal new game from saved rules. */
+ * meter / catch-up valve / self-heal / tractor demos), else a normal new game
+ * from saved rules. */
 function buildInitialGame(): GameState {
   if (MOMENTUM_PREVIEW_PARAM != null)
     return seedMomentumPreview(Number(MOMENTUM_PREVIEW_PARAM) || MOMENTUM_CAP)
   if (CATCHUP_DEMO) return buildCatchUpDemoGame()
   if (SELFHEAL_DEMO) return buildSelfHealDemoGame()
+  if (TRACTOR_DEMO) return buildTractorDemoGame()
   return createGame({ rules: loadRules() })
 }
 

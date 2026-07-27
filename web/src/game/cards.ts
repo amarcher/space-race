@@ -43,7 +43,7 @@ export const CARD_DEFS: Record<string, CardDef> = {
   'asteroid-strike': { kind: 'asteroid-strike', type: 'hazard', title: 'Asteroid Strike', subtitle: 'fixed by Repair Drone', art: 'asteroid-strike', lane: 'collision', fixedBy: 'repair-drone', protectedBy: ['ace-pilot'] },
   'empty-tank': { kind: 'empty-tank', type: 'hazard', title: 'Empty Tank', subtitle: 'fixed by Fuel Cell', art: 'empty-tank', lane: 'fuel', fixedBy: 'fuel-cell', protectedBy: ['antimatter-fuel-cell'] },
   'busted-thruster': { kind: 'busted-thruster', type: 'hazard', title: 'Busted Thruster', subtitle: 'fixed by New Thruster', art: 'busted-thruster', lane: 'engine', fixedBy: 'new-thruster', protectedBy: ['diamond-thruster'] },
-  'tractor-beam': { kind: 'tractor-beam', type: 'hazard', title: 'Tractor Beam', subtitle: 'fixed by Beam Cutter', art: 'tractor-beam', lane: 'restraint', fixedBy: 'beam-cutter', protectedBy: ['rescue-shuttle'] },
+  'tractor-beam': { kind: 'tractor-beam', type: 'hazard', title: 'Tractor Beam', subtitle: 'jumps max 50 · fixed by Beam Cutter', art: 'tractor-beam', lane: 'restraint', fixedBy: 'beam-cutter', protectedBy: ['rescue-shuttle'] },
   'black-hole': { kind: 'black-hole', type: 'hazard', title: 'Black Hole', subtitle: 'fixed by Ignition', art: 'black-hole', lane: 'stop', fixedBy: 'ignition', protectedBy: ['rescue-shuttle'] },
 
   // ---- Remedies ----

@@ -254,6 +254,25 @@
   border-radius: 5px;
 }
 .stack--limiting { animation: blockpulse 1.4s ease-in-out infinite; }
+/* Tractor Beam CAP TAG — the one number the tether costs you: jumps ≤ 50.
+   Same badge idiom as ×N (dark pill, tabular nums), amber like the tether. */
+.stack__cap {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: #05050f;
+  border: 1px solid rgba(255, 206, 90, 0.85);
+  box-shadow: 0 0 10px rgba(255, 206, 90, 0.4);
+  color: #ffce5a;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .stack--limiting .stack__card .card {
   box-shadow: 0 0 0 1.5px #ffce5a, 0 0 14px rgba(255, 206, 90, 0.6);
   border-radius: 5px;

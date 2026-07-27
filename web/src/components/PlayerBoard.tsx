@@ -1,5 +1,5 @@
 import { CARD_DEFS, DISTANCE_VALUES, LANES, WIN_DISTANCE, type CardInstance } from '../game/cards'
-import { activeHazard, hazardTurnsLeft, SELF_HEAL_MAX, speedLimited, type PlayerState } from '../game/engine'
+import { activeHazard, hazardTurnsLeft, SELF_HEAL_MAX, SPEED_LIMIT_VALUE, speedLimited, type PlayerState } from '../game/engine'
 import { Card } from './Card'
 import { MomentumMeter } from './MomentumMeter'
 import './PlayerBoard.css'
@@ -104,6 +104,11 @@ function Stack({
         </div>
       ))}
       {healing && <HealCountdown left={healLeft} max={healMax} />}
+      {limiting && (
+        <span className="stack__cap" aria-hidden>
+          ≤{SPEED_LIMIT_VALUE}
+        </span>
+      )}
       {badge && cards.length > 1 && <span className="stack__badge">×{cards.length}</span>}
     </div>
   )
@@ -125,7 +130,7 @@ export function PlayerBoard({ player, isOpponent, active, impact, momentum, canB
     : hzr
       ? `stopped — needs ${CARD_DEFS[hzr].title}`
       : slow
-        ? 'speed-limited by Tractor Beam'
+        ? `speed-limited by Tractor Beam — jumps capped at ${SPEED_LIMIT_VALUE} light-years`
         : 'cruising'
 
   const distanceGroups = DISTANCE_VALUES.map((v) => ({
