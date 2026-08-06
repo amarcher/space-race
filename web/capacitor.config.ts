@@ -13,6 +13,18 @@ import type { CapacitorConfig } from '@capacitor/cli';
 //
 // WKWebView scroll bounce/overscroll likewise has no capacitor.config key; it's
 // handled with CSS `overscroll-behavior` / native scrollView tuning in Phase 2.
+
+// Which store this Android sync targets. The two Android ships are the SAME
+// artifact except for the UA marker below, which index.html reads to decide
+// whether GA4 loads at all: the Amazon build is declared child-directed (Fire
+// tablets reach kids through Amazon Kids profiles) and Amazon's COPPA policy
+// allows only "child-suitable" SDKs, so it ships with no analytics.
+//   SPACE_RACE_STORE=amazon npx cap sync android   (or: npm run amazon)
+// Unset => the Play build. Set at SYNC time — it's baked into the generated
+// android/app/src/main/assets/capacitor.config.json, so switching stores means
+// re-running the sync, never just a rebuild.
+const STORE = process.env.SPACE_RACE_STORE === 'amazon' ? 'amazon' : 'play';
+
 const config: CapacitorConfig = {
   appId: 'tech.spaceexplorer.spacerace',
   appName: 'Space Race',
@@ -34,7 +46,8 @@ const config: CapacitorConfig = {
     // carries it when the <head> analytics snippet runs. See docs/android-roadmap.md.
     // NB: the config key is `appendUserAgent` (Capacitor reads android.appendUserAgent
     // per CapConfig.java) — NOT `appendUserAgentString`, which Capacitor silently ignores.
-    appendUserAgent: 'SpaceRaceAndroid',
+    // 'SpaceRaceAmazon' additionally suppresses GA4 entirely (see STORE above).
+    appendUserAgent: STORE === 'amazon' ? 'SpaceRaceAmazon' : 'SpaceRaceAndroid',
   },
   plugins: {
     // Hold the NATIVE splash (iOS: the LaunchScreen storyboard's Ace-Pilot

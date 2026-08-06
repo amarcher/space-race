@@ -313,17 +313,63 @@ and winning a game with zero network. *(Blocked only on 👤 HUMAN steps.)*
 
 ---
 
-## Phase 5 — Amazon Appstore (Fire tablets) — the cheaper second ship
+## Phase 5 — Amazon Appstore (Fire tablets) — the kids ship
+
+**Listing copy + every submission answer now lives in
+`docs/amazon-appstore/listing.md`.** Build it with `npm run amazon:release`.
+
+**The reason to do this at all is kids.** On a Fire tablet, children reach an app
+through an **Amazon Kids** child profile that a parent populates from apps they
+already own — and Amazon's Fire Tablet FAQ is explicit that **developers need
+take no special action** to participate. So "listed on the Appstore" and "a kid
+can play it" are the same milestone; there is no second program to join.
+**Amazon Kids+** (the paid subscription catalog preloaded on Kids Edition
+tablets) *is* a second thing, but it is **invitation-only with no application
+process** — Amazon curates and reaches out. Being listed, child-directed, and
+clean is the only lever available.
 
 The same artifact serves both stores; Amazon takes an **APK or AAB** and Fire OS
 is Android. Points that differ from Play:
 
 - **Fire tablets and Fire TV only.** Amazon discontinued the Appstore on general
   Android phones in Aug 2025. E-ink Kindles have never had an app store.
+  We target **Fire tablets only** — Fire TV is a D-pad, landscape, 10-foot
+  device and this is a tap-and-drag portrait game; unchecking it also spares us
+  Amazon's separate Fire TV asset set (1280×720 icon, 1920×1080 shots +
+  background).
 - **Developer registration is free** (vs Play's one-time $25, Apple's $99/yr).
-- **No application size limit** — the only threshold is 150 MB, above which the
-  upload goes by FTP rather than the browser form. This is why the 214 MB build
-  can ship to Amazon but not to Play today.
+- **Binary limit is 2.5 GB**, through the browser. *(Corrected 2026-08-06: the
+  old "150 MB, then FTP" rule is gone and SFTP is no longer supported at all.)*
+  Play's 200 MB base-module limit does not apply here either way.
+- **⛔️ NO ANALYTICS IN THE AMAZON BUILD.** Declaring the honest target audience
+  (includes children 0–12) triggers Amazon's **Child-Directed App (COPPA)
+  Policy**, which permits only **"child-suitable" SDKs** and forbids SDKs whose
+  terms bar child-directed use. GA4 does not clear that bar, and unlike Play's
+  *Designed for Families* or Apple's Kids category there is no "target 13+ and
+  keep the analytics" dodge here — on Fire, the kid path *is* the parent path.
+  So the Amazon build ships with **no analytics at all**:
+  `SPACE_RACE_STORE=amazon` at `cap sync` time sets
+  `android.appendUserAgent = 'SpaceRaceAmazon'`, and the `<head>` snippet in
+  `index.html` **injects** the googletagmanager tag only when the platform is not
+  `amazon`. It must be injected rather than a static `<script async src>` — a
+  static tag fetches Google before any check can run, and the policy is about
+  which SDKs a child-directed app *loads*, not which events it sends.
+  `android-release.sh --amazon` hard-fails if the marker is missing from the
+  synced `capacitor.config.json`, so a Play-synced binary can't be handed to
+  Amazon by accident. Side benefit: the Amazon privacy label is
+  **"collects no data"** — stronger than the iOS and Play labels.
+- **⏳ Open: US state age-verification laws.** Texas's App Store Accountability
+  Act is **in effect now** (an appeals court stayed the Dec 2025 injunction);
+  Utah 2027-05-06, Louisiana 2027-07-01. Amazon's path is the **`GetUserAgeData`
+  API** (age bucket + `userStatus`; block when `CONSENT_NOT_GRANTED`). Amazon
+  can't restrict distribution by state, so it follows the *user's* location.
+  Whether it binds a free, account-less, zero-collection game is genuinely
+  ambiguous in Amazon's docs — **read the doc before building anything.** If it
+  binds: a native call in `MainActivity` + a blocked-state screen, ~1 day, no
+  Capacitor plugin exists.
+- **No native libraries** — verified: the built APK contains zero `.so` files,
+  so Amazon's 32/64-bit device-targeting guidance and the arm64 requirement are
+  both moot for us.
 - **Manifest is already Fire-clean:** only `INTERNET` + `VIBRATE` (+ Capacitor's
   internal receiver permission), and **no `uses-feature` declarations at all**,
   so nothing triggers Amazon's device filtering. No Google Play Services or
@@ -344,9 +390,13 @@ is Android. Points that differ from Play:
   need a focus/selection model to replace tap-and-drag.
   Practical upshot: don't over-invest in Android-specific Fire polish, but the
   APK remains the right and sufficient artifact for Fire tablets today.
-- Remaining work is the usual 👤 HUMAN store-listing set (free account, listing
-  copy, 1024×500 feature graphic, icons, screenshots, IARC rating, privacy
-  policy) — most of it re-croppable from `docs/play-store/`.
+- Remaining work is the usual 👤 HUMAN store-listing set — free account, the
+  Amazon-specific copy (drafted), a 114×114 small icon, and 3+ screenshots.
+  The 512 icon and the 1024×500 promotional image transfer from
+  `docs/play-store/assets/` **verbatim**; the **iOS screenshots do not** —
+  they're 1320×2868 / 1284×2778, over Amazon's 2560 px ceiling. Shoot fresh on
+  the Fire HD 10 instead (1200×1920 / 1920×1200, both in range), which is also
+  the honest thing to show. Full checklist in `docs/amazon-appstore/listing.md`.
 
 ---
 

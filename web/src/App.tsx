@@ -75,9 +75,22 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
           <SpeedInsights />
         </>
       )}
-      {view === 'game' ? (
+      {/* The gallery is an OVERLAY, not a replacement view: <Table> stays MOUNTED
+          behind it so a game in progress survives a trip to the card reference.
+          This used to be a ternary, which UNMOUNTED Table — discarding the
+          `state` that Table.tsx creates with useState(() => buildInitialGame())
+          and dealing a brand-new hand on the way back. You lost your game by
+          looking at the cards. `hidden` is display:none: nothing paints, the
+          subtree costs no layout, and every useState in it is preserved.
+          NB: CardTakeover and useCardPreview render through portals to
+          document.body, so they would NOT be hidden by this wrapper — that's
+          fine because both are driven by transient state (a card animation, a
+          press-and-hold preview) that is inactive by the time the header's
+          gallery button can be tapped. */}
+      <div hidden={view !== 'game'}>
         <Table onExit={() => setView('gallery')} onStateChange={onStateChange} />
-      ) : (
+      </div>
+      {view === 'gallery' && (
         // the rules/gallery is the one scrollable view — it owns its own scroll
         // container (the document itself is locked, see index.css)
         <div className="view-scroll">
