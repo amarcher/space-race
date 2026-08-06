@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
-# Build Space Race for Android (Google Play): vite build -> cap sync -> gradlew bundleRelease.
+# Build Space Race for Android: vite build -> cap sync -> gradlew bundleRelease.
 #
-#   ./scripts/android-release.sh                  # release AAB (unsigned if no upload key configured)
+#   ./scripts/android-release.sh                  # Play release AAB (unsigned if no upload key configured)
 #   ./scripts/android-release.sh --apk            # also emit a release APK for sideload/device testing
+#   ./scripts/android-release.sh --amazon         # Amazon Appstore build (AAB + APK, NO analytics)
 #   ./scripts/android-release.sh --init-keystore  # one-time: generate the Play upload key + keystore.properties
+#
+# TWO ANDROID SHIPS, ONE ARTIFACT. `--amazon` sets SPACE_RACE_STORE=amazon for
+# the `cap sync`, which flips android.appendUserAgent to 'SpaceRaceAmazon'; the
+# <head> snippet in index.html reads that marker and loads NO GA4 at all, because
+# the Appstore build is declared child-directed and Amazon's COPPA policy permits
+# only "child-suitable" SDKs. Everything else — dist/, the media overlay, the
+# Gradle build — is identical. The flag matters at SYNC time, so never hand an
+# Amazon binary to Play or vice versa without re-running this script.
 #
 # Signing is AUTOMATIC once android/keystore.properties exists (written by
 # --init-keystore). Google Play App Signing holds the real app-signing key; you
@@ -61,14 +70,30 @@ PROPS
 fi
 
 WANT_APK=0
-[[ "${1:-}" == "--apk" ]] && WANT_APK=1
+STORE=play
+for arg in "$@"; do
+  case "$arg" in
+    --apk)    WANT_APK=1 ;;
+    --amazon) STORE=amazon; WANT_APK=1 ;;   # Amazon takes the APK directly
+    *)        echo "!! unknown flag: $arg" >&2; exit 1 ;;
+  esac
+done
 
 echo "==> Building web bundle (vite)"
 cd "$ROOT"
 npm run build
 
-echo "==> Syncing Capacitor Android project"
-npx cap sync android
+echo "==> Syncing Capacitor Android project (store: $STORE)"
+SPACE_RACE_STORE="$STORE" npx cap sync android
+
+# Prove the store marker actually landed in the synced native config — this is the
+# ONLY thing that keeps GA4 out of the Amazon build, and a silently-ignored config
+# key has burned us here before (appendUserAgentString vs appendUserAgent).
+SYNCED_CONFIG="$ANDROID/app/src/main/assets/capacitor.config.json"
+EXPECT_UA=$([[ "$STORE" == "amazon" ]] && echo SpaceRaceAmazon || echo SpaceRaceAndroid)
+grep -q "\"appendUserAgent\": *\"$EXPECT_UA\"" "$SYNCED_CONFIG" \
+  || { echo "!! $SYNCED_CONFIG is missing appendUserAgent=$EXPECT_UA — refusing to build" >&2; exit 1; }
+echo "==> Verified UA marker: $EXPECT_UA"
 
 # MUST run after every `cap sync android` — the sync copies the portrait H.264
 # originals out of dist/ and overwrites whatever was there. Without this the
@@ -94,5 +119,13 @@ if [[ "$WANT_APK" -eq 1 ]]; then
   echo "==> APK(s) at $ANDROID/app/build/outputs/apk/release/"
 fi
 
-echo "    Upload the .aab to Play Console (Internal testing → Production), or via:"
-echo "    Play Console UI, or fastlane supply, or the Play Developer Publishing API."
+if [[ "$STORE" == "amazon" ]]; then
+  echo
+  echo "    AMAZON BUILD — no analytics. Upload the .apk at"
+  echo "    $ANDROID/app/build/outputs/apk/release/ to the Amazon Developer Console."
+  echo "    Binary limit is 2.5 GB (we are ~85 MB); Amazon re-signs APKs with its own key."
+  echo "    Listing copy + submission answers: docs/amazon-appstore/listing.md"
+else
+  echo "    Upload the .aab to Play Console (Internal testing → Production), or via:"
+  echo "    Play Console UI, or fastlane supply, or the Play Developer Publishing API."
+fi

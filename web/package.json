@@ -12,7 +12,9 @@
     "ios": "npm run build && npx cap sync ios && bash scripts/build-hevc.sh --swap",
     "ios:archive": "bash scripts/ios-release.sh",
     "android": "npm run build && npx cap sync android && bash scripts/build-android-media.sh --swap",
-    "android:release": "bash scripts/android-release.sh"
+    "android:release": "bash scripts/android-release.sh",
+    "amazon": "npm run build && SPACE_RACE_STORE=amazon npx cap sync android && bash scripts/build-android-media.sh --swap",
+    "amazon:release": "bash scripts/android-release.sh --amazon"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",
