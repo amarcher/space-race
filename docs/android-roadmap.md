@@ -306,10 +306,22 @@ is Android. Points that differ from Play:
   internal receiver permission), and **no `uses-feature` declarations at all**,
   so nothing triggers Amazon's device filtering. No Google Play Services or
   Firebase anywhere in the build.
-- **Vega OS is the medium-term question.** Amazon is moving Fire devices to Vega,
-  which is not Android and takes `VPKG` binaries, not APKs; both can be listed
-  under one product. Vega is web/JS-based, so a React game is better positioned
-  than most native apps — but don't over-invest in Android-specific Fire polish.
+- **Vega OS is the medium-term question — tracked as a spike in #143.** Amazon is
+  replacing Android-based Fire OS with **Vega**, a Linux platform that is *not*
+  Android and takes `.vpkg` binaries, not APKs; both can be listed under one
+  Appstore product with independent version numbers.
+  **Do not assume this is cheap for us.** Vega apps are written in JS/TS using
+  **React Native** (New Architecture — Hermes, JSI/TurboModules, Fabric), and
+  *React Native is not React*: Space Race is a React **DOM** app (CSS animation,
+  `<canvas>` starfield, `<video>` takeovers, drag-and-drop), so the RN path is a
+  near-total UI rewrite, not a port. Whether Vega also supports shipping a plain
+  web bundle is the open question #143 exists to answer.
+  Two further caveats: Vega currently ships on **Fire TV and Echo Show, not Fire
+  tablets** — our target hardware still runs Android and takes the APK — and Fire
+  TV is a **D-pad, landscape, 10-foot** device, so even a working bundle would
+  need a focus/selection model to replace tap-and-drag.
+  Practical upshot: don't over-invest in Android-specific Fire polish, but the
+  APK remains the right and sufficient artifact for Fire tablets today.
 - Remaining work is the usual 👤 HUMAN store-listing set (free account, listing
   copy, 1024×500 feature graphic, icons, screenshots, IARC rating, privacy
   policy) — most of it re-croppable from `docs/play-store/`.
