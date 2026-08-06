@@ -7,6 +7,7 @@ import android.webkit.WebView;
 
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
@@ -24,9 +25,18 @@ public class MainActivity extends BridgeActivity {
             ? ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-        // Edge-to-edge safe areas. On Android 15+ (we target API 36) the system
-        // ENFORCES edge-to-edge — the WebView draws under the status and navigation
-        // bars. The WebView's CSS env(safe-area-inset-*) only reports display
+        // Opt IN to edge-to-edge on every API level. On Android 15+ the system
+        // enforces it anyway (enforcement removes the opt-OUT, it does not opt you
+        // in), but Fire OS 8 tablets run API 30 — and there the window would
+        // otherwise lay out INSIDE the system bars, so the starfield stops dead at
+        // the status/nav bars and the inset plumbing below never does anything.
+        // Calling this makes behaviour identical across API levels instead of
+        // depending on the OS version, which also means the inset path is exercised
+        // on the hardware we can actually test on.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        // Edge-to-edge safe areas. Now that we always draw behind the bars, the
+        // WebView's CSS env(safe-area-inset-*) only reports display
         // CUTOUTS, not the system bars, so we feed the real inset from native
         // WindowInsets into --safe-area-inset-* custom properties, which index.css
         // consumes ahead of env() (see the --safe-* block there). Values are in CSS

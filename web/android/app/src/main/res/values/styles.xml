@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
@@ -13,6 +13,20 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+
+        <!-- True edge-to-edge. MainActivity calls setDecorFitsSystemWindows(false)
+             so the WebView extends behind the bars, but that alone leaves the bars
+             painted with their own background — an opaque black nav bar that cuts
+             the starfield off. Clear both so the game really does reach the edges.
+             The two *Contrast flags matter as much as the colors: on API 29+ the
+             system re-adds a translucent scrim behind a transparent bar unless
+             they're off, which is what put the black band under the hand. Ignored
+             harmlessly on our older minSdk-24 range. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 
 
