@@ -30,16 +30,30 @@
     </style>
 
 
-    <!-- Launch theme. On Android 12+ the SplashScreen API shows the ACE PILOT
-         (@mipmap/ic_launcher_foreground, masked round) on the brand-dark
-         background; postSplashScreenTheme hands off to the dark no-action-bar
-         theme so there's no white flash before the webview paints. The pre-12
-         window background (@drawable/splash) is the full-bleed ace-pilot still.
-         The in-app full-screen takeover CLIP is src/native/BootSplash.tsx. -->
+    <!-- Launch theme. The pre-activity OS stages carry NO art (#141): both
+         windowSplashScreenAnimatedIcon (@drawable/splash_icon) and the window
+         background are flat @color/spaceBg. The ace pilot used to appear in both
+         — round-masked at icon scale, then stretched full-bleed — before the web
+         layer showed him a third time at a third scale, which read as him zooming
+         twice on the way in. Neither stage can be crop-matched to the web layer:
+         the icon is circle-masked at icon size, and a window-background bitmap is
+         scaled to FILL with no aspect preservation.
+         He now appears exactly ONCE, at one scale, across two surfaces that agree
+         by construction: the Capacitor SplashScreen plugin's ImageView
+         (CENTER_CROP over @drawable/splash) and then BootSplash.tsx's still —
+         same source file, same cover rule — continued by the takeover clip.
+         postSplashScreenTheme hands off to the dark no-action-bar theme so
+         there's no white flash before the webview paints. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/spaceBg</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
-        <item name="android:background">@drawable/splash</item>
+        <!-- The window background covers the sliver BEFORE the activity exists,
+             so it must stay a flat field: a bitmap here is stretched to fill with
+             no aspect preservation and cannot be crop-matched to anything. The
+             ace-pilot still comes from the Capacitor SplashScreen plugin's
+             ImageView instead (CENTER_CROP, capacitor.config.ts) — same file,
+             same crop as BootSplash.tsx's still. -->
+        <item name="android:background">@color/spaceBg</item>
     </style>
 </resources>

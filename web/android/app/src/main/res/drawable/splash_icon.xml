@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The SplashScreen API's "animated icon" stage, deliberately blank (#141).
+
+     The platform draws this masked to a circle at icon scale on top of
+     windowSplashScreenBackground. Painting it the SAME brand dark as that
+     background makes the stage a flat field, so the boot reads as:
+
+         flat #07071a  ->  full-bleed ace pilot (@drawable/splash)
+                       ->  the same pilot, moving (BootSplash.tsx)  ->  table
+
+     Before this, the stage showed @mipmap/ic_launcher_foreground — the ace
+     pilot again, but round-masked at icon scale — which made him jump scale
+     twice on the way in. He cannot be crop-matched to a full-bleed still at
+     icon size, so the honest fix is to not show him here. The LAUNCHER icon is
+     untouched; this drawable is only ever the splash stage.
+
+     It doubles as the cover for the brief dark gap between the native splash
+     handing off and the WebView's first paint: same colour, so nothing flashes. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/spaceBg" />
+</shape>

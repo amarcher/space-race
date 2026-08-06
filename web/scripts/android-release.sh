@@ -70,6 +70,13 @@ npm run build
 echo "==> Syncing Capacitor Android project"
 npx cap sync android
 
+# MUST run after every `cap sync android` — the sync copies the portrait H.264
+# originals out of dist/ and overwrites whatever was there. Without this the
+# release AAB ships 164 MB of clips that decode in software (#140) and blows
+# past Play's 200 MB base-module limit.
+echo "==> Overlaying the Android media set (HEVC, landscape+rot90)"
+bash "$ROOT/scripts/build-android-media.sh" --swap
+
 if [[ ! -f "$KEYSTORE_PROPS" ]]; then
   echo "==> NOTE: android/keystore.properties not found — building UNSIGNED (verification only)."
   echo "    Run './scripts/android-release.sh --init-keystore' to set up Play upload signing."
