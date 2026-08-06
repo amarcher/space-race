@@ -47,6 +47,15 @@ const config: CapacitorConfig = {
       launchAutoHide: false,
       backgroundColor: '#07071a',
       showSpinner: false,
+      // Android: the plugin's ImageView is what actually shows the ace-pilot
+      // still (@drawable/splash, a single nodpi bitmap). CENTER_CROP is the
+      // ImageView spelling of `object-fit: cover` — the exact rule BootSplash.css
+      // applies to the SAME source file — so the native still and the web still
+      // are the identical crop on any screen, and the handoff between them is
+      // invisible. Do NOT put the still in the launch theme's window background
+      // instead: that path scales to fill without preserving aspect and cannot
+      // be matched. See #141 and res/values/styles.xml.
+      androidScaleType: 'CENTER_CROP',
     },
   },
 };

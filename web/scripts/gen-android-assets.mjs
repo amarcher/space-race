@@ -1,27 +1,51 @@
-// Generate the Android launcher-icon + splash resources from the ACE PILOT art —
-// the same hero the iOS app uses for its app icon and boot takeover.
+// Generate the Android launcher icons from the ACE PILOT art — the same hero the
+// iOS app uses for its app icon and boot takeover.
 //
 //   node scripts/gen-android-assets.mjs
 //
 // Sources (already in the repo — no external art needed):
 //   ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png  (1024² ace pilot)
-//   public/cards/video/ace-pilot.poster.webp                            (9:16 clip frame-0)
+//   public/cards/ace-pilot.webp   — the SAME still BootSplash.tsx paints, so the
+//                                   native and web stills are the identical crop
 //
 // The icon is a PHOTOGRAPHIC hero, so it goes FULL-BLEED into the adaptive icon
 // (no 16.7% safe-zone inset — that's for line-mark logos) and ships no monochrome
-// layer (a photo can't theme). The OS splash shows the same ace pilot: the
-// Android-12+ SplashScreen API uses @mipmap/ic_launcher_foreground as its animated
-// icon (wired in styles.xml), and the pre-12 window background is the full-bleed
-// still regenerated here. The in-app full-screen takeover CLIP is BootSplash.tsx.
+// layer (a photo can't theme).
+//
+// ONE SPLASH BITMAP, COVER-CROPPED (#141). This used to render the pilot into 26
+// density-bucketed splash.png variants used as the launch WINDOW BACKGROUND, and
+// the boot showed him at three different crops back to back — round-masked
+// SplashScreen icon, stretched window background, then BootSplash.tsx's still +
+// takeover clip — so he visibly jumped scale twice on the way in.
+//
+// A window-background bitmap can never be made to agree with the web layer: it is
+// scaled to FILL with no aspect preservation, from a density bucket that says
+// nothing about screen size (this hdpi Fire HD 10 stretched a 480x800 bitmap over
+// 1200x1920 — blurry AND differently cropped). So the still is no longer a window
+// background at all. It is now a SINGLE nodpi bitmap shown by the Capacitor
+// SplashScreen plugin's ImageView with `androidScaleType: 'CENTER_CROP'`
+// (capacitor.config.ts) — which is precisely `object-fit: cover`, the same rule
+// BootSplash.css applies to the same source file. Native still and web still are
+// therefore the identical crop at any screen size, and the plugin holds it
+// (launchAutoHide: false) until BootSplash.tsx has painted and calls hide().
+//
+// nodpi, deliberately: the bitmap must NOT be density-scaled before CENTER_CROP
+// gets it. One asset, every screen. Generated at 2x the source so the ImageView
+// isn't bilinear-upscaling a small bitmap at draw time.
+//
+// The OS stage BEFORE the activity exists (windowSplashScreenAnimatedIcon, and the
+// theme's window background) stays flat brand-dark — see res/drawable/splash_icon.xml.
 import sharp from 'sharp'
-import { readdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RES = join(ROOT, 'android/app/src/main/res')
 const ICON = join(ROOT, 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png')
-const POSTER = join(ROOT, 'public/cards/video/ace-pilot.poster.webp')
+// the same still BootSplash.tsx paints (its STILL constant)
+const SPLASH_STILL = join(ROOT, 'public/cards/ace-pilot.webp')
+const SPLASH_SCALE = 2 // 720x964 source -> 1440x1928; covers a 1200x1920 tablet
 const BG = '#07071a'
 
 // legacy square + round icon sizes, and the adaptive foreground/background size, per density
@@ -71,24 +95,22 @@ async function gen() {
     console.log(`adaptive xml: ${name}`)
   }
 
-  // Splash: overwrite every generated splash.png variant at its existing size with
-  // the ace-pilot poster, covering a brand-dark field (full-bleed, matches the
-  // iOS launch still and the BootSplash frame-0).
-  let n = 0
-  for (const entry of readdirSync(RES)) {
-    if (!entry.startsWith('drawable')) continue
-    const dir = join(RES, entry)
-    const splash = join(dir, 'splash.png')
-    let meta
-    try { meta = await sharp(splash).metadata() } catch { continue }
-    const { width, height } = meta
-    const cover = await sharp(POSTER).resize(width, height, { fit: 'cover', position: 'top' }).png().toBuffer()
-    await sharp({ create: { width, height, channels: 4, background: BG } })
-      .composite([{ input: cover }])
-      .png().toFile(splash)
-    n++
-  }
-  console.log(`splash: ${n} variants regenerated`)
+  // Splash still: ONE nodpi bitmap, cover-cropped at runtime by the plugin's
+  // ImageView. No density variants, no window-background stretching — see the
+  // header note. Opaque over the brand dark so there is nothing to blend.
+  const nodpi = join(RES, 'drawable-nodpi')
+  mkdirSync(nodpi, { recursive: true })
+  const meta = await sharp(SPLASH_STILL).metadata()
+  const width = meta.width * SPLASH_SCALE
+  const height = meta.height * SPLASH_SCALE
+  const art = await sharp(SPLASH_STILL)
+    .resize(width, height, { kernel: 'lanczos3' })
+    .png().toBuffer()
+  await sharp({ create: { width, height, channels: 4, background: BG } })
+    .composite([{ input: art }])
+    .webp({ quality: 82 })
+    .toFile(join(nodpi, 'splash.webp'))
+  console.log(`splash: drawable-nodpi/splash.webp ${width}x${height}`)
   console.log('done')
 }
 

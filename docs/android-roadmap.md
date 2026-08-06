@@ -70,13 +70,16 @@ iOS work. The Android app consumes the same `dist/`.
       **BUILD SUCCESSFUL**, `app-debug.apk` = **104 MB** (101 MB bundled web
       assets, of which 96 MB is card/win MP4 video). Comfortably under Play's
       **200 MB base-module** download limit.
-      **⚠️ No longer true — as of 2026-08-06 the debug APK is 214 MB.** `dist/`
-      is 190 MB, of which **184 MB is 49 MP4 files** (`dist/cards` alone is
-      172 MB; the five `*.slingshot.hero.mp4` clips are 62 MB between them).
-      **This build now EXCEEDS Play's 200 MB base-module limit** and cannot ship
-      to Google Play as-is. Amazon has no size limit, so the Amazon Appstore is
-      currently the only store this build can ship to unmodified. See the size
-      risk at the bottom of this doc for the two ways out.
+      Grew to **214 MB** by 2026-08-06 (190 MB of `dist/`, 184 MB of it MP4),
+      **over Play's 200 MB base-module limit** — then **fixed the same day**:
+      `scripts/build-android-media.sh` re-encodes every clip to HEVC, coded
+      landscape with a display-rotation matrix, and `npm run android` /
+      `android-release.sh` overlay that set onto the synced bundle. Clips
+      **164 MB → 74 MB**, splash resources **42 MB → 124 KB** (26 density-bucketed
+      full-bleed PNGs collapsed to one nodpi bitmap by #141), so the
+      **debug APK is ~90 MB and the release AAB ~88 MB** —
+      back under the limit with room to spare. The same pass moved every clip
+      onto the hardware decoder (#140).
 - [x] Conditional **release signing** wired in `app/build.gradle` (reads a
       gitignored `keystore.properties`; unsigned when absent). Keystore files
       (`*.jks`, `*.keystore`, `keystore.properties`) added to `android/.gitignore`.
@@ -108,14 +111,32 @@ Android-only gaps:
       monochrome** (a photo can't theme) — the deliberate opposite of a line-mark
       logo's treatment. Legacy + round + adaptive at all densities. Masked
       preview verified (circle + squircle).
-- [x] **Splash screen** — the Ace Pilot everywhere, matching iOS. Android 12+
-      SplashScreen API (`styles.xml`): `windowSplashScreenBackground = @color/spaceBg`
-      (#07071a), `windowSplashScreenAnimatedIcon = @mipmap/ic_launcher_foreground`
-      (the ace pilot, masked round), `postSplashScreenTheme` hands off to the dark
-      theme (no white flash). The pre-12 `@drawable/splash` is the full-bleed
-      ace-pilot still. Then `src/native/BootSplash.tsx` (already cross-platform,
-      native-gated) plays the **full-screen ace-pilot takeover clip**
-      (`/cards/video/ace-pilot.hero.mp4`) → fades to the table.
+- [x] **Splash screen** — **one pilot, one scale** (reworked 2026-08-06, #141).
+      Boot is: flat brand-dark field → ace-pilot still → the same still, moving →
+      table. Four surfaces, but the pilot appears at exactly one crop.
+      1. **Pre-activity OS stages carry no art** — `windowSplashScreenBackground`
+         and the launch theme's window background are `@color/spaceBg` (#07071a),
+         and `windowSplashScreenAnimatedIcon = @drawable/splash_icon` is a flat
+         `spaceBg` shape. `postSplashScreenTheme` hands off to the dark theme.
+      2. **The still is the Capacitor SplashScreen plugin's ImageView** —
+         `@drawable/splash` (one `drawable-nodpi/splash.webp`, 1440x1928, 124 KB)
+         drawn with `androidScaleType: 'CENTER_CROP'`, held by
+         `launchAutoHide: false` until `BootSplash.tsx` calls `hide()`.
+      3. **`src/native/BootSplash.tsx`** paints the SAME source file under
+         `object-fit: cover`, then plays the **full-screen takeover clip**
+         (`/cards/video/ace-pilot.hero.mp4`) → fades to the table.
+      `CENTER_CROP` *is* `object-fit: cover`, and 2 and 3 read the same file, so
+      the native→web handoff is identical by construction at any screen size —
+      measured at 42–52 dB PSNR across the transition on device.
+      **Why the art is not in the OS stages:** it used to be, twice — round-masked
+      at icon scale, then stretched full-bleed as the window background — so the
+      pilot visibly jumped scale twice before the clip. Neither can be
+      crop-matched: the SplashScreen icon is circle-masked at icon size, and a
+      window-background bitmap is scaled to FILL with no aspect preservation, from
+      a density bucket that says nothing about screen size (this hdpi Fire HD 10
+      stretched a 480x800 bitmap over 1200x1920 — blurry AND differently cropped).
+      The plugin's ImageView is the first surface that can hold a real crop rule,
+      so that is where the still lives now.
 - [x] **Status bar + edge-to-edge** — the shared `@capacitor/status-bar` boot
       call (`Style.Dark` = light icons) sets the icon appearance. We target **API
       36 (Android 16), where edge-to-edge is fully ENFORCED with no opt-out**
@@ -173,7 +194,8 @@ hardware — the local emulator still can't launch here (HVF init failure).
 | Warm resume | 72 ms |
 | Back button | ✅ closes overlays; double-tap-to-exit at root |
 | SFX audio | ✅ via WebAudio (the iOS native-audio path is correctly iOS-only) |
-| Splash / launcher icon | ✅ shows — but see **#141**, the ace pilot appears at three zoom levels |
+| Splash / launcher icon | ✅ one pilot, one scale (#141 fixed — OS stages are flat brand-dark) |
+| Video decode | ✅ hardware (`OMX.MTK.VIDEO.DECODER.HEVC`) after the landscape+rotation re-encode (#140) |
 | Landscape (tablet branch) | ✅ 1920×1200 reflows correctly — never previously exercised |
 | Edge-to-edge insets | ✅ after the two fixes above |
 | Memory pressure / codec errors | none |
@@ -337,27 +359,31 @@ Beam comprehension are the open items. No Android-specific content work.
 
 ## Risks / open questions
 
-- **WebView video decode on low-end Android** — the biggest Android-only risk.
-  30 card clips + win videos stream fine on modern hardware, but Android's device
-  range is far wider than iOS. **Partly retired 2026-08-06:** playback looks good
-  on a Fire HD 10 (MT8169, 3 GB RAM) with no dropped-frame warnings, memory
-  pressure, or codec errors. **But it decodes entirely in software** — 77 ×
-  `c2.android.avc.decoder` while `OMX.MTK.VIDEO.DECODER.AVC` sits unused —
-  costing CPU, battery, and thermal headroom. Tracked in **#140**.
-- **AAB size headroom — ⚠️ HEADROOM IS GONE.** The debug APK is **214 MB** as of
-  2026-08-06, **over Play's 200 MB base-module limit**. Two ways out, and the
-  first is far cheaper:
-  1. **HEVC the hero clips, as iOS already does.** `scripts/build-hevc.sh`
-     re-encodes only `*.hero.mp4` at CRF 26: **133 MB → 48 MB** on iOS. It
-     deliberately skips Android because "browser HEVC support ... is
-     hardware-dependent" — a blind hedge that is now testable and looks
-     favourable: the Fire HD 10 **has** `OMX.MTK.VIDEO.DECODER.HEVC`, and AWV
-     148 is well past Chrome 107 where HEVC `<video>` landed. Would put the APK
-     near ~129 MB *and* might route decode to hardware, resolving #140 too.
-     **Verify HEVC playback on a real device before relying on it** — and note
-     Android's device range is wider than iOS's, so some phones may lack it.
-  2. **Play Asset Delivery** (install-time asset pack) for the clips, if HEVC
-     isn't enough or isn't universally safe.
+- **WebView video decode on low-end Android** — was the biggest Android-only risk.
+  **Retired 2026-08-06 (#140).** Everything decoded in software on a Fire HD 10
+  (MT8169, 3 GB RAM) — 77 × `c2.android.avc.decoder` while
+  `OMX.MTK.VIDEO.DECODER.AVC` sat unused. The cause was **geometry, not codec**:
+  MTK's hardware decoders declare `size-range = 64x64-1920x1088`, and every clip
+  we ship is portrait (heroes 1080x1920, standard 720x1280), so Chromium never
+  offered them the format. Encoding the clips **coded-landscape with a display
+  rotation matrix** — same pixels, same upright playback, decoder just sees
+  1920x1080 — moves them all onto `OMX.MTK.VIDEO.DECODER.HEVC`. Measured on
+  device after the change: **zero software decoder instances**, cold launch or
+  in play. Recipe and the full measurement table live in
+  `web/scripts/build-android-media.sh`.
+- **AAB size headroom — resolved 2026-08-06.** Peaked at a **214 MB** debug APK,
+  over Play's 200 MB base-module limit; now **90.6 MB debug / 87.7 MB release
+  AAB**. Two things got it there, both in the Android bundle only (the web build
+  and the iOS bundle are untouched):
+  1. **HEVC for every clip, not just the heroes** — the geometry fix above forces
+     a re-encode regardless, so the codec came along for free: **164 MB → 74 MB**.
+     HEVC playback is verified on device in Amazon WebView 148 (`canPlayType` →
+     `probably`, hardware-decoded). A device without HEVC falls back to the card's
+     static poster rather than breaking.
+  2. **Splash resources 42 MB → 124 KB** — #141 replaced 26 density-bucketed
+     full-bleed PNGs with a single `drawable-nodpi/splash.webp`, cover-cropped at
+     runtime by the plugin's ImageView instead of stretched per density bucket.
+  **Play Asset Delivery** stays the escape hatch if the clip set grows again.
   Note the hero clips are only *requested* above 761 CSS px (`CardTakeover.tsx`),
   so a portrait-locked **phone** never loads them — but tablets (incl. every Fire
   tablet) always do. Removing them is **not** a graceful fallback: `HERO_KINDS`
