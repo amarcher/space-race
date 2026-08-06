@@ -29,14 +29,26 @@ also spares us Amazon's separate Fire TV asset set.
 | **Binary** | `web/android/app/build/outputs/apk/release/app-release.apk` |
 | **Build command** | `npm run amazon:release` (= `./scripts/android-release.sh --amazon`) |
 | **Package name** | `tech.spaceexplorer.spacerace` (same as Play/iOS) |
-| **Version** | `versionName 1.2.0` / `versionCode 14` |
-| **Approx. size** | ~85 MB |
+| **Version** | `versionName 1.2.1` / `versionCode 15` |
+| **Approx. size** | ~84 MB |
+| **Allow Amazon to apply DRM?** | **No** |
+
+**On DRM** (the console defaults this to *Yes*): our binary does not integrate
+the Appstore SDK, and the console says so with a warning. There is nothing to
+protect — the app is free with no IAP — and Amazon's DRM adds an entitlement
+check to a game whose entire pitch is that it works with no connection, on a
+tablet a parent may hand to a child on a plane. Answer **No**.
+
+Amazon also warns that binaries over 50 MB see higher install-abandonment. Noted
+and accepted: we already took this from 214 MB to 84 MB (HEVC + the splash
+rework), and going further means cutting the hero video that makes the game
+worth looking at.
 
 Notes:
 
 - **Binary limit is 2.5 GB**, uploaded through the browser. The old
   "150 MB then SFTP" rule is gone — SFTP is no longer supported at all. Our
-  ~85 MB is a non-issue, and Play's 200 MB base-module limit does not apply here.
+  ~84 MB is a non-issue, and Play's 200 MB base-module limit does not apply here.
 - **APK, not AAB.** Amazon accepts app bundles, but the APK is the well-trodden
   path and Amazon re-signs APKs with its own key on ingest, so our upload key is
   not load-bearing the way Play's is.
@@ -76,9 +88,14 @@ Notes:
 
 | Question | Answer |
 |----------|--------|
-| **Target age groups** | **Includes children (0–12)** — an all-ages card game |
-| Triggers Child-Directed App (COPPA) Policy? | **Yes, intentionally** |
+| **Target audience** | **All age groups** — which checks 0–12, 13–15, 16–17 and 18+ |
+| Triggers Child-Directed App (COPPA) Policy? | **Yes, intentionally** — the console shows the certification warning |
 | Age gate / neutral age screen needed? | **No** — a gate exists to keep non-compliant SDKs away from children's data, and this build has no SDKs and collects no data |
+
+The console offers "All age groups" or "Restricted age groups". Take **All age
+groups**: restricting to 0–12 alone would misrepresent an all-ages game as
+children-only and hide it from adult browse, while still including 0–12 is what
+triggers the child-directed certification we want to be held to.
 
 We take the strictest audience declaration because it costs us nothing: with
 analytics stripped, there is no data-collection surface to defend.
@@ -115,7 +132,7 @@ This is where the Amazon build diverges from iOS and Play, and it diverges
 | Data types collected | **None** |
 | Advertising ID | Not used |
 | Third-party SDKs collecting data | **None** |
-| **Privacy policy URL** | https://game.spaceexplorer.tech/privacy.html |
+| **Privacy policy URL** | https://game.spaceexplorer.tech/privacy.html (https, not http) |
 
 Justification, so this survives a reviewer poking at it: the app is fully
 offline-bundled, has no accounts, no ads, no IAP, no advertising ID, and makes
@@ -129,6 +146,13 @@ because Capacitor serves the bundle from a local `https://localhost` origin.
 Supply the privacy policy URL anyway even though "collects no data" makes it
 optional — it costs nothing and reviewers like seeing it.
 
+**But only after the policy actually says so.** The live policy used to read
+"the game uses Google Analytics ... (web or iOS)", which both predated the
+Android ship AND flatly contradicted the "collects no data" declaration above.
+Handing a reviewer a policy that contradicts your own declaration is worse than
+supplying no URL at all. `web/public/privacy.html` now splits analytics by
+store; it was updated and deployed to production before this field was filled.
+
 ---
 
 ## Step 3 — Appstore details
@@ -136,10 +160,13 @@ optional — it costs nothing and reviewers like seeing it.
 ### Display title
 
 ```
-Space Race
+Space Race: 1000 Light Years
 ```
 
-Fallback if taken: `Space Race: 1000 Light-Years`
+**Not** the bare "Space Race". The long form is what the **App Store** already
+ships (`apps.apple.com/us/app/space-race-1000-light-years`), it reads better in
+search, and it avoids collision with the several generic "Space Race" apps.
+Amazon allows 200 characters, so length is not a constraint.
 
 ### Short description (2,000 bytes ≈ 1,200 chars — no paragraph breaks, they get stripped)
 
@@ -192,8 +219,12 @@ Built and tested on Fire tablets, in both portrait and landscape.
 
 ### Keywords (comma-separated, optional)
 
+**Single words only.** The field's own hint is "use a comma **or white space** to
+separate your terms", so a multi-word phrase is split on the space — "no ads"
+becomes the useless pair `no` + `ads`, and "card game" becomes `card` + `game`.
+
 ```
-card game, space, offline, family, kids, solitaire, strategy, rocket, planets, no ads, single player
+cards, space, offline, family, kids, strategy, rocket, planets, spaceship, galaxy, singleplayer, adfree, travel, race
 ```
 
 ### Category
@@ -212,9 +243,27 @@ card game, space, offline, family, kids, solitaire, strategy, rocket, planets, n
 
 | Asset | Spec | Source / action |
 |-------|------|-----------------|
-| **Small icon** | 114 × 114 PNG | ✅ `docs/amazon-appstore/small-icon-114.png` — downscaled from the 512 |
+| **Small icon** | 114 × 114 PNG **with an alpha channel** | ✅ `docs/amazon-appstore/small-icon-114-rgba.png` |
 | **Large icon** | 512 × 512 PNG | ✅ `docs/play-store/assets/play-icon-512.png` verbatim |
-| **Screenshots** | 3–10, PNG/JPG, each side within **800×480 – 2560×1600** | ✅ `docs/amazon-appstore/screenshots/01`–`06` — **shot on the Fire HD 10**, 1920×1116 each |
+| **Screenshots** | 3–10, PNG/JPG, **one of seven exact sizes** (below) | ✅ `docs/amazon-appstore/screenshots/01`–`06`.jpg — **shot on the Fire HD 10**, 1920×1200 |
+
+> **⚠️ Screenshot sizes are an exact whitelist, not a range.** Amazon accepts
+> only **800×480 · 1024×600 · 1280×720 · 1280×800 · 1920×1080 · 1920×1200 ·
+> 2560×1600**. An earlier pass cropped the Fire OS status and navigation bars
+> off, producing 1920×1116 — which looks nicer but is **not on the list and
+> would be rejected**. Ship the tablet's native **1920×1200** frames uncropped:
+> the system bars are a fair price for guaranteed acceptance, and no resampling
+> or content is lost. (Cropping then rescaling to 1920×1200 clips the ends of
+> the distance bars, so it is not a fix.)
+>
+> **The 114×114 icon must actually carry an alpha channel.** An opaque RGB PNG
+> is silently ignored — the file lands in the `<input>` but the dropzone stays
+> empty with no error. `magick … -alpha set -define png:color-type=6` fixes it.
+> The 512 icon has no such problem, which makes the failure look arbitrary.
+>
+> **Uploading via automation:** set one file input at a time. Firing several in
+> one batch leaves the files on the inputs while the page's handlers process
+> none of them — again with no error shown.
 | **Promotional image** | 1024 × 500 PNG/JPG (optional but take it) | ✅ `docs/play-store/assets/feature-graphic.png` verbatim — already exactly 1024×500 |
 | **Video** | 720 × 1080, optional | Skip for v1 |
 | **Fire TV assets** | 1280×720 icon, 1920×1080 shots + background | **Not needed** — Fire TV is unchecked |
@@ -316,12 +365,12 @@ Source: https://developer.amazon.com/docs/app-submission/user-age-verification.h
 2. [ ] **Build the Amazon binary:** `cd web && npm run amazon:release`.
 3. [x] **Capture 3+ Fire HD 10 screenshots** → 6 landscape shots, 1920×1116.
 4. [x] **Generate the 114×114 small icon** from the 512.
-5. [ ] **Create the app** in the Developer Console and upload the APK.
-6. [ ] **Target:** Fire tablets only, all countries, free, **target audience
+5. [x] **Create the app** in the Developer Console and upload the APK.
+6. [x] **Target:** Fire tablets only, all countries, free, **target audience
    includes children (0–12)**.
-7. [ ] **Content rating** questionnaire → expect *All Ages*.
-8. [ ] **Privacy labels:** collects no data. Privacy policy URL supplied.
-9. [ ] **Appstore details:** title, descriptions, bullets, keywords, category,
+7. [x] **Content rating** questionnaire → expect *All Ages*.
+8. [x] **Privacy labels:** collects no data. Privacy policy URL supplied.
+9. [x] **Appstore details:** title, descriptions, bullets, keywords, category,
    contact, icons, screenshots, 1024×500 promotional image.
 10. [ ] **Submit for review.**
 11. [ ] **After it goes live:** add it to a child profile in the Amazon Kids
