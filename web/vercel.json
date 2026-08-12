@@ -18,5 +18,8 @@
       "destination": "https://game.spaceexplorer.tech/:path*",
       "permanent": true
     }
+  ],
+  "rewrites": [
+    { "source": "/shop", "destination": "/shop.html" }
   ]
 }

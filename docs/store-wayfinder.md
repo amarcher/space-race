@@ -61,6 +61,7 @@ flowing). Not created yet — see Phase 9/11.
 | Shipping rates | **Shippo**, live rates at checkout | Simpler onboarding than EasyPost for a solo hobbyist shipping one light product; EasyPost only wins on free-tier label volume, which doesn't matter here. Has its own "Shipping on Stripe" integration docs. |
 | Launch timing | **Pre-order now, ship starting mid-January 2027** | Sell against the combined 118-unit pool immediately. First orders placed can plausibly ship earlier — the 18-unit Sept batch arrives first, so the earliest paid orders could go out ~mid/late September while the rest wait for January. Worth deciding whether to actually do first-come-first-shipped, or hold everything until January for one clean fulfillment pass (see Open decisions). |
 | Order/fulfillment tracking | **Neon Postgres** `orders` table, webhook-populated, simple internal admin view | This session already has Neon + Resend MCP access, so orders land in Postgres via the Stripe webhook and a confirmation email goes out via Resend. |
+| Business entity | **Fable Designer LLC** (Andrew's MA single-member LLC) | Decided 2026-08-12. Reuses the LLC's already-live Stripe account (activated 2026-07 for `storybook-studio` — see `/Users/archer/Programs/storybook-studio/BILLING-READINESS.md`) instead of standing up a second business-Stripe account from scratch. Physical-goods fulfillment (inventory, shipping) is **not** a purpose mismatch — Fable Designer already plans to sell printed books, not just deliver digitally, per Andrew. **Still worth flagging:** `/Users/archer/tax-strategy/wiki/entities/fable-designer-llc.md` calls the QSBS-vs-pass-through classification fork the "highest-stakes open decision" in that project — Fable Designer may later convert to a C-corp to start the §1202 exclusion clock around `storybook-studio`'s software/IP, and bundling in an unrelated retail product line (a card game, distinct from the books business) is worth a mention to the tax attorney handling that fork, independent of the physical/digital question. The single-member operating agreement is also still undrafted — worth a broad purpose clause when that gets written. **Practical blocker either way:** Fable Designer's EIN is still pending (SS-4 drafted, not yet faxed as of 2026-08-12) — full Stripe business verification/payouts likely wait on it, independent of which entity gets chosen. |
 
 ## Architecture
 
@@ -116,16 +117,20 @@ no in-app purchase questions, no bloating the native bundle. Concretely:
   ```
   Inventory guard: before creating a checkout session, sum `quantity` across
   non-cancelled orders and reject/cap if it would exceed the sellable pool
-  (118 minus whatever reserve is decided — see Open decisions). No separate
-  inventory table needed at this scale.
+  (113 = 118 minus a 5-unit reserve, both tunable constants — see Open
+  decisions). No separate inventory table needed at this scale.
 - **Admin/fulfillment view:** start as direct SQL against Neon (via the Neon
   MCP tools already available in Claude Code sessions, or the Neon console)
   to list unfulfilled orders and mark them shipped + add tracking. A real
   `/shop/admin` page (basic-auth or shared-secret gated) is a nice-to-have,
   not a blocker for launch — see Phase 8.
 - **Env vars needed** (names only): `STRIPE_SECRET_KEY`,
-  `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `SHIPPO_API_TOKEN`,
-  Neon connection string (`DATABASE_URL`), `RESEND_API_KEY`.
+  `VITE_STRIPE_PUBLISHABLE_KEY` (client-exposed, `VITE_` prefix required for
+  Vite to bundle it into the shop page), `STRIPE_WEBHOOK_SECRET`,
+  `SHIPPO_API_TOKEN`, `RESEND_API_KEY`. **`DATABASE_URL` is done** — added to
+  Vercel production/preview/development 2026-08-12 (Neon project
+  `space-race-store`). The rest all need Phase 1 (the Stripe/Shippo accounts)
+  first.
 
 ## Cross-promotion: apps → physical game
 
@@ -254,21 +259,27 @@ there's something to market.
 | Phase | What | State |
 |---|---|---|
 | 0 | Plan + this doc | ✅ done (2026-08-12) |
-| 1 | Open accounts: Stripe (+ activate live payments/business details), Shippo, confirm Neon project + Resend domain ready | ⬜ next |
+| 1 | Open accounts: Stripe (+ activate live payments/business details, under Fable Designer LLC), Shippo, Resend domain for `spaceexplorer.tech` | ⬜ next — needs Andrew (KYC/business details, can't be done by an agent) |
 | 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
-| 3 | Neon schema migration (`orders` table above) | ⬜ |
-| 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ⬜ |
-| 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ⬜ |
-| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ⬜ |
-| 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ⬜ |
-| 8 | Inventory cap guard (118 minus reserve) | ⬜ |
+| 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
+| 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ code done (2026-08-12) — placeholder hero image (`marketing-card-front.png`), needs real product photography before launch |
+| 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
+| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ code done (2026-08-12) — falls back to a flat $5.99 placeholder rate when `SHIPPO_API_TOKEN` is unset, so checkout is testable end-to-end before that account exists. `FROM_ADDRESS` in the code is still a `'TODO'` placeholder — must be filled in before real rates work |
+| 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; email `from: orders@spaceexplorer.tech` needs that domain verified in Resend first (only `fabledesigner.com` is verified today) |
+| 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
 | 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ⬜ |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ⬜ blocked on Phase 1 |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
 | 13 | Go live — flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ⬜ |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
+
+Code for phases 4–8 is written and type-checks clean (`npm run build` passes,
+`web/api/*.ts` checked separately via `web/api/tsconfig.json`), and `/shop`
+degrades gracefully with no Stripe key configured (shows "the store isn't
+open yet" instead of crashing) — so none of it is live-tested against real
+Stripe/Shippo traffic yet. That's Phase 11, gated on Phase 1.
 
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page can ship
@@ -277,18 +288,22 @@ whatever lands.
 
 ## Open decisions (need a call before or during the phase that hits them)
 
-- **Per-order quantity cap** — 1–3 copies suggested to avoid one buyer
-  draining the pool; not decided.
-- **Inventory reserve** — hold back a few units (5?) for misprints/damage/
-  gifts before computing the sellable cap, or sell all 118?
+- ~~**Per-order quantity cap**~~ — resolved by implementation: capped at 3
+  (`MAX_QTY_PER_ORDER` in `web/src/shop/constants.ts`). Easy to change before
+  launch if that feels wrong.
+- ~~**Inventory reserve**~~ — resolved by implementation: 5 units held back,
+  113 sellable (`INVENTORY_RESERVE` / `SELLABLE_INVENTORY`, same file). Same —
+  easy to tune.
 - **Early-batch fulfillment** — ship the first ~18 paid orders as soon as the
   September batch arrives (faster for early buyers, two fulfillment passes),
   or hold everything for one clean January pass? Affects the ship-date copy
   shown at checkout.
-- **International shipping** — in scope for launch, or US-only to start?
-  Shippo/Stripe both support it, but customs paperwork and duties-at-checkout
-  are extra complexity (buyer typically pays duties on delivery, not at
-  checkout, unless DDP rates are enabled).
+- **International shipping** — defaulted to **US-only** for now
+  (`ALLOWED_SHIP_COUNTRIES` in `web/src/shop/constants.ts`, a one-line
+  change to expand). Shippo/Stripe both support international, but customs
+  paperwork and duties-at-checkout are extra complexity (buyer typically pays
+  duties on delivery, not at checkout, unless DDP rates are enabled) — left
+  out of the v1 build rather than decided against permanently.
 - **Sales tax** — likely need to collect in your home state at minimum;
   Stripe Tax can automate this for a small per-transaction fee. Not decided.
 - **Returns/refund policy** — needs actual copy before launch.
@@ -301,7 +316,10 @@ whatever lands.
 ## Links
 
 Fill in as each is created:
-- Stripe dashboard: _TBD_
+- Stripe dashboard: _TBD_ (Fable Designer account, reusing `storybook-studio`'s)
 - Shippo dashboard: _TBD_
-- Neon project: _TBD_
+- Neon project: `space-race-store` (`little-mud-75974419`), console at
+  https://console.neon.tech
+- Resend: reusing the existing account — needs a `spaceexplorer.tech` sending
+  domain verified (only `fabledesigner.com` is verified today)
 - Live shop URL: _TBD_ (`https://game.spaceexplorer.tech/shop` once deployed)
