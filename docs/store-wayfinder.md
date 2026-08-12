@@ -1,0 +1,307 @@
+# Store wayfinder — selling the physical game
+
+**Purpose of this doc:** the map for standing up "buy the physical game" on
+the website. Read this first in any future session that touches the store.
+Update the phase table and open decisions as work lands — this is the single
+source of truth for where the project stands, not a one-time plan.
+
+Companion docs once they exist: `docs/store-legal.md` (policies/copy),
+`docs/store-ops.md` (day-to-day fulfillment runbook once orders start
+flowing). Not created yet — see Phase 9/11.
+
+## The facts on the ground
+
+- **First print run exists and looks great** (photo confirmed 2026-08-12) —
+  tuck box, 107-card poker deck, booklet, all landed as designed. This is the
+  4-copy proof order from `print/README.md` (ordered 2026-07-23), delivered
+  **2026-08-11 via UPS Ground** (tracking `1Z0999A30319856240`) — so 4
+  physical copies are already in hand right now, not something to wait for.
+  See `print/README.md` for the print pipeline; this doc is downstream of it.
+- **Inventory, two batches, 118 units total:**
+  | Batch | Qty | Arrives | Cost/unit | Total cost |
+  |---|---|---|---|---|
+  | Early | 18 | 2026-09-10 | ~$30.00 | $540 |
+  | Main | 100 | 2027-01-10 | ~$18.50 | $1,850 |
+  | **Combined** | **118** | — | **$20.25 blended** | **$2,390** |
+- **Price: $34.99.** Floor considered was $30, ceiling $40; user picked
+  $34.99 as the sweet spot for a card game people will actually pay for.
+- **Box: 8.1 oz, 3.55" × 2.55" × 1.75"** (measured 2026-08-12 on one of the 4
+  proof copies) — both weight and dimensions now confirmed, unblocking
+  accurate Shippo rating. Comfortably under the 1 lb band most carriers price
+  around — a single-copy order (copy + a light mailer) should land around
+  9–9.5 oz, a 2-copy order around 17–18 oz (just over 1 lb, likely the next
+  pricing tier), 3 copies around 25–26 oz. Volume is 15.85 in³ — at USPS's
+  standard 166 dim-weight divisor that's under 2 oz of dimensional weight, so
+  actual weight (8.1 oz) governs pricing on every carrier; DIM weight isn't a
+  factor at this size.
+- **Illustrative margin** (pre-shipping, shipping is pass-through at live
+  carrier cost so it shouldn't eat margin either way):
+  | | Early batch | Main batch | Blended (118 sold) |
+  |---|---|---|---|
+  | Price | $34.99 | $34.99 | $34.99 |
+  | Cost | $30.00 | $18.50 | $20.25 |
+  | Gross margin | $4.99 (14%) | $16.49 (47%) | $14.74/unit avg |
+  | − Stripe fee (~2.9%+$0.30) | −$1.32 | −$1.32 | −$1.32 |
+  | − packaging (mailer/tape/label, est.) | −$1.00 | −$1.00 | −$1.00 |
+  | **Net illustrative margin** | **~$2.67 (8%)** | **~$14.17 (40%)** | **~$12.42/unit (35%)** |
+
+  Packaging cost estimate is firmer now that weight is known (8.1 oz single
+  unit, a bubble mailer stays cheap at that weight) but still a placeholder
+  until dimensions and an actual Shippo rate are in hand — see Open
+  decisions. The early batch is basically break-even; treat it as a real
+  fulfillment dry-run, not the profit driver. The January batch is where the
+  margin is.
+
+## Decisions locked (2026-08-12)
+
+| Decision | Choice | Why |
+|---|---|---|
+| Payment | **Stripe** | Standard, PCI handled for us, works well with Vercel functions. |
+| Checkout UI | **Embedded Checkout** (not hosted redirect) | Hosted Checkout *cannot* do dynamic/live shipping rates — confirmed against Stripe's own docs. Embedded Checkout's `onShippingDetailsChange` callback is the only path to real carrier rates inside Stripe Checkout. |
+| Shipping rates | **Shippo**, live rates at checkout | Simpler onboarding than EasyPost for a solo hobbyist shipping one light product; EasyPost only wins on free-tier label volume, which doesn't matter here. Has its own "Shipping on Stripe" integration docs. |
+| Launch timing | **Pre-order now, ship starting mid-January 2027** | Sell against the combined 118-unit pool immediately. First orders placed can plausibly ship earlier — the 18-unit Sept batch arrives first, so the earliest paid orders could go out ~mid/late September while the rest wait for January. Worth deciding whether to actually do first-come-first-shipped, or hold everything until January for one clean fulfillment pass (see Open decisions). |
+| Order/fulfillment tracking | **Neon Postgres** `orders` table, webhook-populated, simple internal admin view | This session already has Neon + Resend MCP access, so orders land in Postgres via the Stripe webhook and a confirmation email goes out via Resend. |
+
+## Architecture
+
+The game ships as a Vite/React SPA (web) **and** as native iOS/Android apps
+via Capacitor (`web/capacitor.config.ts`). The store must be **web-only** —
+no in-app purchase questions, no bloating the native bundle. Concretely:
+
+- **New page, not a new view-state in `App.tsx`.** Add `web/shop.html` as a
+  second Vite entry point (multi-page build, `rollupOptions.input`) with its
+  own React root under `web/src/shop/`. Keeps checkout/Stripe JS entirely out
+  of the game bundle that ships inside the iOS/Android apps.
+  - Serve at a clean URL via a `vercel.json` rewrite: `/shop` → `/shop.html`.
+  - Confirm `capacitor.config.ts`'s `webDir` / asset copy doesn't pull
+    `shop.html` into native builds (harmless if it does, but confirm).
+- **Backend: Vercel `/api` functions**, no framework migration needed —
+  Vercel auto-detects a root `/api` directory alongside the static Vite
+  build. Three routes:
+  - `POST /api/create-checkout-session` — creates a Stripe Embedded Checkout
+    session for `{ quantity }` (cap 1–3 per order, TBD), returns
+    `client_secret`. Server-side price is the source of truth ($34.99), never
+    trust a client-supplied amount.
+  - `POST /api/shipping-rates` — Stripe's `onShippingDetailsChange` callback
+    target. Receives the in-progress address, calls Shippo for live rates on
+    the known box weight/dims, returns 2–3 `shipping_options` (e.g. cheapest +
+    faster) back to the Checkout session.
+  - `POST /api/stripe-webhook` — listens for `checkout.session.completed`.
+    **Must** read the raw request body (`config.api.bodyParser = false`,
+    manually buffer the stream) before calling
+    `stripe.webhooks.constructEvent()` — Vercel's default JSON body parsing
+    breaks signature verification. Writes the order into Neon, sends the
+    confirmation email via Resend.
+- **Database: Neon Postgres.** Minimal schema:
+  ```sql
+  create table orders (
+    id                        uuid primary key default gen_random_uuid(),
+    created_at                timestamptz not null default now(),
+    stripe_checkout_session_id text not null unique,
+    stripe_payment_intent_id  text,
+    customer_email            text not null,
+    customer_name             text,
+    shipping_address          jsonb not null,
+    quantity                  int not null,
+    unit_price_cents          int not null,       -- snapshot, e.g. 3499
+    shipping_cents            int not null,       -- actual Shippo rate charged
+    shipping_service          text,               -- e.g. "USPS Ground Advantage"
+    amount_total_cents        int not null,
+    currency                  text not null default 'usd',
+    status                    text not null default 'paid', -- paid | fulfilled | cancelled | refunded
+    tracking_number           text,
+    fulfilled_at              timestamptz,
+    notes                     text
+  );
+  ```
+  Inventory guard: before creating a checkout session, sum `quantity` across
+  non-cancelled orders and reject/cap if it would exceed the sellable pool
+  (118 minus whatever reserve is decided — see Open decisions). No separate
+  inventory table needed at this scale.
+- **Admin/fulfillment view:** start as direct SQL against Neon (via the Neon
+  MCP tools already available in Claude Code sessions, or the Neon console)
+  to list unfulfilled orders and mark them shipped + add tracking. A real
+  `/shop/admin` page (basic-auth or shared-secret gated) is a nice-to-have,
+  not a blocker for launch — see Phase 8.
+- **Env vars needed** (names only): `STRIPE_SECRET_KEY`,
+  `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `SHIPPO_API_TOKEN`,
+  Neon connection string (`DATABASE_URL`), `RESEND_API_KEY`.
+
+## Cross-promotion: apps → physical game
+
+Decision (2026-08-12): promote the physical game from inside the **iOS and
+Android (Play)** apps via an **external link-out** to the shop page — not an
+in-app purchase. **Exclude the Amazon Appstore build.**
+
+- **Why link-out, not IAP:** Apple's and Google's in-app-purchase
+  requirements only govern digital content/services consumed *inside* the
+  app. A physical good shipped to the buyer's address (same category as the
+  Amazon Shopping app, Etsy, Wayfair, Airbnb) has never required IAP or any
+  special entitlement — you can link to an external checkout page with zero
+  revenue share. This is long-standing, stable policy on both platforms, but
+  **verify the current guideline text (App Store Review Guideline 3.1.3 /
+  Play Billing policy) before submitting**, the same way this repo already
+  double-checks every store's actual submission flow (see
+  `docs/amazon-appstore/listing.md`'s "learned by driving the console" notes)
+  rather than trusting memory.
+  - Simplest implementation: a button that opens the shop URL in the system
+    browser (there's already an external-link pattern to follow —
+    `web/src/native/share.ts` — for consistency with how the app already
+    hands off to native OS surfaces). Do **not** embed checkout in an in-app
+    WebView; keep it unambiguous for review and simpler to build.
+  - Existing store copy ("No in-app purchases") stays literally true — an
+    external browser link isn't an IAP.
+- **Why exclude Amazon:** that build was shipped 2026-08-06 specifically as
+  an **analytics-free, child-directed (COPPA) certification** — "no ads, no
+  in-app purchases, no accounts, and nothing is collected about you or your
+  kids" (`docs/amazon-appstore/listing.md`). A kid reaches this build through
+  an Amazon Kids child profile with no parental gate at the app level. Adding
+  a path to a checkout/payment page — even external — cuts against that
+  certification and the promise made to Amazon and to parents. Leave the
+  Amazon build exactly as it is.
+- **iOS/Android are not similarly locked:** both deliberately stayed *out*
+  of Apple's Kids category and Google's Designed for Families program
+  specifically to keep GA4 analytics (age rating "4+", not restricted) — see
+  `docs/app-store/listing.md` and `docs/play-store/listing.md`. A physical-
+  goods link-out doesn't conflict with either listing's current
+  certification, but re-check both listings' copy/answers when this ships in
+  case anything needs updating alongside it.
+
+### The hub/landing page
+
+Also decided: rather than link straight from the apps to `/shop`, build one
+small **hub page** (e.g. `game.spaceexplorer.tech/get` or `/play-anywhere`)
+that fans out to everywhere the game exists:
+
+- Play free (web)
+- App Store (iOS)
+- Google Play (Android) — once live, hopefully by January 2027 alongside the
+  physical launch (see `docs/android-roadmap.md` for ship status)
+- Amazon Appstore
+- **Buy the physical game** → `/shop`
+
+This is the single link that the in-app promo buttons point to, and — per
+the user's second-edition idea — a natural future home for a **QR code
+printed on a v2 tuck box** (the textless "collector" deck variant already
+noted as a future edition in `print/README.md`). One durable link that
+outlives any single storefront's URL, rather than hard-coding a specific app
+store URL into a printed physical product.
+
+## Fulfillment alternatives & barcode/SKU (researched 2026-08-12)
+
+The user asked whether Amazon fulfillment is worth using instead of/alongside
+self-fulfillment, and whether a real product barcode/SKU is worth getting.
+Verdict for now: **stay self-fulfilled, don't buy a barcode yet** — both
+revisited below only if this takes off.
+
+### Amazon FBA/FBM vs. self-fulfillment
+
+- **Fee load is steep at this price point.** For a small/light item like this
+  tuck box, 2026 FBA costs roughly: per-unit fulfillment fee **~$3.70–$4.10**
+  (small-standard tier + the 3.5% fuel/logistics surcharge added April 2026)
+  + **15% Toys & Games referral fee** (~$5.25 on $34.99, $0.30 min) ≈
+  **$9.00–$9.35 total, ~26–27% of the sale** — before COGS or inbound
+  freight to the fulfillment center. Against the January batch's $18.50 cost,
+  that's roughly **$7/unit (~20%) net**, versus **~$14/unit (~40%)**
+  self-fulfilled (Stripe fee + packaging only, per the margin table above).
+  Self-fulfillment keeps roughly double the margin per unit at this scale.
+- **No official Amazon minimum shipment size** and **storage cost is a
+  non-issue** at this item's tiny volume (fractions of a cent/unit/month) —
+  so the fee load, not any structural minimum, is what makes FBA a poor fit
+  right now.
+- **Barcode requirement bites here too:** Amazon now cross-checks listing
+  GTINs against the GS1 registry and flags non-GS1 reseller codes. A GTIN
+  exemption (Seller Central request + product photos) is a workaround for a
+  self-published item like this, but adds listing friction.
+  Commingled inventory ended March 2026, so every unit would also need an
+  individual FNSKU sticker before shipping in — extra prep labor per copy.
+- **Seller Fulfilled Prime** needs an existing delivery-speed track record —
+  not attainable pre-launch, so it's not a near-term option. **Merchant-
+  fulfilled on Amazon (FBM)**, i.e. list on Amazon but ship it yourself, is
+  the actual middle ground if Amazon's marketplace traffic ever seems worth
+  tapping without eating the FBA fee stack.
+- **Recommendation:** launch self-fulfilled as already decided above. Revisit
+  Amazon (FBA or FBM) only after the store's live and selling, and only if
+  volume or Amazon-native demand looks likely to justify the fee load or the
+  listing overhead — not for testing 118 units.
+
+### Barcode / SKU (GS1 UPC)
+
+- A real UPC is a GS1-issued GTIN tied to *your* registered GS1 Company
+  Prefix, not just any 12-digit number — retail and Amazon both verify this
+  against the GS1 registry now, and cheap third-party/reseller barcodes get
+  flagged or suppressed.
+- Cost is modest if it's ever needed: GS1 US's smallest tier (up to 10
+  barcodes) is roughly **$250 upfront + $50/year**. `print/README.md`
+  already anticipated this ("no barcode... add GS1 UPC only if retail ever
+  happens") — that instinct holds up.
+- **Recommendation:** don't buy one yet. A barcode with nothing retail or
+  Amazon-listed under it doesn't do anything — cheap insurance, but only
+  worth spending on once there's an actual retail shelf or Amazon listing to
+  attach it to. Revisit alongside the Amazon decision above.
+
+### Future / tangential (not in scope for this build)
+
+The user flagged this as a tangent worth revisiting once the store exists:
+broader marketing for the physical game (it "sells itself" but still needs a
+push) — cross-promotion cadence, launch announcement, maybe eventually retail
+distribution (see the GS1/barcode section above). Revisit with the
+`marketing-plan` skill / `growth-marketer` agent once the store is live and
+there's something to market.
+
+## Phase table
+
+| Phase | What | State |
+|---|---|---|
+| 0 | Plan + this doc | ✅ done (2026-08-12) |
+| 1 | Open accounts: Stripe (+ activate live payments/business details), Shippo, confirm Neon project + Resend domain ready | ⬜ next |
+| 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
+| 3 | Neon schema migration (`orders` table above) | ⬜ |
+| 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ⬜ |
+| 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ⬜ |
+| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ⬜ |
+| 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ⬜ |
+| 8 | Inventory cap guard (118 minus reserve) | ⬜ |
+| 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
+| 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ⬜ |
+| 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
+| 13 | Go live — flip Stripe to live mode, announce | ⬜ |
+| 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ⬜ |
+| 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
+
+Phases 14–15 depend on 13 (shop must be live before anything can link to it)
+but not on each other or on the Android Play launch — the hub page can ship
+with a Play row that just says "coming soon" until Android roadmap Phase
+whatever lands.
+
+## Open decisions (need a call before or during the phase that hits them)
+
+- **Per-order quantity cap** — 1–3 copies suggested to avoid one buyer
+  draining the pool; not decided.
+- **Inventory reserve** — hold back a few units (5?) for misprints/damage/
+  gifts before computing the sellable cap, or sell all 118?
+- **Early-batch fulfillment** — ship the first ~18 paid orders as soon as the
+  September batch arrives (faster for early buyers, two fulfillment passes),
+  or hold everything for one clean January pass? Affects the ship-date copy
+  shown at checkout.
+- **International shipping** — in scope for launch, or US-only to start?
+  Shippo/Stripe both support it, but customs paperwork and duties-at-checkout
+  are extra complexity (buyer typically pays duties on delivery, not at
+  checkout, unless DDP rates are enabled).
+- **Sales tax** — likely need to collect in your home state at minimum;
+  Stripe Tax can automate this for a small per-transaction fee. Not decided.
+- **Returns/refund policy** — needs actual copy before launch.
+- **Amazon FBA/FBM + GS1 barcode** — researched and deliberately deferred
+  (see the dedicated section above): fee load makes FBA a poor fit for 118
+  units, and a UPC isn't worth buying until there's an actual retail/Amazon
+  listing to attach it to. Not blocking this build; revisit only if the
+  store takes off.
+
+## Links
+
+Fill in as each is created:
+- Stripe dashboard: _TBD_
+- Shippo dashboard: _TBD_
+- Neon project: _TBD_
+- Live shop URL: _TBD_ (`https://game.spaceexplorer.tech/shop` once deployed)
