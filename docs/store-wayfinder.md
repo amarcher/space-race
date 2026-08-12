@@ -270,7 +270,7 @@ there's something to market.
 | 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
 | 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ⬜ blocked on Phase 1 |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified (2026-08-12); UI click-through and real Shippo rates still open |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
 | 13 | Go live — flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ⬜ |
@@ -279,8 +279,40 @@ there's something to market.
 Code for phases 4–8 is written and type-checks clean (`npm run build` passes,
 `web/api/*.ts` checked separately via `web/api/tsconfig.json`), and `/shop`
 degrades gracefully with no Stripe key configured (shows "the store isn't
-open yet" instead of crashing) — so none of it is live-tested against real
-Stripe/Shippo traffic yet. That's Phase 11, gated on Phase 1.
+open yet" instead of crashing).
+
+**2026-08-12 backend verification** (against the deployed PR preview, real
+Stripe test mode, not curl-against-localhost): `create-checkout-session`
+creates a real session; `shipping-rates` correctly falls back to the $5.99
+placeholder (Shippo not configured yet) and updates the session via
+`sessions.update()`; `stripe-webhook` — with a **genuinely valid signature**,
+built via `Stripe.webhooks.generateTestHeaderString()` rather than bypassing
+verification — inserted a correct row into Neon (right quantity, price,
+shipping amount). Confirms the raw-body signature handling actually works,
+not just that the code compiles.
+
+Two things learned along the way:
+- **Vercel snapshots env vars at deploy time.** Adding `STRIPE_WEBHOOK_SECRET`
+  to an already-built preview didn't take effect — the running deployment
+  had to be redeployed (`vercel redeploy <url>`) before it picked up the new
+  var. Worth remembering any time a new env var is added to an existing
+  deployment.
+- **Driving Stripe's actual payment iframe via browser-automation clicks
+  didn't work** — coordinates landed, but keystrokes never reached the
+  iframe's inputs, and the accessibility tree can't see into it at all
+  (cross-origin). Reads as intentional hardening on Stripe's part, not a bug
+  to route around. The backend verification above (real session + real
+  signature, driven via direct API calls) covers what actually matters —
+  full UI click-through with a real test card is still open, but lower
+  priority than it seemed before this session.
+- **A leftover test order is sitting in Neon** — session
+  `cs_test_a1fiqJH4...`, empty email, `status='paid'` but no real payment
+  ever happened (synthetic webhook event). Should be deleted before launch;
+  left alone for now since deleting needs a destructive SQL statement.
+
+Real Shippo rates (vs. the placeholder) and a full UI click-through with a
+Stripe test card are still open — both gated on Phase 1 (Shippo account +
+actually finishing the checkout UI test).
 
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page can ship
