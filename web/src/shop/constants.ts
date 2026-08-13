@@ -20,7 +20,7 @@ export const EARLY_BATCH_SELLABLE = EARLY_BATCH_TOTAL - EARLY_BATCH_GIFT_RESERVE
 
 export const SELLABLE_INVENTORY = TOTAL_INVENTORY - INVENTORY_RESERVE - EARLY_BATCH_GIFT_RESERVE
 
-export const EARLY_SHIP_DATE_LABEL = 'Sept 10'
+export const EARLY_SHIP_DATE_LABEL = 'September 10th'
 export const MAIN_SHIP_DATE_LABEL = 'mid-January 2027'
 
 export type ShipWindow = 'early' | 'january'
