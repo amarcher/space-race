@@ -128,10 +128,14 @@ no in-app purchase questions, no bloating the native bundle. Concretely:
 - **Env vars needed** (names only): `STRIPE_SECRET_KEY`,
   `VITE_STRIPE_PUBLISHABLE_KEY` (client-exposed, `VITE_` prefix required for
   Vite to bundle it into the shop page), `STRIPE_WEBHOOK_SECRET`,
-  `SHIPPO_API_TOKEN`, `RESEND_API_KEY`. **`DATABASE_URL` is done** — added to
-  Vercel production/preview/development 2026-08-12 (Neon project
-  `space-race-store`). The rest all need Phase 1 (the Stripe/Shippo accounts)
-  first.
+  `SHIPPO_API_TOKEN`, `RESEND_API_KEY`. **All but `RESEND_API_KEY` are done**
+  — added to Vercel production/preview/development 2026-08-12 (test-mode
+  values for Stripe/Shippo; `DATABASE_URL` points at the Neon project
+  `space-race-store`). `RESEND_API_KEY` waits on the `spaceexplorer.tech`
+  sending domain being verified.
+  **Gotcha:** Vercel snapshots env vars at deploy time — a newly-added var
+  doesn't apply to an already-built deployment until it's redeployed
+  (`vercel redeploy <url>`, or just push a new commit).
 
 ## Cross-promotion: apps → physical game
 
@@ -260,19 +264,19 @@ there's something to market.
 | Phase | What | State |
 |---|---|---|
 | 0 | Plan + this doc | ✅ done (2026-08-12) |
-| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | 🟨 Stripe done (2026-08-12) — repurposed a dormant account, verified, test-mode `STRIPE_SECRET_KEY`/`VITE_STRIPE_PUBLISHABLE_KEY` added to Vercel prod/preview/dev. Shippo + Resend domain still needed |
+| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | 🟨 Stripe + Shippo done (2026-08-12) — test-mode keys/tokens live in Vercel prod/preview/dev. Resend domain for `spaceexplorer.tech` still needed. Shippo **live key** needs a manual request to their team (self-serve test keys only) — see Phase 13 |
 | 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
 | 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
 | 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ code done (2026-08-12) — placeholder hero image (`marketing-card-front.png`), needs real product photography before launch |
 | 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
-| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ code done (2026-08-12) — falls back to a flat $5.99 placeholder rate when `SHIPPO_API_TOKEN` is unset, so checkout is testable end-to-end before that account exists. `FROM_ADDRESS` in the code is still a `'TODO'` placeholder — must be filled in before real rates work |
+| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — falls back to a flat $5.99 placeholder only if `SHIPPO_API_TOKEN` is ever unset. `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
 | 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; email `from: orders@spaceexplorer.tech` needs that domain verified in Resend first (only `fabledesigner.com` is verified today) |
 | 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
 | 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified (2026-08-12); UI click-through and real Shippo rates still open |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and the confirmation email (Resend domain still needed) are what's left |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
-| 13 | Go live — flip Stripe to live mode, announce | ⬜ |
+| 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ⬜ |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
 
@@ -352,7 +356,9 @@ Fill in as each is created:
 - Stripe dashboard: https://dashboard.stripe.com/acct_1OPdcRCdqO8xw407/dashboard
   — "Space Race: 1000 Light Years" (Fable Designer, individual for now — see
   "Decisions locked" above). Separate from `storybook-studio`'s live one.
-- Shippo dashboard: _TBD_
+- Shippo dashboard: https://portal.goshippo.com/activity/overview — test key
+  live in Vercel; live key requires requesting one from Shippo's team
+  (self-serve only covers test keys) before go-live
 - Neon project: `space-race-store` (`little-mud-75974419`), console at
   https://console.neon.tech
 - Resend: reusing the existing account — needs a `spaceexplorer.tech` sending
