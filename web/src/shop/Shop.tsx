@@ -17,6 +17,17 @@ const stripePromise = PUBLISHABLE_KEY ? loadStripe(PUBLISHABLE_KEY) : null
 
 const PRICE_LABEL = (UNIT_PRICE_CENTS / 100).toFixed(2)
 
+const GALLERY_IMAGES = [
+  {
+    src: '/shop/hero.jpg',
+    alt: 'The Space Race: 1000 Light-Years tuck box, rulebook, and a spread of illustrated cards',
+  },
+  {
+    src: '/shop/box-closeup.jpg',
+    alt: 'Close-up of the shrink-wrapped Space Race: 1000 Light-Years tuck box',
+  },
+]
+
 export function Shop() {
   const sessionId = new URLSearchParams(window.location.search).get('session_id')
   return sessionId ? <Confirmation /> : <ProductPage />
@@ -42,6 +53,7 @@ function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [checkingOut, setCheckingOut] = useState(false)
   const [inventory, setInventory] = useState<InventoryStatus | null>(null)
+  const [activeImage, setActiveImage] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -107,7 +119,25 @@ function ProductPage() {
 
   return (
     <main className="shop">
-      <img className="shop__hero" src="/shop/hero.png" alt="Space Race: 1000 Light-Years tuck box and cards" />
+      <div className="shop__gallery">
+        <img className="shop__hero" src={GALLERY_IMAGES[activeImage].src} alt={GALLERY_IMAGES[activeImage].alt} />
+        {GALLERY_IMAGES.length > 1 && (
+          <div className="shop__thumbs">
+            {GALLERY_IMAGES.map((image, i) => (
+              <button
+                key={image.src}
+                type="button"
+                className={`shop__thumb${i === activeImage ? ' shop__thumb--active' : ''}`}
+                onClick={() => setActiveImage(i)}
+                aria-label={image.alt}
+                aria-pressed={i === activeImage}
+              >
+                <img src={image.src} alt="" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="shop__info">
         <p className="shop__badge">Pre-order — First Edition</p>
         <h1>{PRODUCT_NAME}</h1>
@@ -142,6 +172,29 @@ function ProductPage() {
         ) : (
           <p className="shop__error">The store isn't open yet — check back soon.</p>
         )}
+
+        <section className="shop__policy">
+          <h2>Shipping &amp; returns</h2>
+          <ul>
+            <li>
+              <strong>Cancel anytime before shipment</strong> for a full refund — you're
+              pre-ordering, so there's no rush to decide.
+            </li>
+            <li>
+              <strong>Damaged, defective, or lost in transit:</strong> free replacement or
+              full refund, your choice — no need to send anything back.
+            </li>
+            <li>
+              <strong>Changed your mind after delivery?</strong> Return it within 30 days
+              for a refund. Return shipping is on you; the original shipping charge isn't
+              refunded.
+            </li>
+            <li>
+              <strong>If a ship date slips,</strong> we'll email you before the promised
+              date with the new date and your right to cancel for a full refund.
+            </li>
+          </ul>
+        </section>
       </div>
     </main>
   )
