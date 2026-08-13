@@ -53,10 +53,50 @@ body {
   }
 }
 
+.shop__gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .shop__hero {
   width: 100%;
   border-radius: 16px;
   display: block;
+}
+
+.shop__thumbs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.shop__thumb {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  width: 3.5rem;
+  height: 3.5rem;
+  overflow: hidden;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.shop__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shop__thumb:hover {
+  opacity: 0.85;
+}
+
+.shop__thumb--active {
+  border-color: var(--gold);
+  opacity: 1;
 }
 
 .shop__info {
