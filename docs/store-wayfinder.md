@@ -63,6 +63,7 @@ flowing). Not created yet — see Phase 9/11.
 | Order/fulfillment tracking | **Neon Postgres** `orders` table, webhook-populated, simple internal admin view | This session already has Neon + Resend MCP access, so orders land in Postgres via the Stripe webhook and a confirmation email goes out via Resend. |
 | Business entity | **Fable Designer LLC** (Andrew's MA single-member LLC) | Decided 2026-08-12. Physical-goods fulfillment (inventory, shipping) is **not** a purpose mismatch — Fable Designer already plans to sell printed books, not just deliver digitally, per Andrew. **Still worth flagging:** `/Users/archer/tax-strategy/wiki/entities/fable-designer-llc.md` calls the QSBS-vs-pass-through classification fork the "highest-stakes open decision" in that project — Fable Designer may later convert to a C-corp to start the §1202 exclusion clock around `storybook-studio`'s software/IP, and bundling in an unrelated retail product line (a card game, distinct from the books business) is worth a mention to the tax attorney handling that fork, independent of the physical/digital question. The single-member operating agreement is also still undrafted — worth a broad purpose clause when that gets written. |
 | Stripe account | **Separate account from `storybook-studio`'s**, same LLC | Decided 2026-08-12, revised from an earlier "reuse the same account" plan. `storybook-studio` already has a **live, revenue-bearing** Stripe account under Fable Designer (activated 2026-07 — see `/Users/archer/Programs/storybook-studio/BILLING-READINESS.md`). Converting an *existing* account's business type from individual → LLC triggers Stripe re-verification and, per Stripe's own guidance, **requires a valid EIN to even attempt** — and if verification fails or times out, charges/payouts on that account can be temporarily affected. Not a risk worth taking against someone else's live traffic. A second, dedicated Stripe account for Space Race is standard practice for a business with multiple product lines and carries zero risk to `storybook-studio`. **Resolved 2026-08-12:** Andrew had a pre-existing, genuinely dormant Stripe account ("New business," `acct_1OPdcRCdqO8xw407` — confirmed $0.00 gross volume, $0.00 balance, no payouts ever, business verification never completed) — repurposed that instead of registering a brand-new one. Andrew renamed it to "Space Race: 1000 Light Years" and completed business verification himself (identity, address, banking — an agent can't touch that). Started as **individual/sole proprietor**; upgrade to Fable Designer LLC once the EIN lands, which is low-risk on this account specifically since it'll still have no live traffic by then. |
+| Resend account | **New, separate account** (`andrew.m.archer+spacerace@gmail.com`), not `fabledesigner.com`'s | Decided 2026-08-12. The existing Resend account (used for `storybook-studio`, domain `fabledesigner.com`) is on the **free plan, capped at 1 domain** — adding `spaceexplorer.tech` there would have required upgrading to Pro ($20/mo) just to unlock a second domain slot. A dedicated free account for Space Race avoids that cost and mirrors the Stripe separate-account reasoning (zero risk to Fable Designer's existing email setup). API key scoped to **Sending access** only (not full access) — least privilege, since this account only ever needs to send transactional emails. |
 
 ## Architecture
 
@@ -128,11 +129,12 @@ no in-app purchase questions, no bloating the native bundle. Concretely:
 - **Env vars needed** (names only): `STRIPE_SECRET_KEY`,
   `VITE_STRIPE_PUBLISHABLE_KEY` (client-exposed, `VITE_` prefix required for
   Vite to bundle it into the shop page), `STRIPE_WEBHOOK_SECRET`,
-  `SHIPPO_API_TOKEN`, `RESEND_API_KEY`. **All but `RESEND_API_KEY` are done**
-  — added to Vercel production/preview/development 2026-08-12 (test-mode
-  values for Stripe/Shippo; `DATABASE_URL` points at the Neon project
-  `space-race-store`). `RESEND_API_KEY` waits on the `spaceexplorer.tech`
-  sending domain being verified.
+  `SHIPPO_API_TOKEN`, `RESEND_API_KEY`. **All done** — added to Vercel
+  production/preview/development 2026-08-12 (test-mode values for
+  Stripe/Shippo; `DATABASE_URL` points at the Neon project
+  `space-race-store`; `RESEND_API_KEY` is a Sending-access-only key from the
+  new dedicated Resend account — domain verification is still
+  propagation-pending, so sending won't actually work until that clears).
   **Gotcha:** Vercel snapshots env vars at deploy time — a newly-added var
   doesn't apply to an already-built deployment until it's redeployed
   (`vercel redeploy <url>`, or just push a new commit).
@@ -264,17 +266,17 @@ there's something to market.
 | Phase | What | State |
 |---|---|---|
 | 0 | Plan + this doc | ✅ done (2026-08-12) |
-| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | 🟨 Stripe + Shippo done (2026-08-12) — test-mode keys/tokens live in Vercel prod/preview/dev. Resend domain for `spaceexplorer.tech` still needed. Shippo **live key** needs a manual request to their team (self-serve test keys only) — see Phase 13 |
+| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | ✅ done (2026-08-12) — Stripe/Shippo/Resend keys and tokens all live in Vercel prod/preview/dev. Resend domain verification is DNS-propagation-pending (see below). Shippo/Stripe **live** activation still needed before real launch — see Phase 13 |
 | 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
 | 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
 | 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ code done (2026-08-12) — placeholder hero image (`marketing-card-front.png`), needs real product photography before launch |
 | 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
 | 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — **no flat-rate fallback of any kind**, by design (see below). `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
-| 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; email `from: orders@spaceexplorer.tech` needs that domain verified in Resend first (only `fabledesigner.com` is verified today) |
+| 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; `RESEND_API_KEY` live in Vercel, `orders@spaceexplorer.tech` domain added to Resend with DNS records in place, verification pending propagation (see below) |
 | 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
 | 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and the confirmation email (Resend domain still needed) are what's left |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
 | 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ⬜ |
@@ -330,6 +332,21 @@ Three things learned along the way:
   here is 100% programmatic; manual label-buying access during fulfillment
   isn't gated by that choice either way.
 
+**2026-08-12 Resend domain setup:** `spaceexplorer.tech`'s DNS is on
+**Cloudflare** (detected by Resend via nameserver lookup, confirmed logging
+in). Added 3 records — `resend._domainkey` TXT (DKIM), `send` MX, `send` TXT
+(SPF) — skipping the optional inbound-receiving MX since we only need to
+send. Verification submitted, propagation-pending (Resend says it can take a
+few hours). **Worth knowing:** the domain already carries a **strict DMARC
+policy** (`p=reject; adkim=s`) and a hard-fail root SPF (`v=spf1 -all`) from
+whatever set up `game.spaceexplorer.tech` originally — neither should
+conflict with the new records (different DNS names: `send`/`resend._domainkey`
+vs. root), and DKIM alignment should satisfy DMARC on its own since Resend
+signs with `d=spaceexplorer.tech` matching the `From:` domain exactly. Should
+still be **spot-checked once verified** — a strict DMARC policy is a classic
+cause of "shows verified but emails don't actually arrive," and that failure
+mode wouldn't be obvious from the Resend dashboard alone.
+
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page can ship
 with a Play row that just says "coming soon" until Android roadmap Phase
@@ -373,6 +390,9 @@ Fill in as each is created:
   (self-serve only covers test keys) before go-live
 - Neon project: `space-race-store` (`little-mud-75974419`), console at
   https://console.neon.tech
-- Resend: reusing the existing account — needs a `spaceexplorer.tech` sending
-  domain verified (only `fabledesigner.com` is verified today)
-- Live shop URL: _TBD_ (`https://game.spaceexplorer.tech/shop` once deployed)
+- Resend dashboard: https://resend.com/domains — new dedicated account
+  (`andrew.m.archer+spacerace@gmail.com`), separate from `fabledesigner.com`'s.
+  `spaceexplorer.tech` domain added, DNS records in place, verification
+  propagation-pending as of 2026-08-12
+- Live shop URL: `https://game.spaceexplorer.tech/shop` — merged and deployed
+  2026-08-12 (PR #147)
