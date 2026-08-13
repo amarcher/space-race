@@ -6,6 +6,7 @@ import { sql } from './_lib/db.js'
 import {
   EARLY_SHIP_DATE_LABEL,
   MAIN_SHIP_DATE_LABEL,
+  PRODUCT_NAME,
   UNIT_PRICE_CENTS,
   type ShipWindow,
 } from '../src/shop/constants.js'
@@ -24,6 +25,62 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
     chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
   }
   return Buffer.concat(chunks)
+}
+
+const money = (cents: number) => `$${(cents / 100).toFixed(2)}`
+
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** Receipt lines between the item and the total, in the order they're shown. */
+type ReceiptRow = { label: string; amount: number }
+
+function addressLines(address: Stripe.Address, name: string | null): string[] {
+  return [
+    name,
+    address.line1,
+    address.line2,
+    // "Lexington, MA 02420" — comma after the city only, space before the ZIP.
+    [[address.city, address.state].filter(Boolean).join(', '), address.postal_code]
+      .filter(Boolean)
+      .join(' '),
+    // Only worth stating when it isn't the one country we ship to today.
+    address.country && address.country !== 'US' ? address.country : null,
+  ].filter((line): line is string => Boolean(line && line.trim()))
+}
+
+/** Plain-text fallback. Deliberately avoids column alignment — mail clients
+ *  render text/plain in a proportional font often enough that padded columns
+ *  come out ragged, so each amount just follows its label. */
+function receiptText(rows: ReceiptRow[], totalCents: number, ship: string[], shipDateLine: string) {
+  return [
+    `Thanks for pre-ordering ${PRODUCT_NAME}!`,
+    '',
+    'YOUR ORDER',
+    ...rows.map((row) => `  ${row.label}: ${money(row.amount)}`),
+    `  Total: ${money(totalCents)}`,
+    '',
+    'SHIPPING TO',
+    ...ship.map((line) => `  ${line}`),
+    '',
+    shipDateLine,
+  ].join('\n')
+}
+
+function receiptHtml(rows: ReceiptRow[], totalCents: number, ship: string[], shipDateLine: string) {
+  const cell = 'padding:6px 0;font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#333'
+  const row = (label: string, amount: string, extra = '') =>
+    `<tr><td style="${cell};${extra}">${escapeHtml(label)}</td>` +
+    `<td style="${cell};${extra};text-align:right;white-space:nowrap">${escapeHtml(amount)}</td></tr>`
+  return `<div style="max-width:520px;margin:0 auto">
+<p style="${cell}">Thanks for pre-ordering <strong>${escapeHtml(PRODUCT_NAME)}</strong>!</p>
+<table style="width:100%;border-collapse:collapse">
+${rows.map((r) => row(r.label, money(r.amount))).join('\n')}
+${row('Total', money(totalCents), 'border-top:1px solid #ddd;font-weight:700;color:#000')}
+</table>
+<p style="${cell}"><strong>Shipping to</strong><br>${ship.map(escapeHtml).join('<br>')}</p>
+<p style="${cell}">${escapeHtml(shipDateLine)}</p>
+</div>`
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -96,20 +153,32 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       shipWindow === 'early'
         ? `We'll email tracking info once your copy ships — expected around ${EARLY_SHIP_DATE_LABEL}.`
         : `We'll email tracking info once your copy ships — expected ${MAIN_SHIP_DATE_LABEL}.`
+    // Itemized, because shipping is a live carrier rate that can rival the item
+    // price (a real order came in at $28.79 + $31.59 Express) — a lone "Total"
+    // makes that look like an overcharge. Subtotal comes from Stripe rather
+    // than being recomputed here so the lines always reconcile to what was
+    // actually charged, including any tax Stripe worked out at checkout.
+    const subtotalCents = fullSession.amount_subtotal ?? UNIT_PRICE_CENTS * quantity
+    const taxCents = fullSession.total_details?.amount_tax ?? 0
+    const rows: ReceiptRow[] = [
+      // The greeting right above already names the product — don't repeat it here.
+      { label: `Pre-order — ${quantity} × ${money(UNIT_PRICE_CENTS)}`, amount: subtotalCents },
+      { label: shippingService ? `Shipping (${shippingService})` : 'Shipping', amount: shippingCents },
+    ]
+    // Omitted rather than shown as $0.00 — outside a registered state there's
+    // no tax to report, and the remaining lines still sum to the total.
+    if (taxCents > 0) rows.push({ label: 'Sales tax', amount: taxCents })
+
+    const ship = addressLines(shippingAddress as Stripe.Address, customerName)
+
     await resend.emails.send({
       // TODO: verify a spaceexplorer.tech sending domain in Resend before launch —
       // see docs/store-wayfinder.md Phase 1.
       from: 'Space Race <orders@spaceexplorer.tech>',
       to: customerEmail,
       subject: 'Your Space Race pre-order is confirmed',
-      text: [
-        'Thanks for pre-ordering Space Race: 1000 Light-Years!',
-        '',
-        `Quantity: ${quantity}`,
-        `Total: $${(amountTotal / 100).toFixed(2)}`,
-        '',
-        shipDateLine,
-      ].join('\n'),
+      text: receiptText(rows, amountTotal, ship, shipDateLine),
+      html: receiptHtml(rows, amountTotal, ship, shipDateLine),
     })
   }
 }
