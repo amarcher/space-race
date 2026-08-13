@@ -67,6 +67,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.status(200).json({ type: 'object', value: { succeeded: true } })
 }
 
+// Stripe rejects a 6th element outright ("Array shipping_options exceeded
+// maximum 5 allowed elements"), but Shippo routinely quotes 11+ rates for a US
+// address, so some selection is forced on us.
+const STRIPE_MAX_SHIPPING_OPTIONS = 5
+
+/** Pick which quoted rates to show, cheapest first.
+ *
+ *  Taking the 5 cheapest looks fair but isn't: for most addresses they're all
+ *  ground services within a couple of dollars of each other, so a buyer who
+ *  wants it fast has no way to pay for that. Instead take the cheapest rate at
+ *  each distinct delivery speed first — every speed the carriers actually
+ *  offer stays on the table, at its best price — then spend any leftover slots
+ *  on the next cheapest rates. Redundant near-duplicates (a pricier service
+ *  arriving the same day as a cheaper one) are what get dropped.
+ */
+function selectRates(all: Array<Record<string, unknown>>) {
+  const byPrice = [...all].sort((a, b) => Number(a.amount) - Number(b.amount))
+
+  const picked: Array<Record<string, unknown>> = []
+  const seenSpeeds = new Set<string>()
+  for (const rate of byPrice) {
+    if (picked.length >= STRIPE_MAX_SHIPPING_OPTIONS) break
+    // Rates with no estimate share one bucket rather than each claiming a slot.
+    const speed = String(rate.estimated_days ?? 'unknown')
+    if (seenSpeeds.has(speed)) continue
+    seenSpeeds.add(speed)
+    picked.push(rate)
+  }
+  for (const rate of byPrice) {
+    if (picked.length >= STRIPE_MAX_SHIPPING_OPTIONS) break
+    if (!picked.includes(rate)) picked.push(rate)
+  }
+
+  return picked.sort((a, b) => Number(a.amount) - Number(b.amount))
+}
+
 async function liveShippingOptions(address: ShippoAddress, quantity: number) {
   // No placeholder/flat-rate fallback, ever — a fake accepted rate is a real
   // rate we'd be on the hook for honoring. If Shippo can't quote (missing
@@ -113,10 +149,7 @@ async function liveShippingOptions(address: ShippoAddress, quantity: number) {
   }
 
   const shipment = (await response.json()) as { rates?: Array<Record<string, unknown>> }
-  const rates = (shipment.rates ?? [])
-    .filter((rate) => rate.amount)
-    .sort((a, b) => Number(a.amount) - Number(b.amount))
-    .slice(0, 3)
+  const rates = selectRates((shipment.rates ?? []).filter((rate) => rate.amount))
 
   if (!rates.length) {
     throw new Error('No Shippo rates returned')
