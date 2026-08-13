@@ -19,7 +19,7 @@ const PRICE_LABEL = (UNIT_PRICE_CENTS / 100).toFixed(2)
 const GALLERY_IMAGES = [
   {
     src: '/shop/hero.jpg',
-    alt: 'The Space Race: 1000 Light-Years tuck box, rulebook, and a spread of illustrated cards',
+    alt: 'Everything in the box, laid out: the Space Race: 1000 Light-Years tuck box, rulebook, and the full deck — distance cards from 25 to 200, hazards, repairs, and immunities',
   },
   {
     src: '/shop/box-closeup.jpg',
