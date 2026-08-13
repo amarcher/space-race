@@ -133,6 +133,11 @@ async function liveShippingOptions(address: ShippoAddress, quantity: number) {
           amount: Math.round(Number(rate.amount) * 100),
           currency: CURRENCY,
         },
+        // Separately-stated at real carrier cost — lets Stripe Tax apply each
+        // state's actual shipping-taxability rules (e.g. exempt in MA per DOR
+        // Directive 98-5) instead of defaulting to untaxed everywhere.
+        tax_code: 'txcd_92010001',
+        tax_behavior: 'exclusive' as const,
         ...(estimatedDays
           ? {
               delivery_estimate: {

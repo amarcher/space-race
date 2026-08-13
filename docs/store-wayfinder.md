@@ -99,6 +99,46 @@ flat inventory number can no longer express when an order ships:
 - Confirmation email's ship-date line is tailored to the assigned
   `ship_window` rather than a single hardcoded date.
 
+## Sales tax (2026-08-13)
+
+Decided: enable Stripe Tax, scoped to Massachusetts only.
+
+- **Massachusetts nexus is certain** — Andrew operates from Lexington, MA, so
+  physical-presence nexus applies regardless of volume. **Every other state
+  is out of scope for now**: even selling the full 105-unit sellable pool at
+  $34.99 is ~$3,675 in revenue, nowhere near any state's economic-nexus
+  threshold (typically $100k / 200 transactions). Revisit only if volume or
+  reach (e.g. Amazon/retail distribution) changes materially.
+- **MA facts** (researched 2026-08-13, `/research` — Mass.gov and DOR primary
+  sources): flat **6.25%** statewide, no local add-on. The card game is
+  ordinary taxable tangible personal property — no applicable exemption.
+  Shipping is **exempt** per **DOR Directive 98-5** as long as it's
+  separately stated as its own line item and reflects actual delivery cost —
+  which this checkout already does via live Shippo rates, so no design
+  change needed there.
+- **Implementation**: `automatic_tax: { enabled: true }` on the Checkout
+  Session (`web/api/create-checkout-session.ts`), `tax_code: 'txcd_99999999'`
+  (General – Tangible Goods) + `tax_behavior: 'exclusive'` on the product line
+  item, and `tax_code: 'txcd_92010001'` (standard shipping) + `exclusive` on
+  every shipping rate (both the placeholder in `create-checkout-session.ts`
+  and the live Shippo-derived ones in `web/api/shipping-rates.ts`) so Stripe
+  applies each state's real shipping-taxability rules rather than defaulting
+  untaxed. Safe to ship live now — **Stripe Tax calculates $0 tax in any
+  jurisdiction without an active registration**, so this doesn't start
+  charging anyone until the next step happens.
+- **Registration is the remaining blocker**, and it's sequenced behind the
+  Fable Designer LLC's EIN (SS-4 faxed 2026-08-11, response expected
+  ~2026-08-17/18 — see `/Users/archer/tax-strategy/wiki/entities/fable-designer-llc.md`).
+  Neither Fable Designer LLC nor `storybook-studio` has an existing MA sales
+  tax permit. Registering now under the current sole-proprietor Stripe
+  account (SSN-based) would mean re-registering under the LLC's own EIN once
+  it lands — MassTaxConnect treats that as a new registration, not an
+  amendment. **So: wait for the EIN, register the LLC on MassTaxConnect
+  (Andrew's own action — a state tax registration isn't something to
+  automate), then add the resulting active MA registration to Stripe**
+  (Dashboard → Settings → Tax → Registrations, or the Tax Registrations API).
+  Blocks Phase 10 fully closing, but nothing else in the launch depends on it.
+
 ## Decisions locked (2026-08-12)
 
 | Decision | Choice | Why |
@@ -326,7 +366,7 @@ there's something to market.
 | 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; `RESEND_API_KEY` live in Vercel, `orders@spaceexplorer.tech` domain added to Resend with DNS records in place, verification pending propagation (see below) |
 | 8 | Inventory cap guard (118 minus reserves) + early/January ship-window split | ✅ done (2026-08-12, extended 2026-08-13) — `SELLABLE_INVENTORY = 118 - 5 - 8 = 105` and `EARLY_BATCH_SELLABLE = 10` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts`; `ship_window` decided at session creation, persisted via webhook, surfaced live via `GET /api/inventory-status` and shown on the shop page |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
-| 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
+| 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
 | 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
@@ -408,9 +448,9 @@ whatever lands.
 - ~~**Per-order quantity cap**~~ — resolved by implementation: capped at 3
   (`MAX_QTY_PER_ORDER` in `web/src/shop/constants.ts`). Easy to change before
   launch if that feels wrong.
-- ~~**Inventory reserve**~~ — resolved by implementation: 5 units held back,
-  113 sellable (`INVENTORY_RESERVE` / `SELLABLE_INVENTORY`, same file). Same —
-  easy to tune.
+- ~~**Inventory reserve**~~ — resolved by implementation: 5 units held back
+  generally, another 8 held back as gifts (see below), 105 sellable
+  (`INVENTORY_RESERVE` / `SELLABLE_INVENTORY`, same file). Same — easy to tune.
 - ~~**Early-batch fulfillment**~~ — resolved 2026-08-13, see "Early-batch
   fulfillment & gift reserve" above: two-pass, 10 sellable from the September
   batch (8 held back as gifts), whole orders never split across windows.
@@ -420,8 +460,9 @@ whatever lands.
   paperwork and duties-at-checkout are extra complexity (buyer typically pays
   duties on delivery, not at checkout, unless DDP rates are enabled) — left
   out of the v1 build rather than decided against permanently.
-- **Sales tax** — likely need to collect in your home state at minimum;
-  Stripe Tax can automate this for a small per-transaction fee. Not decided.
+- ~~**Sales tax**~~ — resolved 2026-08-13, see "Sales tax" below: Stripe Tax
+  enabled in code, scoped to Massachusetts; actual collection is blocked on
+  registering with MassTaxConnect once the LLC's EIN lands.
 - **Returns/refund policy** — needs actual copy before launch.
 - **Amazon FBA/FBM + GS1 barcode** — researched and deliberately deferred
   (see the dedicated section above): fee load makes FBA a poor fit for 118
