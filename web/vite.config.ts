@@ -37,6 +37,18 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2}', 'favicon.svg', 'icon-*.png'],
         globIgnores: ['**/cards/**', '**/sfx/**', '**/ui/**', '**/print-sheet.html'],
         navigateFallback: '/index.html',
+        // /shop/admin is a NESTED path rewritten (by vercel.json) to a flat
+        // shop-admin.html file. Workbox's precache-route URL matching only
+        // bridges clean URLs by adding/removing ".html" on the SAME path
+        // (so /shop -> shop.html and /get -> get.html resolve fine) — it can't
+        // bridge a path segment to a hyphenated filename. Without this denylist
+        // entry, once the service worker is controlling the page (any repeat
+        // visit), a /shop/admin navigation misses the precache route, falls
+        // through to the catch-all navigateFallback, and silently serves the
+        // GAME instead of the admin login. Denylisting it here means the
+        // request isn't intercepted at all — it goes to the network, where
+        // Vercel's own rewrite handles it correctly.
+        navigateFallbackDenylist: [/\/shop\/admin\/?$/],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
