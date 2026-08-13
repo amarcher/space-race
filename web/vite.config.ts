@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -77,4 +78,15 @@ export default defineConfig({
     }),
   ],
   server: { port: 5180, open: true },
+  build: {
+    // shop.html is a second, independent entry (web/src/shop/*) — separate from
+    // the game bundle so Stripe/checkout JS never ships inside the iOS/Android
+    // apps. See docs/store-wayfinder.md "Architecture".
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        shop: fileURLToPath(new URL('./shop.html', import.meta.url)),
+      },
+    },
+  },
 })

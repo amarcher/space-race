@@ -9,8 +9,9 @@ now exists in **three forms**:
    (107-card poker deck, tuck box, illustrated rulebook). First production run
    ordered 2026-07-23.
 
-Possible next chapter (TBD): use the app and website as a sales channel for
-the physical game once copies are in hand.
+Next chapter, underway: sell the physical game through the website
+(Stripe + live shipping rates) and cross-promote it from the apps. Plan and
+progress tracker: [`docs/store-wayfinder.md`](./docs/store-wayfinder.md).
 
 ## Live links
 
