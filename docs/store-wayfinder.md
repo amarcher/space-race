@@ -269,7 +269,7 @@ there's something to market.
 | 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
 | 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ code done (2026-08-12) — placeholder hero image (`marketing-card-front.png`), needs real product photography before launch |
 | 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
-| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — falls back to a flat $5.99 placeholder only if `SHIPPO_API_TOKEN` is ever unset. `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
+| 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — **no flat-rate fallback of any kind**, by design (see below). `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
 | 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; email `from: orders@spaceexplorer.tech` needs that domain verified in Resend first (only `fabledesigner.com` is verified today) |
 | 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
@@ -287,36 +287,48 @@ open yet" instead of crashing).
 
 **2026-08-12 backend verification** (against the deployed PR preview, real
 Stripe test mode, not curl-against-localhost): `create-checkout-session`
-creates a real session; `shipping-rates` correctly falls back to the $5.99
-placeholder (Shippo not configured yet) and updates the session via
-`sessions.update()`; `stripe-webhook` — with a **genuinely valid signature**,
-built via `Stripe.webhooks.generateTestHeaderString()` rather than bypassing
+creates a real session; `shipping-rates` correctly quoted real live carrier
+rates and updated the session via `sessions.update()`; `stripe-webhook` —
+with a **genuinely valid signature**, built via
+`Stripe.webhooks.generateTestHeaderString()` rather than bypassing
 verification — inserted a correct row into Neon (right quantity, price,
 shipping amount). Confirms the raw-body signature handling actually works,
-not just that the code compiles.
+not just that the code compiles. (A leftover synthetic-event test order was
+deleted afterward with explicit confirmation, since deleting needs a
+destructive SQL statement.)
 
-Two things learned along the way:
-- **Vercel snapshots env vars at deploy time.** Adding `STRIPE_WEBHOOK_SECRET`
-  to an already-built preview didn't take effect — the running deployment
-  had to be redeployed (`vercel redeploy <url>`) before it picked up the new
-  var. Worth remembering any time a new env var is added to an existing
-  deployment.
+**No flat-rate fallback, ever — confirmed by design, not just by accident.**
+The first pass had the shipping-rates endpoint fall back to a flat $5.99
+placeholder whenever `SHIPPO_API_TOKEN` was unset, so the flow was testable
+before that account existed. Andrew flagged the real risk once Shippo was
+live: a missing/revoked/misconfigured token would then silently *accept* a
+made-up rate a customer could pay with, while every other Shippo failure
+(401, network error, no rates) already correctly rejected. Fixed so every
+failure mode throws and gets caught by the same reject path — verified live:
+a real address still returns real rates, a garbage address now rejects
+instead of fake-accepting. The principle for any future change here: a
+rejected checkout is always better than a rate we didn't actually mean to
+honor.
+
+Three things learned along the way:
+- **Vercel snapshots env vars at deploy time.** Adding a new env var to an
+  already-built deployment doesn't take effect until it's redeployed
+  (`vercel redeploy <url>`, or just push a new commit) — happened twice this
+  session (`STRIPE_WEBHOOK_SECRET`, then `SHIPPO_API_TOKEN`).
 - **Driving Stripe's actual payment iframe via browser-automation clicks
   didn't work** — coordinates landed, but keystrokes never reached the
   iframe's inputs, and the accessibility tree can't see into it at all
   (cross-origin). Reads as intentional hardening on Stripe's part, not a bug
   to route around. The backend verification above (real session + real
-  signature, driven via direct API calls) covers what actually matters —
-  full UI click-through with a real test card is still open, but lower
-  priority than it seemed before this session.
-- **A leftover test order is sitting in Neon** — session
-  `cs_test_a1fiqJH4...`, empty email, `status='paid'` but no real payment
-  ever happened (synthetic webhook event). Should be deleted before launch;
-  left alone for now since deleting needs a destructive SQL statement.
-
-Real Shippo rates (vs. the placeholder) and a full UI click-through with a
-Stripe test card are still open — both gated on Phase 1 (Shippo account +
-actually finishing the checkout UI test).
+  signature + real Shippo rates, all driven via direct API calls) covers
+  what actually matters — full UI click-through with a real test card is
+  still open, but lower priority than it seemed before this session.
+- **Shippo's onboarding "plan" picker** (Starter vs. Pro vs. API) is very
+  likely just first-run dashboard personalization, not a different account
+  tier — both free tiers list identical 30-labels/month limits and the same
+  "best rates with top carriers" line. Picked **API** since the integration
+  here is 100% programmatic; manual label-buying access during fulfillment
+  isn't gated by that choice either way.
 
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page can ship
