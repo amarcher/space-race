@@ -30,8 +30,9 @@ flowing). Not created yet — see Phase 9/11.
   additive, since they serve different purposes. **Sellable total: 105**
   (`SELLABLE_INVENTORY` in `web/src/shop/constants.ts`). See "Early-batch
   fulfillment & gift reserve" below.
-- **Price: $34.99.** Floor considered was $30, ceiling $40; user picked
-  $34.99 as the sweet spot for a card game people will actually pay for.
+- ~~**Price: $34.99.**~~ **Repriced to $28.79 on 2026-08-13** — see
+  "Pricing" below. The original $34.99 pick (floor $30, ceiling $40, "sweet
+  spot for a card game people will actually pay for") is superseded.
 - **Box: 8.1 oz, 3.55" × 2.55" × 1.75"** (measured 2026-08-12 on one of the 4
   proof copies) — both weight and dimensions now confirmed, unblocking
   accurate Shippo rating. Comfortably under the 1 lb band most carriers price
@@ -41,23 +42,22 @@ flowing). Not created yet — see Phase 9/11.
   standard 166 dim-weight divisor that's under 2 oz of dimensional weight, so
   actual weight (8.1 oz) governs pricing on every carrier; DIM weight isn't a
   factor at this size.
-- **Illustrative margin** (pre-shipping, shipping is pass-through at live
-  carrier cost so it shouldn't eat margin either way):
-  | | Early batch | Main batch | Blended (118 sold) |
+- **Illustrative margin at $28.79** (pre-shipping, shipping is pass-through
+  at live carrier cost so it shouldn't eat margin either way; blended cost
+  weighted by the 10 early / 95 main sellable split, not the raw 18/100
+  batch sizes, since the 8 gift + 5 general reserve units are never sold):
+  | | Early batch | Main batch | Blended (105 sellable) |
   |---|---|---|---|
-  | Price | $34.99 | $34.99 | $34.99 |
-  | Cost | $30.00 | $18.50 | $20.25 |
-  | Gross margin | $4.99 (14%) | $16.49 (47%) | $14.74/unit avg |
-  | − Stripe fee (~2.9%+$0.30) | −$1.32 | −$1.32 | −$1.32 |
+  | Price | $28.79 | $28.79 | $28.79 |
+  | Cost | $30.00 | $18.50 | $19.60 |
+  | Gross margin | **−$1.21 (−4%)** | $10.29 (36%) | $9.19/unit avg |
+  | − Stripe fee (~2.9%+$0.30) | −$1.13 | −$1.13 | −$1.13 |
   | − packaging (mailer/tape/label, est.) | −$1.00 | −$1.00 | −$1.00 |
-  | **Net illustrative margin** | **~$2.67 (8%)** | **~$14.17 (40%)** | **~$12.42/unit (35%)** |
+  | **Net illustrative margin** | **~−$3.34 (−12%)** | **~$8.16 (28%)** | **~$7.06/unit (25%)** |
 
-  Packaging cost estimate is firmer now that weight is known (8.1 oz single
-  unit, a bubble mailer stays cheap at that weight) but still a placeholder
-  until dimensions and an actual Shippo rate are in hand — see Open
-  decisions. The early batch is basically break-even; treat it as a real
-  fulfillment dry-run, not the profit driver. The January batch is where the
-  margin is.
+  **The September batch sells at a loss** — a deliberate outcome of the
+  pricing decision below, not an error. The January batch still carries
+  healthy margin.
 
 ## Early-batch fulfillment & gift reserve (2026-08-13)
 
@@ -98,6 +98,56 @@ flat inventory number can no longer express when an order ships:
   inventory guard already runs.
 - Confirmation email's ship-date line is tailored to the assigned
   `ship_window` rather than a single hardcoded date.
+
+## Pricing (2026-08-13)
+
+Repriced from $34.99 to **$28.79**. Andrew's reasoning: the game is also
+buyable today as a one-off print-on-demand order directly from **The Game
+Crafter** (the same manufacturer this print run comes from), and this store
+shouldn't charge more than that unless it's offering something TGC isn't.
+Speed was the candidate justification — TGC's own regular-production
+estimate for a fresh single-copy order (checked 2026-08-13, shipped to the
+137 Woburn St address) was **~32 days out (ship date 2026-09-14)** — but the
+September batch here lands on essentially the same timeline (2026-09-10) and
+the January batch is *slower*, months out. With no real speed edge on either
+batch, charging a premium over TGC's own price "felt a little dishonest" —
+Andrew's words — for a project whose near-term goal is disseminating the
+game, not making money on it. **Decided: one price for everyone, not split
+by ship window** — a single-tier price was simpler and matched the intent
+better than engineering a two-price system to reward a speed advantage that,
+on reflection, barely exists.
+
+**The derivation** (TGC checkout screenshot, single item to the Lexington MA
+address, 2026-08-13):
+
+| | Amount |
+|---|---|
+| TGC item price | $28.22 |
+| TGC "Taxes & Fees" (undocumented composition — see below) | $2.35 |
+| TGC shipping (separately stated, excluded from this comparison) | $7.01 |
+| TGC grand total | $37.58 |
+
+`/research` (against help.thegamecrafter.com) confirmed TGC does collect
+sales tax on US orders, but **could not find any public documentation
+itemizing what "Taxes & Fees" actually contains** — no tax engine is named,
+and TGC's published $0.89/copy "handling fee" appears to already be baked
+into the item price rather than charged separately, per their bulk-pricing
+docs. So the split below is Andrew's own estimate, not a sourced fact:
+assume MA tax applies to the item price only (6.25% × $28.22 = **$1.76**,
+consistent with the same shipping-is-separately-stated-and-exempt logic this
+store already applies to itself under DOR Directive 98-5), leaving **$0.59**
+as TGC's own non-tax fee. Added to the item price: $28.22 + $0.59 =
+**$28.81** — what a unit "costs" apples-to-apples with TGC, before either
+store's own tax/shipping is calculated at checkout. Andrew picked **$28.79**,
+a few cents under that computed ceiling, to stay safely at-or-below TGC's
+cost even given the estimation uncertainty in the tax/fee split (the
+item+shipping tax-base alternative would put the fee at only $0.15, i.e. a
+$28.37 ceiling — $28.79 sits between the two estimates, closer to the
+higher one).
+
+Implementation: `UNIT_PRICE_CENTS = 2879` in `web/src/shop/constants.ts`,
+same single source of truth used by the checkout session, the confirmation
+email, and all on-page copy — no other code changes needed.
 
 ## Sales tax (2026-08-13)
 

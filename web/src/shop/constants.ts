@@ -1,5 +1,9 @@
 export const PRODUCT_NAME = 'Space Race: 1000 Light-Years — First Edition'
-export const UNIT_PRICE_CENTS = 3499
+// Priced at parity with ordering a single copy from The Game Crafter directly
+// (their manufacturing/handling cost, tax excluded — see docs/store-wayfinder.md
+// "Pricing" for the derivation) rather than for margin. Sells at a loss on the
+// September batch specifically; see the same doc section.
+export const UNIT_PRICE_CENTS = 2879
 export const CURRENCY = 'usd'
 export const MAX_QTY_PER_ORDER = 3
 
