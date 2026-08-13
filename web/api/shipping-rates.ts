@@ -6,14 +6,12 @@ import { CURRENCY, parcelForQuantity } from '../src/shop/constants.js'
 const SHIPPO_API_TOKEN = process.env.SHIPPO_API_TOKEN
 const SHIPPO_API_BASE = 'https://api.goshippo.com'
 
-// TODO before launch: replace with the real ship-from address (see
-// docs/store-wayfinder.md Phase 1/9).
 const FROM_ADDRESS = {
   name: 'Space Race',
-  street1: 'TODO',
-  city: 'TODO',
-  state: 'TODO',
-  zip: 'TODO',
+  street1: '137 Woburn Street',
+  city: 'Lexington',
+  state: 'MA',
+  zip: '02420',
   country: 'US',
 }
 
