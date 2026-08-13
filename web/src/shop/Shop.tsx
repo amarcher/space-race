@@ -1,7 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
-import { MAX_QTY_PER_ORDER, PRODUCT_NAME, UNIT_PRICE_CENTS } from './constants'
+import {
+  EARLY_BATCH_SELLABLE,
+  EARLY_SHIP_DATE_LABEL,
+  MAIN_SHIP_DATE_LABEL,
+  MAX_QTY_PER_ORDER,
+  PRODUCT_NAME,
+  UNIT_PRICE_CENTS,
+} from './constants'
+
+type InventoryStatus = { earlyRemaining: number; sellableRemaining: number; earlySoldOut: boolean }
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
 const stripePromise = PUBLISHABLE_KEY ? loadStripe(PUBLISHABLE_KEY) : null
@@ -18,9 +27,9 @@ function Confirmation() {
     <main className="shop shop--confirm">
       <h1>You're in! 🚀</h1>
       <p>
-        Thanks for pre-ordering <strong>{PRODUCT_NAME}</strong>. A receipt is on its
-        way to your email now, and we'll send tracking info once your copy ships —
-        expected mid-January 2027 (some early orders may ship sooner).
+        Thanks for pre-ordering <strong>{PRODUCT_NAME}</strong>. A confirmation email
+        is on its way now with your exact ship window, and we'll send tracking info
+        once your copy actually ships.
       </p>
       <a className="shop__link" href="/">
         Back to the game
@@ -32,6 +41,23 @@ function Confirmation() {
 function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [inventory, setInventory] = useState<InventoryStatus | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/inventory-status')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: InventoryStatus | null) => {
+        if (!cancelled && body) setInventory(body)
+      })
+      .catch(() => {
+        // Live badge is a nice-to-have — leave it unset on failure rather than
+        // blocking the product page.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const fetchClientSecret = useCallback(async () => {
     const res = await fetch('/api/create-checkout-session', {
@@ -87,8 +113,14 @@ function ProductPage() {
         <h1>{PRODUCT_NAME}</h1>
         <p className="shop__desc">
           The physical card game — a 107-card poker deck, illustrated tuck box, and
-          rulebook. Ships starting mid-January 2027 (some early orders may ship
-          sooner).
+          rulebook.
+        </p>
+        <p className="shop__ship-window">
+          {inventory == null
+            ? `Ships starting ${MAIN_SHIP_DATE_LABEL} (some early orders may ship sooner).`
+            : inventory.earlySoldOut
+              ? `Ships ${MAIN_SHIP_DATE_LABEL}.`
+              : `${inventory.earlyRemaining} of ${EARLY_BATCH_SELLABLE} early-ship spots left — order now and ship around ${EARLY_SHIP_DATE_LABEL}. Everyone else ships ${MAIN_SHIP_DATE_LABEL}.`}
         </p>
         <p className="shop__price">${PRICE_LABEL}</p>
 

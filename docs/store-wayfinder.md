@@ -23,6 +23,13 @@ flowing). Not created yet — see Phase 9/11.
   | Early | 18 | 2026-09-10 | ~$30.00 | $540 |
   | Main | 100 | 2027-01-10 | ~$18.50 | $1,850 |
   | **Combined** | **118** | — | **$20.25 blended** | **$2,390** |
+
+  Of the 118, **8 units are reserved as Andrew's personal Christmas gifts**
+  (carved from the September batch, pulled on arrival, never in the sellable
+  pool) and **5 units are the general defect/replacement reserve** — both
+  additive, since they serve different purposes. **Sellable total: 105**
+  (`SELLABLE_INVENTORY` in `web/src/shop/constants.ts`). See "Early-batch
+  fulfillment & gift reserve" below.
 - **Price: $34.99.** Floor considered was $30, ceiling $40; user picked
   $34.99 as the sweet spot for a card game people will actually pay for.
 - **Box: 8.1 oz, 3.55" × 2.55" × 1.75"** (measured 2026-08-12 on one of the 4
@@ -51,6 +58,46 @@ flowing). Not created yet — see Phase 9/11.
   decisions. The early batch is basically break-even; treat it as a real
   fulfillment dry-run, not the profit driver. The January batch is where the
   margin is.
+
+## Early-batch fulfillment & gift reserve (2026-08-13)
+
+Resolved via `/grilling`. Two-pass fulfillment: ship the earliest paid orders
+as soon as the September batch (18 units) lands 2026-09-10, rather than
+holding every order for one clean January pass. The doc already framed the
+September batch as "a real fulfillment dry-run, not the profit driver" — that
+only pays off if it's actually used to ship real orders while volume is low
+enough to be forgiving of mistakes. Early buyers also get rewarded visibly for
+pre-ordering sight-unseen.
+
+Andrew also wants **8 of the 18 September units held back as personal
+Christmas gifts** — pulled off the shelf the moment the batch arrives,
+independent of the paid-order shipping queue (they were never in the sellable
+pool, so nothing about fulfilling paid orders blocks that). This reserve is
+**additive** to the existing 5-unit general defect/replacement reserve, not a
+replacement for it — different purposes, so both come off the top:
+
+- September batch: 18 total − 8 gift reserve = **10 sellable** (`EARLY_BATCH_SELLABLE`)
+- Combined pool: 118 − 5 general reserve − 8 gift reserve = **105 sellable** (`SELLABLE_INVENTORY`)
+
+Implementation, since two-pass fulfillment plus the carve-out means a single
+flat inventory number can no longer express when an order ships:
+
+- `orders.ship_window` (`'early' | 'january'`) — decided once, at
+  `create-checkout-session` time (stashed in the Stripe session's `metadata`
+  so it can't drift between session creation and the webhook firing later),
+  based on the running total of non-cancelled `early`-window quantity against
+  the 10-unit cap.
+- **No order splitting** — if an order's quantity would push the early-window
+  running total past 10, the *whole* order ships in January, matching how
+  Andrew's own print provider handles the same situation.
+- `GET /api/inventory-status` — live `{ earlyRemaining, sellableRemaining,
+  earlySoldOut }`, powering the shop page's live copy: "X of 10 early-ship
+  spots left — ships around Sept 10," flipping to "Ships mid-January 2027"
+  once early slots are gone. A genuine scarcity signal, not manufactured —
+  there really are only 10 early slots — and it's the same query the
+  inventory guard already runs.
+- Confirmation email's ship-date line is tailored to the assigned
+  `ship_window` rather than a single hardcoded date.
 
 ## Decisions locked (2026-08-12)
 
@@ -114,13 +161,17 @@ no in-app purchase questions, no bloating the native bundle. Concretely:
     status                    text not null default 'paid', -- paid | fulfilled | cancelled | refunded
     tracking_number           text,
     fulfilled_at              timestamptz,
-    notes                     text
+    notes                     text,
+    ship_window               text not null -- 'early' | 'january', see below
   );
   ```
   Inventory guard: before creating a checkout session, sum `quantity` across
   non-cancelled orders and reject/cap if it would exceed the sellable pool
-  (113 = 118 minus a 5-unit reserve, both tunable constants — see Open
-  decisions). No separate inventory table needed at this scale.
+  (105 = 118 minus a 5-unit general reserve minus an 8-unit gift reserve, all
+  tunable constants in `web/src/shop/constants.ts` — see "Early-batch
+  fulfillment & gift reserve" above). The same query also sums `early`-window
+  quantity against the 10-unit September cap to decide the new order's
+  `ship_window`. No separate inventory table needed at this scale.
 - **Admin/fulfillment view:** start as direct SQL against Neon (via the Neon
   MCP tools already available in Claude Code sessions, or the Neon console)
   to list unfulfilled orders and mark them shipped + add tracking. A real
@@ -273,7 +324,7 @@ there's something to market.
 | 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
 | 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — **no flat-rate fallback of any kind**, by design (see below). `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
 | 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; `RESEND_API_KEY` live in Vercel, `orders@spaceexplorer.tech` domain added to Resend with DNS records in place, verification pending propagation (see below) |
-| 8 | Inventory cap guard (118 minus reserve) | ✅ done (2026-08-12) — implemented as `SELLABLE_INVENTORY = 118 - 5 = 113` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts` before every session |
+| 8 | Inventory cap guard (118 minus reserves) + early/January ship-window split | ✅ done (2026-08-12, extended 2026-08-13) — `SELLABLE_INVENTORY = 118 - 5 - 8 = 105` and `EARLY_BATCH_SELLABLE = 10` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts`; `ship_window` decided at session creation, persisted via webhook, surfaced live via `GET /api/inventory-status` and shown on the shop page |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
 | 10 | Sales tax decision + (if yes) Stripe Tax enabled | ⬜ |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
@@ -360,10 +411,9 @@ whatever lands.
 - ~~**Inventory reserve**~~ — resolved by implementation: 5 units held back,
   113 sellable (`INVENTORY_RESERVE` / `SELLABLE_INVENTORY`, same file). Same —
   easy to tune.
-- **Early-batch fulfillment** — ship the first ~18 paid orders as soon as the
-  September batch arrives (faster for early buyers, two fulfillment passes),
-  or hold everything for one clean January pass? Affects the ship-date copy
-  shown at checkout.
+- ~~**Early-batch fulfillment**~~ — resolved 2026-08-13, see "Early-batch
+  fulfillment & gift reserve" above: two-pass, 10 sellable from the September
+  batch (8 held back as gifts), whole orders never split across windows.
 - **International shipping** — defaulted to **US-only** for now
   (`ALLOWED_SHIP_COUNTRIES` in `web/src/shop/constants.ts`, a one-line
   change to expand). Shippo/Stripe both support international, but customs

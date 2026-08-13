@@ -4,6 +4,7 @@ import { sql } from './_lib/db.js'
 import {
   ALLOWED_SHIP_COUNTRIES,
   CURRENCY,
+  EARLY_BATCH_SELLABLE,
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
   SELLABLE_INVENTORY,
@@ -24,8 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const [{ sold }] = await sql`
-    select coalesce(sum(quantity), 0)::int as sold
+  const [{ sold, earlySold }] = await sql`
+    select
+      coalesce(sum(quantity), 0)::int as sold,
+      coalesce(sum(quantity) filter (where ship_window = 'early'), 0)::int as "earlySold"
     from orders
     where status != 'cancelled'
   `
@@ -33,6 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(409).json({ error: "Sorry — we don't have enough copies left in this pre-order pool." })
     return
   }
+
+  // Whole order ships in the same window — never split a single order across
+  // the September and January batches. See docs/store-wayfinder.md.
+  const shipWindow = earlySold + quantity <= EARLY_BATCH_SELLABLE ? 'early' : 'january'
 
   const origin = (req.headers.origin as string | undefined) ?? `https://${req.headers.host}`
 
@@ -42,6 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = await stripe.checkout.sessions.create({
     ui_mode: 'embedded_page',
     mode: 'payment',
+    metadata: { ship_window: shipWindow },
     permissions: { update_shipping_details: 'server_only' },
     shipping_address_collection: { allowed_countries: ALLOWED_SHIP_COUNTRIES },
     shipping_options: [
