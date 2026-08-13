@@ -139,6 +139,47 @@ Decided: enable Stripe Tax, scoped to Massachusetts only.
   (Dashboard → Settings → Tax → Registrations, or the Tax Registrations API).
   Blocks Phase 10 fully closing, but nothing else in the launch depends on it.
 
+## Returns/refund policy (2026-08-13)
+
+Resolved via `/grilling`, grounded in `/research` against FTC and Massachusetts
+primary sources (16 CFR 435, 940 CMR 3.13/3.15). Andrew's recollection of a
+Massachusetts default-refund-window statute was outdated — M.G.L. c. 93 §14
+was repealed in 2003; the live rule (940 CMR 3.13(4)) has **no mandated
+minimum return window**, only a requirement to clearly and conspicuously
+disclose whatever policy is chosen, before the sale completes. Policy:
+
+- **Defective, damaged-on-arrival, or lost in transit**: buyer's choice of a
+  free replacement (from the general 5-unit reserve) or a full refund — no
+  return shipping required. A $35 item isn't worth the handling cost of
+  inspecting a returned defective copy before honoring the claim.
+- **Buyer's remorse** (not defective): returnable within 30 days of delivery
+  for a refund; buyer pays return shipping; original shipping charge is
+  non-refundable. A no-returns policy would be legal (MA has no floor) but
+  risks more in trust than the occasional return costs, for a first-time
+  hobby brand's debut product.
+- **Pre-order cancellation before shipment**: full refund, anytime, no
+  questions asked — nothing's been consumed yet, and the existing
+  `status != 'cancelled'` inventory accounting already handles this
+  correctly with no code changes needed.
+- **Ship-date slips are not just customer service — they're a legal
+  obligation.** FTC's Mail/Internet/Telephone Order Rule (16 CFR 435)
+  requires proactively notifying affected buyers by the originally promised
+  date: a revised date (buyer can still cancel for a full refund anytime
+  before shipment; silence counts as consent only if the new date is ≤30
+  days later), or — if the delay exceeds 30 days past the original date or
+  is indefinite — the order **auto-cancels and refunds** unless the buyer
+  affirmatively reconfirms within 30 days. Massachusetts (940 CMR 3.15(3)(b))
+  adds a sharper edge on top: missing a stated date is a 93A violation
+  unless the cause was genuinely beyond Andrew's control and unknown at
+  order time — treat the Sept/Jan dates as real commitments. Handled
+  manually (email + a Stripe refund) given the order volume — no automation
+  built. Worth carrying into the Phase 12/13 fulfillment runbook.
+- **Disclosure placement**: a compact policy summary lives directly on the
+  `/shop` product page (`web/src/shop/Shop.tsx`, below the buy button — see
+  `.shop__policy`), not just in checkout fine print or a footer link, to
+  satisfy 940 CMR 3.13(4)'s "clear and conspicuous... prior to consummation
+  of a transaction" standard.
+
 ## Decisions locked (2026-08-12)
 
 | Decision | Choice | Why |
@@ -360,12 +401,12 @@ there's something to market.
 | 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | ✅ done (2026-08-12) — Stripe/Shippo/Resend keys and tokens all live in Vercel prod/preview/dev. Resend domain verification is DNS-propagation-pending (see below). Shippo/Stripe **live** activation still needed before real launch — see Phase 13 |
 | 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
 | 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
-| 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ code done (2026-08-12) — placeholder hero image (`marketing-card-front.png`), needs real product photography before launch |
+| 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ done (2026-08-12, hero photo swapped 2026-08-13) — `web/public/shop/hero.jpg` is a real photo of one of the 4 proof copies (tuck box at an angle, rulebook, and a spread of illustrated cards), cropped/color-corrected from Andrew's original shot |
 | 5 | `/api/create-checkout-session` + Embedded Checkout mounted on the shop page | ✅ code done (2026-08-12) — untested live, no Stripe key yet; verified against current Stripe docs (`ui_mode: 'embedded_page'`, Stripe SDK bumped 17→22.5.0 to match) |
 | 6 | `/api/shipping-rates` (Shippo live rates via `onShippingDetailsChange`) | ✅ done and verified with real carrier rates (2026-08-12) — **no flat-rate fallback of any kind**, by design (see below). `FROM_ADDRESS` is the real 137 Woburn St, Lexington MA origin. Confirmed against Shippo's test API with a real address (1600 Pennsylvania Ave NW, DC): **USPS Ground Advantage $6.25, Priority Mail $9.22, Priority Mail Express $39.05** |
 | 7 | `/api/stripe-webhook` → Neon insert + Resend confirmation email | ✅ code done (2026-08-12) — raw-body signature verification wired per Vercel's gotcha; `RESEND_API_KEY` live in Vercel, `orders@spaceexplorer.tech` domain added to Resend with DNS records in place, verification pending propagation (see below) |
 | 8 | Inventory cap guard (118 minus reserves) + early/January ship-window split | ✅ done (2026-08-12, extended 2026-08-13) — `SELLABLE_INVENTORY = 118 - 5 - 8 = 105` and `EARLY_BATCH_SELLABLE = 10` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts`; `ship_window` decided at session creation, persisted via webhook, surfaced live via `GET /api/inventory-status` and shown on the shop page |
-| 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ⬜ |
+| 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | 🟨 returns/refunds/cancellation copy live on the shop page (2026-08-13, see "Returns/refund policy" above); a dedicated shipping-policy blurb and explicit sales-tax-inclusive-pricing note are still open |
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ⬜ |
@@ -463,7 +504,10 @@ whatever lands.
 - ~~**Sales tax**~~ — resolved 2026-08-13, see "Sales tax" below: Stripe Tax
   enabled in code, scoped to Massachusetts; actual collection is blocked on
   registering with MassTaxConnect once the LLC's EIN lands.
-- **Returns/refund policy** — needs actual copy before launch.
+- ~~**Returns/refund policy**~~ — resolved 2026-08-13, see "Returns/refund
+  policy" below: cancel-anytime pre-shipment, no-return-needed
+  replacement/refund for defects/loss, 30-day buyer's-remorse window, FTC-
+  compliant delay notices. Copy live on the shop page.
 - **Amazon FBA/FBM + GS1 barcode** — researched and deliberately deferred
   (see the dedicated section above): fee load makes FBA a poor fit for 118
   units, and a UPC isn't worth buying until there's an actual retail/Amazon
