@@ -20,6 +20,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/shop", "destination": "/shop.html" }
+    { "source": "/shop", "destination": "/shop.html" },
+    { "source": "/shop/admin", "destination": "/shop-admin.html" }
   ]
 }

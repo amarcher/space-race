@@ -1,0 +1,106 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #07071a;
+  color: #e8e6df;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.admin {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.admin h1 {
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin--gate {
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 4rem;
+}
+
+.admin input,
+.admin button {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #2a2a4a;
+  background: #12122b;
+  color: #e8e6df;
+}
+
+.admin button {
+  cursor: pointer;
+  background: #ffd93d;
+  color: #07071a;
+  border: none;
+  font-weight: 600;
+}
+
+.admin button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.admin__error {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+}
+
+.admin__dim {
+  color: #a6a4b8;
+  font-size: 0.85rem;
+}
+
+.admin__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.admin__table th,
+.admin__table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #2a2a4a;
+  vertical-align: top;
+}
+
+.admin__row--fulfilled {
+  opacity: 0.6;
+}
+
+.admin__row--cancelled,
+.admin__row--refunded {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.admin__fulfill {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.admin__fulfill input {
+  width: 140px;
+  padding: 0.3rem 0.5rem;
+}
+
+.admin__fulfill button {
+  padding: 0.3rem 0.6rem;
+}
