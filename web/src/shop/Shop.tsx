@@ -70,6 +70,36 @@ function ProductPage() {
     }
   }, [])
 
+  // Checkout is a state flip, not a navigation, so the browser Back button
+  // knows nothing about it. Two things go wrong without this:
+  //
+  //  1. Back DURING checkout leaves the site entirely.
+  //  2. Back AFTER paying is worse: Safari restores this page from the
+  //     back/forward cache with React state intact — including checkingOut —
+  //     so the Stripe iframe re-mounts against a session that's already been
+  //     consumed and renders an opaque "Access Denied" box.
+  //
+  // Pushing a history entry on entry fixes (1); bailing out of checkout on a
+  // bfcache restore fixes (2). Both land the buyer back on the product page,
+  // which is the only sensible destination once a session is spent.
+  const startCheckout = useCallback(() => {
+    setCheckingOut(true)
+    window.history.pushState({ shopCheckout: true }, '')
+  }, [])
+
+  useEffect(() => {
+    const leaveCheckout = () => setCheckingOut(false)
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) leaveCheckout()
+    }
+    window.addEventListener('popstate', leaveCheckout)
+    window.addEventListener('pageshow', onPageShow)
+    return () => {
+      window.removeEventListener('popstate', leaveCheckout)
+      window.removeEventListener('pageshow', onPageShow)
+    }
+  }, [])
+
   const fetchClientSecret = useCallback(async () => {
     const res = await fetch('/api/create-checkout-session', {
       method: 'POST',
@@ -106,7 +136,10 @@ function ProductPage() {
     }
     return (
       <div className="shop shop--checkout">
-        <button className="shop__back" onClick={() => setCheckingOut(false)}>
+        {/* history.back() rather than a bare state flip, so this button and the
+            browser's own Back button stay in sync (popstate above does the
+            actual exit). */}
+        <button className="shop__back" onClick={() => window.history.back()}>
           &larr; Back
         </button>
         <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret, onShippingDetailsChange }}>
@@ -168,7 +201,7 @@ function ProductPage() {
         </label>
 
         {stripePromise ? (
-          <button className="shop__buy" onClick={() => setCheckingOut(true)}>
+          <button className="shop__buy" onClick={startCheckout}>
             Pre-order — ${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(2)} + shipping
           </button>
         ) : (
