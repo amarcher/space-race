@@ -177,6 +177,16 @@ function ProductPage() {
           <h2>Shipping &amp; returns</h2>
           <ul>
             <li>
+              <strong>Shipping</strong> is calculated live at checkout from your address —
+              no flat rate — and charged separately from the item price. US addresses
+              only for now.
+            </li>
+            <li>
+              <strong>Sales tax:</strong> the price above is tax-exclusive. Any tax owed
+              for your state is calculated automatically at checkout and shown before you
+              pay.
+            </li>
+            <li>
               <strong>Cancel anytime before shipment</strong> for a full refund — you're
               pre-ordering, so there's no rush to decide.
             </li>
