@@ -53,16 +53,42 @@ body {
   }
 }
 
+/* On mobile the buy controls come FIRST — the photo is tall enough that
+   leading with it pushes the price, quantity, and button off-screen. Reset to
+   source order at the 2-column breakpoint, where the gallery sits alongside. */
+.shop__info {
+  order: -1;
+}
+
 .shop__gallery {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  order: 0;
+}
+
+@media (min-width: 720px) {
+  .shop__info,
+  .shop__gallery {
+    order: initial;
+  }
 }
 
 .shop__hero {
   width: 100%;
+  /* contain, not cover: show the whole photo inside a bounded cell rather than
+     letting a tall portrait shot run the full width of the viewport */
+  max-height: 55vh;
+  object-fit: contain;
+  object-position: center;
   border-radius: 16px;
   display: block;
+}
+
+@media (min-width: 720px) {
+  .shop__hero {
+    max-height: none;
+  }
 }
 
 .shop__thumbs {

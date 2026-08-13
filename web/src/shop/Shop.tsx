@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import {
-  EARLY_BATCH_SELLABLE,
   EARLY_SHIP_DATE_LABEL,
   MAIN_SHIP_DATE_LABEL,
   MAX_QTY_PER_ORDER,
@@ -145,12 +144,15 @@ function ProductPage() {
           The physical card game — a 107-card poker deck, illustrated tuck box, and
           rulebook.
         </p>
+        {/* Deliberately says nothing about the January batch until the early
+            10 sell through — no reason to muddy the offer with a slower
+            window nobody's been assigned to yet. */}
         <p className="shop__ship-window">
           {inventory == null
-            ? `Ships starting ${MAIN_SHIP_DATE_LABEL} (some early orders may ship sooner).`
+            ? `Ships ${EARLY_SHIP_DATE_LABEL}`
             : inventory.earlySoldOut
-              ? `Ships ${MAIN_SHIP_DATE_LABEL}.`
-              : `${inventory.earlyRemaining} of ${EARLY_BATCH_SELLABLE} early-ship spots left — order now and ship around ${EARLY_SHIP_DATE_LABEL}. Everyone else ships ${MAIN_SHIP_DATE_LABEL}.`}
+              ? `Ships ${MAIN_SHIP_DATE_LABEL}`
+              : `Ships ${EARLY_SHIP_DATE_LABEL} · ${inventory.earlyRemaining} left`}
         </p>
         <p className="shop__price">${PRICE_LABEL}</p>
 
@@ -173,36 +175,25 @@ function ProductPage() {
           <p className="shop__error">The store isn't open yet — check back soon.</p>
         )}
 
+        {/* Trimmed to the terms a buyer actually weighs before paying. The
+            fuller policy (delay notices, tax/shipping mechanics) still governs
+            and lives in docs/store-wayfinder.md — this is the disclosure that
+            has to be clear and conspicuous pre-sale, not an exhaustive recital. */}
         <section className="shop__policy">
           <h2>Shipping &amp; returns</h2>
           <ul>
             <li>
-              <strong>Shipping</strong> is calculated live at checkout from your address —
-              no flat rate — and charged separately from the item price. US addresses
-              only for now.
+              <strong>30-day returns.</strong> Changed your mind after it arrives? Send it
+              back within 30 days for a refund.
             </li>
             <li>
-              <strong>Sales tax:</strong> the price above is tax-exclusive. Any tax owed
-              for your state is calculated automatically at checkout and shown before you
-              pay.
+              <strong>Damaged or lost in transit?</strong> Free replacement or a full
+              refund — your choice, nothing to send back.
             </li>
             <li>
-              <strong>Cancel anytime before shipment</strong> for a full refund — you're
-              pre-ordering, so there's no rush to decide.
+              <strong>Cancel anytime before it ships</strong> for a full refund.
             </li>
-            <li>
-              <strong>Damaged, defective, or lost in transit:</strong> free replacement or
-              full refund, your choice — no need to send anything back.
-            </li>
-            <li>
-              <strong>Changed your mind after delivery?</strong> Return it within 30 days
-              for a refund. Return shipping is on you; the original shipping charge isn't
-              refunded.
-            </li>
-            <li>
-              <strong>If a ship date slips,</strong> we'll email you before the promised
-              date with the new date and your right to cancel for a full refund.
-            </li>
+            <li>Shipping and any sales tax are calculated at checkout. US addresses only.</li>
           </ul>
         </section>
       </div>
