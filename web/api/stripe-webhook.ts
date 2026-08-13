@@ -3,7 +3,12 @@ import type Stripe from 'stripe'
 import { Resend } from 'resend'
 import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
-import { UNIT_PRICE_CENTS } from '../src/shop/constants.js'
+import {
+  EARLY_SHIP_DATE_LABEL,
+  MAIN_SHIP_DATE_LABEL,
+  UNIT_PRICE_CENTS,
+  type ShipWindow,
+} from '../src/shop/constants.js'
 
 // Vercel parses the body as JSON by default, which breaks Stripe's signature
 // check — it needs the exact raw bytes. Turn that off and buffer manually below.
@@ -66,16 +71,20 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   const customerName = fullSession.customer_details?.name ?? null
   const shippingAddress = fullSession.collected_information?.shipping_details?.address ?? {}
   const amountTotal = fullSession.amount_total ?? 0
+  // Decided at checkout-session creation (see create-checkout-session.ts) so the
+  // window can't drift between then and now as other orders come in — 'january'
+  // is the safe fallback for a session created before this metadata existed.
+  const shipWindow: ShipWindow = fullSession.metadata?.ship_window === 'early' ? 'early' : 'january'
 
   const inserted = await sql`
     insert into orders (
       stripe_checkout_session_id, stripe_payment_intent_id, customer_email, customer_name,
       shipping_address, quantity, unit_price_cents, shipping_cents, shipping_service,
-      amount_total_cents, currency
+      amount_total_cents, currency, ship_window
     ) values (
       ${fullSession.id}, ${String(fullSession.payment_intent ?? '')}, ${customerEmail}, ${customerName},
       ${JSON.stringify(shippingAddress)}, ${quantity}, ${UNIT_PRICE_CENTS}, ${shippingCents}, ${shippingService},
-      ${amountTotal}, ${fullSession.currency ?? 'usd'}
+      ${amountTotal}, ${fullSession.currency ?? 'usd'}, ${shipWindow}
     )
     on conflict (stripe_checkout_session_id) do nothing
     returning id
@@ -83,6 +92,10 @@ async function recordOrder(session: Stripe.Checkout.Session) {
 
   // Webhooks can retry/redeliver — only email on the first successful insert.
   if (inserted.length > 0 && resend && customerEmail) {
+    const shipDateLine =
+      shipWindow === 'early'
+        ? `We'll email tracking info once your copy ships — expected around ${EARLY_SHIP_DATE_LABEL}.`
+        : `We'll email tracking info once your copy ships — expected ${MAIN_SHIP_DATE_LABEL}.`
     await resend.emails.send({
       // TODO: verify a spaceexplorer.tech sending domain in Resend before launch —
       // see docs/store-wayfinder.md Phase 1.
@@ -95,8 +108,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
         `Quantity: ${quantity}`,
         `Total: $${(amountTotal / 100).toFixed(2)}`,
         '',
-        "We'll email tracking info once your copy ships — expected mid-January 2027",
-        '(some early orders may ship sooner).',
+        shipDateLine,
       ].join('\n'),
     })
   }

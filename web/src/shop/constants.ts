@@ -4,9 +4,22 @@ export const CURRENCY = 'usd'
 export const MAX_QTY_PER_ORDER = 3
 
 export const TOTAL_INVENTORY = 118
-// Held back for misprints/damage/gifts — see docs/store-wayfinder.md "Open decisions".
+// Held back for misprints/damage — see docs/store-wayfinder.md "Decisions locked".
 export const INVENTORY_RESERVE = 5
-export const SELLABLE_INVENTORY = TOTAL_INVENTORY - INVENTORY_RESERVE
+
+// September batch: 18 units, 8 reserved as personal Christmas gifts (pulled on
+// arrival, never in the sellable pool) — 10 sellable, first-come-first-served,
+// before falling back to the January ship window. See docs/store-wayfinder.md.
+export const EARLY_BATCH_TOTAL = 18
+export const EARLY_BATCH_GIFT_RESERVE = 8
+export const EARLY_BATCH_SELLABLE = EARLY_BATCH_TOTAL - EARLY_BATCH_GIFT_RESERVE
+
+export const SELLABLE_INVENTORY = TOTAL_INVENTORY - INVENTORY_RESERVE - EARLY_BATCH_GIFT_RESERVE
+
+export const EARLY_SHIP_DATE_LABEL = 'Sept 10'
+export const MAIN_SHIP_DATE_LABEL = 'mid-January 2027'
+
+export type ShipWindow = 'early' | 'january'
 
 export const ALLOWED_SHIP_COUNTRIES = ['US']
 
