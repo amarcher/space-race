@@ -75,14 +75,16 @@ body {
 }
 
 .shop__hero {
-  width: 100%;
-  /* contain, not cover: show the whole photo inside a bounded cell rather than
-     letting a tall portrait shot run the full width of the viewport */
+  /* max-width rather than width, so a portrait shot sizes to its own aspect and
+     the height cap below actually shrinks it — with width:100% the element box
+     stays full-width and object-fit just letterboxes inside it, leaving dead
+     space either side. Capped at 55vh so the photo can't run the whole screen. */
+  max-width: 100%;
   max-height: 55vh;
   object-fit: contain;
-  object-position: center;
   border-radius: 16px;
   display: block;
+  margin-inline: auto;
 }
 
 @media (min-width: 720px) {
