@@ -49,6 +49,16 @@ export default defineConfig({
         // request isn't intercepted at all — it goes to the network, where
         // Vercel's own rewrite handles it correctly.
         navigateFallbackDenylist: [/\/shop\/admin\/?$/],
+        // Stripe returns from checkout to /shop.html?session_id=cs_... — that's
+        // where the confirmation page lives. Precache route matching does NOT
+        // ignore unknown query params (the default only strips utm_*/fbclid),
+        // so without session_id here the URL matches no precached entry, falls
+        // through to navigateFallback, and drops the buyer onto the GAME right
+        // after they paid. Verified against workbox-precaching's own
+        // generateURLVariations(): with the default options the only variations
+        // are the query-bearing URL and "shop.html.html"; adding session_id
+        // yields a bare "shop.html", which is in the manifest.
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^session_id$/],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
