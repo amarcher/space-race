@@ -10,8 +10,12 @@ const DISMISS_KEY = 'sr-appstore-banner-dismissed'
  *
  * Safari itself is deliberately EXCLUDED: it renders the native Smart App
  * Banner from the `apple-itunes-app` meta tag in index.html, and we don't want
- * two banners. This component exists for the iOS browsers that ignore that
- * meta tag (Chrome/Firefox/Edge/DuckDuckGo on iOS — all WebKit skins). */
+ * two banners. This component exists for everything else that ignores that
+ * meta tag: other iOS browser skins (Chrome/Firefox/Edge/Opera/DuckDuckGo/
+ * Google app), AND in-app browsers (Instagram, Facebook, Threads, TikTok,
+ * LinkedIn, Pinterest, Snapchat, WeChat, LINE) — those render links in a
+ * bare WKWebView owned by the host app, which Apple's Smart Banner never
+ * activates in, so without this they'd get no banner at all. */
 function shouldOffer(): boolean {
   if (Capacitor.isNativePlatform()) return false
   const ua = navigator.userAgent
@@ -27,7 +31,10 @@ function shouldOffer(): boolean {
     window.matchMedia('(display-mode: standalone)').matches
   if (standalone) return false
   // real Safari gets the native Smart App Banner instead
-  const isAltBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|DuckDuckGo|GSA\//.test(ua)
+  const isAltBrowser =
+    /CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|DuckDuckGo|GSA\/|FBAN|FBAV|Instagram|Threads|LinkedInApp|Pinterest|Snapchat|MicroMessenger|Line\/|musical_ly|TikTok/.test(
+      ua,
+    )
   if (!isAltBrowser) return false
   try {
     if (localStorage.getItem(DISMISS_KEY)) return false
