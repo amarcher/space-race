@@ -68,22 +68,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function liveShippingOptions(address: ShippoAddress, quantity: number) {
+  // No placeholder/flat-rate fallback, ever — a fake accepted rate is a real
+  // rate we'd be on the hook for honoring. If Shippo can't quote (missing
+  // token, bad token, API error, no rates), throw and let the caller reject
+  // the checkout attempt instead of silently charging a made-up number.
   if (!SHIPPO_API_TOKEN) {
-    // Shippo isn't configured yet — a flat placeholder keeps the checkout flow
-    // testable end-to-end. Swap this out once docs/store-wayfinder.md Phase 1 lands.
-    return [
-      {
-        shipping_rate_data: {
-          type: 'fixed_amount' as const,
-          display_name: 'Standard shipping (placeholder rate)',
-          fixed_amount: { amount: 599, currency: CURRENCY },
-          delivery_estimate: {
-            minimum: { unit: 'business_day' as const, value: 5 },
-            maximum: { unit: 'business_day' as const, value: 10 },
-          },
-        },
-      },
-    ]
+    throw new Error('SHIPPO_API_TOKEN is not configured')
   }
 
   const parcel = parcelForQuantity(quantity)
