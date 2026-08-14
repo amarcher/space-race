@@ -5,9 +5,12 @@ the website. Read this first in any future session that touches the store.
 Update the phase table and open decisions as work lands — this is the single
 source of truth for where the project stands, not a one-time plan.
 
-Companion docs once they exist: `docs/store-legal.md` (policies/copy),
-`docs/store-ops.md` (day-to-day fulfillment runbook once orders start
-flowing). Not created yet — see Phase 9/11.
+Companion docs: **`docs/store-ops.md`** — the day-to-day fulfillment runbook
+(which packaging each service needs and who supplies it, buying/printing
+labels in Shippo, the reserves not to sell, and the gotchas around stale rates
+and estimated packaging weight). Written 2026-08-13; read it before packing
+anything. `docs/store-legal.md` (policies/copy) still doesn't exist — the
+policy decisions live in this doc for now.
 
 ## The facts on the ground
 
@@ -459,7 +462,7 @@ there's something to market.
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ✅ done (2026-08-13) — shipping-policy and sales-tax-inclusive-pricing lines added to `.shop__policy` in `web/src/shop/Shop.tsx`, alongside the returns/refunds/cancellation copy already live. Tax line is worded to stay accurate regardless of MA registration status (see Phase 10) rather than asserting a specific rate |
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
-| 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo |
+| 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
 | 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
@@ -533,6 +536,67 @@ Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page can ship
 with a Play row that just says "coming soon" until Android roadmap Phase
 whatever lands.
+
+## 2026-08-13 — three real bugs found by using the thing
+
+All three were invisible to `npm run build` and to the backend verification
+above. Worth knowing before assuming "code compiles + API verified" means the
+store works.
+
+**1. Stripe was delivering webhooks to a dead preview URL.** A completed test
+checkout never reached the database. The only registered
+`checkout.session.completed` endpoint pointed at
+`web-git-docs-store-wayfinder-…vercel.app` — the PR preview from the original
+store branch, long since merged and deleted. Nothing pointed at production.
+The event sat at `pending_webhooks: 1`, retrying into the void. **The earlier
+"webhook verified" note above is what hid this:** that test built a signature
+with `generateTestHeaderString()` and the configured secret, which proves the
+*code* works but says nothing about whether Stripe's registered endpoint
+matches. Fixed by registering
+`https://game.spaceexplorer.tech/api/stripe-webhook`, rotating
+`STRIPE_WEBHOOK_SECRET` in Vercel to that endpoint's signing secret,
+redeploying (env vars are snapshotted at build time), and replaying the
+pending event. **If orders ever stop appearing, check the endpoint list
+first.**
+
+Also noticed while in there: **two unrelated webhook endpoints on this same
+Stripe account point at a Supabase project** and listen for
+`payment_intent.succeeded` — so they receive Space Race payment events.
+Harmless in test mode; sort it out before going live.
+
+**2. The service worker silently served the game instead of the page —
+twice.** `navigateFallback: '/index.html'` catches any navigation that doesn't
+match a precached entry, and Workbox's URL matching is narrower than it looks:
+
+- `/shop/admin` → never matched `shop-admin.html`. Workbox only bridges clean
+  URLs by adding/removing `.html` on the *same* path, so `/shop` → `shop.html`
+  works but a nested path → hyphenated file never does. Fixed with
+  `navigateFallbackDenylist`.
+- `/shop.html?session_id=…` (Stripe's post-payment return URL) → precache
+  matching doesn't strip unknown query params; the default only removes
+  `utm_*`/`fbclid`. So buyers landed in the **game** right after paying, with
+  no confirmation. Fixed by adding `session_id` to
+  `ignoreURLParametersMatching`.
+
+Both only reproduce **once a service worker is installed and controlling** —
+a first visit or a private window works fine, which is exactly why a wrong
+`/store` URL and these two bugs all looked like the same vague "sometimes I
+get the game" complaint. Verify service-worker behaviour on a *repeat* visit.
+
+**3. Browser Back out of checkout showed "Access Denied."** Entering checkout
+was a React state flip with no history entry, so Safari's bfcache restored the
+page with `checkingOut` still true and re-mounted the Stripe iframe against a
+consumed session. Fixed by pushing a history entry (popstate exits) and
+bailing out of checkout on a persisted `pageshow`.
+
+**Also changed that day:** checkout now shows every distinct delivery speed
+rather than the 3 cheapest (Stripe caps `shipping_options` at 5 — verified
+against the API; Shippo quotes 11+ for a typical address, and the cheapest 3
+were all ground, leaving no way to buy overnight at any price); the
+confirmation email is itemized and uses a branded dark template
+(`web/api/_lib/orderEmail.ts`); and the shop hero is the full flat-lay
+(EXIF orientation 6 — honour the EXIF and add *no* rotation, or the distance
+cards read sideways).
 
 ## Open decisions (need a call before or during the phase that hits them)
 
