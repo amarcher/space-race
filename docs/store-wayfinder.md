@@ -654,6 +654,13 @@ verification code is delivered through the forwarding above. Replies sent this
 way are DKIM-signed by Resend and DMARC-aligned, and count against Resend's free
 tier (100/day, 3,000/month) shared with order confirmations.
 
+Two gotchas from doing it (2026-08-14): **Gmail's verification email took well
+over ten minutes to arrive** — long enough to look broken and start a false
+debugging trail, so wait before assuming failure. And **Cloudflare's Email
+Routing Activity Log is not a reliable audit trail** — that verification never
+appeared in it at all despite landing in the inbox, so treat an empty log as
+inconclusive rather than as evidence mail wasn't received.
+
 ## Open decisions (need a call before or during the phase that hits them)
 
 - ~~**Per-order quantity cap**~~ — resolved by implementation: capped at 3
