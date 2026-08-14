@@ -463,7 +463,7 @@ there's something to market.
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ✅ done (2026-08-14) — a full browser checkout by Andrew ran the whole chain unassisted: live Shippo rates → Stripe payment → webhook **delivered automatically** (`pending_webhooks: 0`, the first time that's happened since the endpoint fix) → correct row in Neon ($28.79 + $8.01 USPS Priority Mail = $36.80, `ship_window: early`) → confirmation email received in the inbox. `GET /api/inventory-status` correctly stepped to `earlyRemaining: 8, sellableRemaining: 103`. An earlier checkout the same day is what exposed the dead webhook endpoint — see "three real bugs" below |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
-| 13 | Go live — Shippo live key, flip Stripe to live mode, announce | 🟨 **Shippo live token requested 2026-08-14** (Andrew Archer / andrew.m.archer@gmail.com / "Space Race" / game.spaceexplorer.tech/shop); Shippo acknowledged and promised an update within 3 business hours. Note the request-only path is real: `apps.goshippo.com` shows *"Contact our API experts for a live token"* with a **Request Live Token** button and no self-serve option — Shippo's newer `portal.goshippo.com` does offer self-serve live keys, so docs found by search can mislead; trust the account. **Two prerequisites beyond the obvious:** (a) ~~inbound mail for `orders@`~~ — **resolved 2026-08-14**, see "Inbound email" below. (b) **Delete the two test orders** from `orders` — they're consuming real inventory (`earlyRemaining` is already down to 8 of 10) and would understate what's actually for sale at launch. Destructive SQL, so do it deliberately. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
+| 13 | Go live — Shippo live key, flip Stripe to live mode, announce | 🟨 **Shippo live token requested 2026-08-14** (Andrew Archer / andrew.m.archer@gmail.com / "Space Race" / game.spaceexplorer.tech/shop); Shippo acknowledged and promised an update within 3 business hours. Note the request-only path is real: `apps.goshippo.com` shows *"Contact our API experts for a live token"* with a **Request Live Token** button and no self-serve option — Shippo's newer `portal.goshippo.com` does offer self-serve live keys, so docs found by search can mislead; trust the account. **Two prerequisites beyond the obvious:** (a) ~~inbound mail for `orders@`~~ — **resolved 2026-08-14**, see "Inbound email" below. (b) ~~Delete the two test orders~~ — **done 2026-08-14**; inventory back to a clean 10 of 10 early slots, 105 sellable. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
 
@@ -660,6 +660,33 @@ debugging trail, so wait before assuming failure. And **Cloudflare's Email
 Routing Activity Log is not a reliable audit trail** — that verification never
 appeared in it at all despite landing in the inbox, so treat an empty log as
 inconclusive rather than as evidence mail wasn't received.
+
+## Go-live sequencing (decided 2026-08-14)
+
+**Deliberately waiting for the LLC's EIN (~2026-08-17/18) before flipping Stripe
+to live mode**, rather than going live as soon as the code works. Andrew raised
+doing it immediately; the three reasons not to:
+
+1. **Shippo is still on a test token** (live one requested 2026-08-14, ETA
+   hours). Going live first means real customers pay real money for shipping
+   quoted from Shippo's *sandbox* — amounts we can't necessarily buy labels at,
+   made sharper by the deliberate removal of any flat-rate fallback.
+2. **MA sales tax isn't registered**, and Stripe Tax calculates **$0** until it
+   is. A Massachusetts sale before then is tax we owe but never collected — out
+   of margin, on a product priced near cost. At ~$8/unit net, a handful of MA
+   orders wipes out the profit on them. Registration is itself blocked on the
+   EIN.
+3. **The Stripe account is still individual/sole-proprietor**, not Fable
+   Designer LLC — also EIN-blocked. Taking live revenue as a sole prop and
+   converting afterwards is messier than converting first.
+
+The EIN unblocks (2) and (3) together, and (1) resolves on its own well before
+then. **Order of operations when it lands:** register with MassTaxConnect →
+add the registration to Stripe → convert the Stripe account to the LLC →
+install the Shippo live token and re-check rates against the sandbox numbers the
+margin table is built on → flip Stripe to live → one real purchase to verify,
+then refund it. **Live mode has no test cards**, so a real charge is the only
+way to verify the live path.
 
 ## Open decisions (need a call before or during the phase that hits them)
 
