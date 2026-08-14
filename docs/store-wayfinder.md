@@ -463,7 +463,7 @@ there's something to market.
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ✅ done (2026-08-14) — a full browser checkout by Andrew ran the whole chain unassisted: live Shippo rates → Stripe payment → webhook **delivered automatically** (`pending_webhooks: 0`, the first time that's happened since the endpoint fix) → correct row in Neon ($28.79 + $8.01 USPS Priority Mail = $36.80, `ship_window: early`) → confirmation email received in the inbox. `GET /api/inventory-status` correctly stepped to `earlyRemaining: 8, sellableRemaining: 103`. An earlier checkout the same day is what exposed the dead webhook endpoint — see "three real bugs" below |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
-| 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ **Three prerequisites beyond the obvious, all found 2026-08-14:** (a) **`orders@spaceexplorer.tech` receives no mail** — see "Inbound email" below; the confirmation email tells buyers to reply to it, and today that bounces. (b) **Delete the two test orders** from `orders` — they're consuming real inventory (`earlyRemaining` is already down to 8 of 10) and would understate what's actually for sale at launch. Destructive SQL, so do it deliberately. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
+| 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ **Two prerequisites beyond the obvious:** (a) ~~inbound mail for `orders@`~~ — **resolved 2026-08-14**, see "Inbound email" below. (b) **Delete the two test orders** from `orders` — they're consuming real inventory (`earlyRemaining` is already down to 8 of 10) and would understate what's actually for sale at launch. Destructive SQL, so do it deliberately. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
 
@@ -615,33 +615,44 @@ confirmation email is itemized and uses a branded dark template
 (EXIF orientation 6 — honour the EXIF and add *no* rotation, or the distance
 cards read sideways).
 
-## Inbound email — `orders@spaceexplorer.tech` is send-only (2026-08-14)
+## Inbound email — `orders@spaceexplorer.tech` (resolved 2026-08-14)
 
-**Replies to the confirmation email currently bounce.** The Resend setup on
+**Replies to the confirmation email used to bounce.** The Resend setup on
 2026-08-12 deliberately skipped the optional inbound MX ("we only need to
-send"), which was true then and isn't now: the confirmation template says
-*"Just reply to this email"* and *"Spotted a problem with the address? Reply
-now and we'll fix it."*
+send"), which was true then and stopped being true once the confirmation
+template said *"Just reply to this email"* and *"Spotted a problem with the
+address? Reply now and we'll fix it."* Verified broken 2026-08-14: no MX on the
+root domain, SMTP falling back to the A record (Cloudflare, port 25 closed).
 
-Verified 2026-08-14: no MX on the root domain; SMTP falls back to the A record
-per RFC 5321, which is Cloudflare, with port 25 closed. The `send.` MX is
-Amazon SES bounce handling and does not accept inbound mail for `orders@`.
+**Fixed the same day with Cloudflare Email Routing** (free; the domain's DNS
+was already on Cloudflare):
 
-This matters more than it sounds. The published policy promises
-cancel-anytime-before-shipment and no-questions replacement for defects, and
-the FTC delay-notice obligation assumes a working two-way channel. A buyer's
-first instinct on any of those is to hit reply.
+- Destination address `andrew.m.archer@gmail.com` — auto-verified, since it
+  matches the Cloudflare account owner.
+- Routing rule `orders@spaceexplorer.tech` → that address, **Active**. The
+  catch-all rule is left **disabled** (drops everything else), so only `orders@`
+  is a real mailbox.
+- Cloudflare's 3 MX records + a `cf2024-1._domainkey` DKIM TXT, both **Locked**
+  (Cloudflare-managed).
+- Confirmed end to end: a message sent to `orders@` arrived in the Gmail inbox.
 
-**Fix (not yet done):** turn on **Cloudflare Email Routing** — the domain's DNS
-is already on Cloudflare, it's free, and it forwards `orders@spaceexplorer.tech`
-to a real mailbox. It adds its own MX records on the root; these don't conflict
-with the `send.` subdomain records Resend uses, and the root `v=spf1 -all`
-governs *sending* from the root, not receiving. Optionally pair it with Gmail's
-"Send mail as" (via Resend SMTP) so replies go out as `orders@` rather than a
-personal address.
+**The SPF record changed, deliberately.** Cloudflare's setup wants to *add* an
+SPF record, but per its own docs you must **modify the existing one** — two SPF
+records on the same name is an RFC violation that breaks Email Routing. In the
+event Cloudflare replaced rather than duplicated, so the root went from
+`v=spf1 -all` to **`v=spf1 include:_spf.mx.cloudflare.net ~all`** — one record,
+no conflict. That is a softening from hard-fail to soft-fail on the root, but
+the real enforcement is the unchanged DMARC `p=reject`, and Resend is unaffected
+because it sends via `send.spaceexplorer.tech`, which keeps its own SPF.
+Tightening back to `-all` would be safe if ever wanted.
 
-Until that exists, the alternative is downgrading the email copy to point at a
-mailbox that works — worse, but honest.
+**Replying *as* `orders@`** needs a second piece: Cloudflare only forwards, it
+can't send. Add the address in Gmail under "Send mail as" with Resend's SMTP
+(`smtp.resend.com`, port 587, username `resend`, password = a Resend API key —
+use a **separate** key from the store's so either can be rotated alone). Gmail's
+verification code is delivered through the forwarding above. Replies sent this
+way are DKIM-signed by Resend and DMARC-aligned, and count against Resend's free
+tier (100/day, 3,000/month) shared with order confirmations.
 
 ## Open decisions (need a call before or during the phase that hits them)
 
