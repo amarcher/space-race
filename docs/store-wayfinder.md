@@ -318,8 +318,8 @@ no in-app purchase questions, no bloating the native bundle. Concretely:
   production/preview/development 2026-08-12 (test-mode values for
   Stripe/Shippo; `DATABASE_URL` points at the Neon project
   `space-race-store`; `RESEND_API_KEY` is a Sending-access-only key from the
-  new dedicated Resend account — domain verification is still
-  propagation-pending, so sending won't actually work until that clears).
+  new dedicated Resend account — `spaceexplorer.tech` **verified 2026-08-13**,
+  sending confirmed live with a real send of the production template).
   **Gotcha:** Vercel snapshots env vars at deploy time — a newly-added var
   doesn't apply to an already-built deployment until it's redeployed
   (`vercel redeploy <url>`, or just push a new commit).
@@ -451,7 +451,7 @@ there's something to market.
 | Phase | What | State |
 |---|---|---|
 | 0 | Plan + this doc | ✅ done (2026-08-12) |
-| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | ✅ done (2026-08-12) — Stripe/Shippo/Resend keys and tokens all live in Vercel prod/preview/dev. Resend domain verification is DNS-propagation-pending (see below). Shippo/Stripe **live** activation still needed before real launch — see Phase 13 |
+| 1 | Open accounts: Stripe, Shippo, Resend domain for `spaceexplorer.tech` | ✅ done (2026-08-12) — Stripe/Shippo/Resend keys and tokens all live in Vercel prod/preview/dev. Resend domain `spaceexplorer.tech` **verified 2026-08-13** and a real send of the production template returned 200 (see below). Shippo/Stripe **live** activation still needed before real launch — see Phase 13 |
 | 2 | Weigh/measure an actual box → lock shipping weight/dims for Shippo | ✅ done (8.1 oz, 3.55"×2.55"×1.75", 2026-08-12) |
 | 3 | Neon schema migration (`orders` table above) | ✅ done (2026-08-12) — project `space-race-store` (`little-mud-75974419`), `DATABASE_URL` added to Vercel prod/preview/dev |
 | 4 | `web/shop.html` + product page UI (price, quantity, pre-order copy, ship-date messaging) | ✅ done (2026-08-12, real photos + gallery added 2026-08-13) — `web/public/shop/hero.jpg` (flat-lay: tuck box at an angle, rulebook, spread of illustrated cards) and `web/public/shop/box-closeup.jpg` (macro shot of the shrink-wrapped box) are real photos of the physical proof copies, cropped/color-corrected. Shown via a small click-to-swap thumbnail gallery (`GALLERY_IMAGES` in `web/src/shop/Shop.tsx`) — add more entries there as more product photos come in |
@@ -461,7 +461,7 @@ there's something to market.
 | 8 | Inventory cap guard (118 minus reserves) + early/January ship-window split | ✅ done (2026-08-12, extended 2026-08-13) — `SELLABLE_INVENTORY = 118 - 5 - 8 = 105` and `EARLY_BATCH_SELLABLE = 10` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts`; `ship_window` decided at session creation, persisted via webhook, surfaced live via `GET /api/inventory-status` and shown on the shop page |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ✅ done (2026-08-13) — shipping-policy and sales-tax-inclusive-pricing lines added to `.shop__policy` in `web/src/shop/Shop.tsx`, alongside the returns/refunds/cancellation copy already live. Tax line is worded to stay accurate regardless of MA registration status (see Phase 10) rather than asserting a specific rate |
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12); UI click-through with a test card and a real send-and-receive email test (blocked on Resend DNS propagation) are what's left |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12). A **real end-to-end checkout was completed 2026-08-13** by Andrew in the browser — that's what surfaced the dead-webhook-endpoint bug (see "three real bugs" below); the order is now recorded correctly in Neon. Resend sending confirmed the same day with a real send of the production template. **Left:** a fresh checkout that exercises webhook → insert → email in one pass (the existing order predates both the endpoint fix and the email work, and `on conflict do nothing` means replaying it won't re-send) |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
 | 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
@@ -521,8 +521,12 @@ Three things learned along the way:
 **Cloudflare** (detected by Resend via nameserver lookup, confirmed logging
 in). Added 3 records — `resend._domainkey` TXT (DKIM), `send` MX, `send` TXT
 (SPF) — skipping the optional inbound-receiving MX since we only need to
-send. Verification submitted, propagation-pending (Resend says it can take a
-few hours). **Worth knowing:** the domain already carries a **strict DMARC
+send. **Verified 2026-08-13**, and a real send of the production confirmation
+template through the send-only key returned 200 — so the strict-DMARC worry
+below resolved in practice, carried by DKIM alignment (`aspf=s` means SPF
+never aligns, since Resend bounces via `send.spaceexplorer.tech`; DKIM signs
+`d=spaceexplorer.tech`, which matches the From domain exactly, and DMARC needs
+only one to align). **Worth knowing:** the domain already carries a **strict DMARC
 policy** (`p=reject; adkim=s`) and a hard-fail root SPF (`v=spf1 -all`) from
 whatever set up `game.spaceexplorer.tech` originally — neither should
 conflict with the new records (different DNS names: `send`/`resend._domainkey`
@@ -642,6 +646,6 @@ Fill in as each is created:
 - Resend dashboard: https://resend.com/domains — new dedicated account
   (`andrew.m.archer+spacerace@gmail.com`), separate from `fabledesigner.com`'s.
   `spaceexplorer.tech` domain added, DNS records in place, verification
-  propagation-pending as of 2026-08-12
+  verified 2026-08-13
 - Live shop URL: `https://game.spaceexplorer.tech/shop` — merged and deployed
   2026-08-12 (PR #147)
