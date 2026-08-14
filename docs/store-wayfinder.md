@@ -461,9 +461,9 @@ there's something to market.
 | 8 | Inventory cap guard (118 minus reserves) + early/January ship-window split | ✅ done (2026-08-12, extended 2026-08-13) — `SELLABLE_INVENTORY = 118 - 5 - 8 = 105` and `EARLY_BATCH_SELLABLE = 10` in `web/src/shop/constants.ts`, checked server-side in `create-checkout-session.ts`; `ship_window` decided at session creation, persisted via webhook, surfaced live via `GET /api/inventory-status` and shown on the shop page |
 | 9 | Policy copy: shipping policy, returns/refunds, pre-order disclaimer, sales-tax handling | ✅ done (2026-08-13) — shipping-policy and sales-tax-inclusive-pricing lines added to `.shop__policy` in `web/src/shop/Shop.tsx`, alongside the returns/refunds/cancellation copy already live. Tax line is worded to stay accurate regardless of MA registration status (see Phase 10) rather than asserting a specific rate |
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
-| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | 🟨 backend verified with real Shippo rates (2026-08-12). A **real end-to-end checkout was completed 2026-08-13** by Andrew in the browser — that's what surfaced the dead-webhook-endpoint bug (see "three real bugs" below); the order is now recorded correctly in Neon. Resend sending confirmed the same day with a real send of the production template. **Left:** a fresh checkout that exercises webhook → insert → email in one pass (the existing order predates both the endpoint fix and the email work, and `on conflict do nothing` means replaying it won't re-send) |
+| 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ✅ done (2026-08-14) — a full browser checkout by Andrew ran the whole chain unassisted: live Shippo rates → Stripe payment → webhook **delivered automatically** (`pending_webhooks: 0`, the first time that's happened since the endpoint fix) → correct row in Neon ($28.79 + $8.01 USPS Priority Mail = $36.80, `ship_window: early`) → confirmation email received in the inbox. `GET /api/inventory-status` correctly stepped to `earlyRemaining: 8, sellableRemaining: 103`. An earlier checkout the same day is what exposed the dead webhook endpoint — see "three real bugs" below |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
-| 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ |
+| 13 | Go live — request a Shippo live key (self-serve only covers test), flip Stripe to live mode, announce | ⬜ **Three prerequisites beyond the obvious, all found 2026-08-14:** (a) **`orders@spaceexplorer.tech` receives no mail** — see "Inbound email" below; the confirmation email tells buyers to reply to it, and today that bounces. (b) **Delete the two test orders** from `orders` — they're consuming real inventory (`earlyRemaining` is already down to 8 of 10) and would understate what's actually for sale at launch. Destructive SQL, so do it deliberately. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
 
@@ -614,6 +614,34 @@ confirmation email is itemized and uses a branded dark template
 (`web/api/_lib/orderEmail.ts`); and the shop hero is the full flat-lay
 (EXIF orientation 6 — honour the EXIF and add *no* rotation, or the distance
 cards read sideways).
+
+## Inbound email — `orders@spaceexplorer.tech` is send-only (2026-08-14)
+
+**Replies to the confirmation email currently bounce.** The Resend setup on
+2026-08-12 deliberately skipped the optional inbound MX ("we only need to
+send"), which was true then and isn't now: the confirmation template says
+*"Just reply to this email"* and *"Spotted a problem with the address? Reply
+now and we'll fix it."*
+
+Verified 2026-08-14: no MX on the root domain; SMTP falls back to the A record
+per RFC 5321, which is Cloudflare, with port 25 closed. The `send.` MX is
+Amazon SES bounce handling and does not accept inbound mail for `orders@`.
+
+This matters more than it sounds. The published policy promises
+cancel-anytime-before-shipment and no-questions replacement for defects, and
+the FTC delay-notice obligation assumes a working two-way channel. A buyer's
+first instinct on any of those is to hit reply.
+
+**Fix (not yet done):** turn on **Cloudflare Email Routing** — the domain's DNS
+is already on Cloudflare, it's free, and it forwards `orders@spaceexplorer.tech`
+to a real mailbox. It adds its own MX records on the root; these don't conflict
+with the `send.` subdomain records Resend uses, and the root `v=spf1 -all`
+governs *sending* from the root, not receiving. Optionally pair it with Gmail's
+"Send mail as" (via Resend SMTP) so replies go out as `orders@` rather than a
+personal address.
+
+Until that exists, the alternative is downgrading the email copy to point at a
+mailbox that works — worse, but honest.
 
 ## Open decisions (need a call before or during the phase that hits them)
 
