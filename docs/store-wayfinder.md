@@ -522,8 +522,9 @@ Three things learned along the way:
 in). Added 3 records — `resend._domainkey` TXT (DKIM), `send` MX, `send` TXT
 (SPF) — skipping the optional inbound-receiving MX since we only need to
 send. **Verified 2026-08-13**, and a real send of the production confirmation
-template through the send-only key returned 200 — so the strict-DMARC worry
-below resolved in practice, carried by DKIM alignment (`aspf=s` means SPF
+template through the send-only key returned 200 and **landed in the inbox, not
+spam** — so the strict-DMARC worry below is resolved in practice, not just on
+paper, carried by DKIM alignment (`aspf=s` means SPF
 never aligns, since Resend bounces via `send.spaceexplorer.tech`; DKIM signs
 `d=spaceexplorer.tech`, which matches the From domain exactly, and DMARC needs
 only one to align). **Worth knowing:** the domain already carries a **strict DMARC
