@@ -463,7 +463,7 @@ there's something to market.
 | 10 | Sales tax decision + Stripe Tax enabled | 🟨 code done (2026-08-13) — `automatic_tax` + tax codes wired in `create-checkout-session.ts`/`shipping-rates.ts` (see "Sales tax" above); calculates $0 everywhere until the MA MassTaxConnect registration lands, blocked on the LLC's EIN (~2026-08-17/18) |
 | 11 | End-to-end QA in Stripe test mode (real Shippo sandbox rates, webhook round-trip, email) | ✅ done (2026-08-14) — a full browser checkout by Andrew ran the whole chain unassisted: live Shippo rates → Stripe payment → webhook **delivered automatically** (`pending_webhooks: 0`, the first time that's happened since the endpoint fix) → correct row in Neon ($28.79 + $8.01 USPS Priority Mail = $36.80, `ship_window: early`) → confirmation email received in the inbox. `GET /api/inventory-status` correctly stepped to `earlyRemaining: 8, sellableRemaining: 103`. An earlier checkout the same day is what exposed the dead webhook endpoint — see "three real bugs" below |
 | 12 | Admin/fulfillment view (`/shop/admin` or documented SQL runbook) | ✅ done (2026-08-13) — `/shop/admin` (`web/shop-admin.html` + `web/src/shop-admin/`), gated by a shared secret (`ADMIN_SECRET` env var, entered client-side, sent as `Authorization: Bearer` on every API call — see `web/api/_lib/adminAuth.ts`). `GET /api/admin/orders` lists all orders (unfulfilled first); `POST /api/admin/fulfill` sets `status = 'fulfilled'`, records tracking number, stamps `fulfilled_at`. `ADMIN_SECRET` added to Vercel prod/preview/dev (2026-08-13); value handed to Andrew once, not stored in this doc or the repo. Shows a **Ship via** column (service + amount paid) — the parcel must go out by the service the buyer paid for, so this is load-bearing for fulfillment, not decoration |
-| 13 | Go live — Shippo live key, flip Stripe to live mode, announce | 🟨 **Shippo live token requested 2026-08-14** (Andrew Archer / andrew.m.archer@gmail.com / "Space Race" / game.spaceexplorer.tech/shop); Shippo acknowledged and promised an update within 3 business hours. Note the request-only path is real: `apps.goshippo.com` shows *"Contact our API experts for a live token"* with a **Request Live Token** button and no self-serve option — Shippo's newer `portal.goshippo.com` does offer self-serve live keys, so docs found by search can mislead; trust the account. **Two prerequisites beyond the obvious:** (a) ~~inbound mail for `orders@`~~ — **resolved 2026-08-14**, see "Inbound email" below. (b) ~~Delete the two test orders~~ — **done 2026-08-14**; inventory back to a clean 10 of 10 early slots, 105 sellable. (c) MA sales-tax registration, blocked on the LLC's EIN — see "Sales tax" |
+| 13 | Go live — Shippo live key, flip Stripe to live mode, announce | 🟨 **Shippo live token installed 2026-08-14** — see "Shippo live rates" below. **Remaining:** flip Stripe to live, which is deliberately sequenced behind the LLC's EIN — see "Go-live sequencing" |
 | 14 | Hub page (`/get`) linking web/iOS/Play/Amazon/shop | ✅ done (2026-08-13) — static `web/public/get.html`, rewritten at `/get` (`web/vercel.json`). Real links for Web and App Store (`id6788064058`); Google Play and Amazon Appstore show "Coming soon" — neither has a confirmed live listing yet (Play Console signup and the Amazon Kids child-profile step are both still open per `docs/android-roadmap.md` / `docs/amazon-appstore/listing.md`), so linking them would 404. Buy-the-game links to `/shop` |
 | 15 | In-app link-out button, iOS + Android builds only (verify current IAP-exemption guideline text first) | ⬜ |
 
@@ -660,6 +660,41 @@ debugging trail, so wait before assuming failure. And **Cloudflare's Email
 Routing Activity Log is not a reliable audit trail** — that verification never
 appeared in it at all despite landing in the inbox, so treat an empty log as
 inconclusive rather than as evidence mail wasn't received.
+
+## Shippo live rates (2026-08-14)
+
+Live token approved and installed. Shippo's approval email grants *access*; the
+token itself is then self-created at **`portal.goshippo.com` → API
+configuration → Developer keys** (not `apps.goshippo.com`, which only has the
+request button — this is what made the earlier docs-vs-account confusion
+confusing). Creating one asks for a business type: **Direct shipper**, since we
+ship the packages ourselves rather than having customers generate labels.
+
+**Installed on production only.** Preview and development stay on the test
+token, so that if label-*buying* is ever added to the code, a preview deploy or
+a local `vercel dev` can never spend real money. Nothing in the code buys labels
+today — `shipping-rates.ts` only quotes — but the separation costs nothing now
+and prevents a nasty accident later.
+
+**The rate check the margin table depended on: live ≈ sandbox.** Quoted the real
+parcel (9.1 oz incl. packaging) to Washington DC on both:
+
+| Service | Sandbox | Live |
+|---|---|---|
+| USPS Ground Advantage | $6.25 | $6.25 |
+| UPS Ground Saver | $6.73 | $6.24 |
+| UPS Ground | $7.12 | $6.81 |
+| USPS Priority Mail | $9.22 | $9.22 |
+| USPS Priority Mail Express | $39.05 | $39.05 |
+
+So **no repricing is needed** — every figure in the margin table was built on
+roughly correct shipping. Shipping to Lexington now returns 10 live rates rather
+than the sandbox's 3, so local buyers see real UPS options too.
+
+Verified against production after redeploy: a real checkout session driven
+through `/api/shipping-rates` attached five options — $6.24, $6.25, $6.81,
+$9.22, $34.18 (Next Day Air Saver) — cheapest first, spanning every distinct
+delivery speed.
 
 ## Go-live sequencing (decided 2026-08-14)
 
