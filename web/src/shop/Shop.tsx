@@ -35,7 +35,7 @@ export function Shop() {
 function Confirmation() {
   return (
     <main className="shop shop--confirm">
-      <h1>You're in! 🚀</h1>
+      <h1>You're in!</h1>
       <p>
         Thanks for pre-ordering <strong>{PRODUCT_NAME}</strong>. A confirmation email
         is on its way now with your exact ship window, and we'll send tracking info

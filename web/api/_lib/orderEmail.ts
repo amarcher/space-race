@@ -154,7 +154,7 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
 
   const body = `
   <tr><td class="sr-pad" style="padding:30px 34px 4px;">
-    <div style="font-family:${DISPLAY_FONT};font-size:24px;font-weight:700;color:${TEXT};line-height:1.25;">You're in! &#128640;</div>
+    <div style="font-family:${DISPLAY_FONT};font-size:24px;font-weight:700;color:${TEXT};line-height:1.25;">You're in!</div>
     <div style="font-family:${BODY_FONT};font-size:15px;line-height:1.6;color:${DIM};padding-top:12px;">
       Thanks for pre-ordering <span style="color:${TEXT};">${escapeHtml(input.productName)}</span>.
       Here's exactly what you paid for.
@@ -173,8 +173,8 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
   </td></tr>
 
   <tr><td class="sr-pad" style="padding:26px 34px 0;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:${INSET};border-radius:10px;">
-      <tr><td style="padding:16px 18px;border-left:3px solid ${GOLD};border-radius:10px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:${INSET};border:1px solid ${BORDER};border-radius:10px;">
+      <tr><td style="padding:16px 18px;">
         <div style="font-family:${BODY_FONT};font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${DIM};padding-bottom:8px;">Shipping to</div>
         <div style="font-family:${BODY_FONT};font-size:14px;line-height:1.65;color:${TEXT};">${ship.map(escapeHtml).join('<br>')}</div>
       </td></tr>
