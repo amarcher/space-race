@@ -564,9 +564,21 @@ pending event. **If orders ever stop appearing, check the endpoint list
 first.**
 
 Also noticed while in there: **two unrelated webhook endpoints on this same
-Stripe account point at a Supabase project** and listen for
-`payment_intent.succeeded` — so they receive Space Race payment events.
-Harmless in test mode; sort it out before going live.
+Stripe account pointed at a Supabase project** and listened for
+`payment_intent.succeeded` — so they received Space Race payment events,
+carrying customer email and payment details into an unrelated project.
+Identified as **`brewcredits`** (Supabase org `aces-up-labs`, project ref
+`uxyphzjiyzyrimpudasb`), an abandoned side project of Andrew's — the Supabase
+project reads *Unhealthy* with no backups and no repo connected, so those
+deliveries had most likely been failing for months anyway. **Both endpoints
+deleted 2026-08-13** with Andrew's go-ahead; the Supabase project, its
+function, and the local Brew Credits checkout are untouched. This Stripe
+account now has exactly one webhook endpoint, ours.
+
+Worth remembering that this account was described as "genuinely dormant"
+when it was repurposed — and it still had live webhook config from March.
+**Dormant meant no revenue, not unconfigured.** If anything else surfaces
+from that era, check for it rather than assuming a clean account.
 
 **2. The service worker silently served the game instead of the page —
 twice.** `navigateFallback: '/index.html'` catches any navigation that doesn't
