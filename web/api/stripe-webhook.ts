@@ -19,6 +19,7 @@ export const config = {
 }
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const slackOrdersWebhookUrl = process.env.SLACK_ORDERS_WEBHOOK_URL ?? null
 
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -92,7 +93,31 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     returning id
   `
 
-  // Webhooks can retry/redeliver — only email on the first successful insert.
+  // Webhooks can retry/redeliver — only alert/email on the first successful insert.
+  if (inserted.length > 0 && slackOrdersWebhookUrl) {
+    const who = customerName ?? customerEmail ?? 'someone'
+    const copies = `${quantity} ${quantity === 1 ? 'copy' : 'copies'}`
+    const shipping = shippingService ?? 'no shipping method on file'
+    // Fire-and-forget-ish, but awaited so a failure can be logged: a bad or
+    // revoked webhook URL must not fail the checkout webhook itself (Stripe
+    // would retry, the insert would conflict, and the order would silently
+    // stop reaching #space-race — same reasoning as the email send below).
+    try {
+      const res = await fetch(slackOrdersWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `🎲 New order — ${who} bought ${copies}, shipping via ${shipping}.`,
+        }),
+      })
+      if (!res.ok) {
+        console.error('Order Slack alert rejected', { orderId: inserted[0].id, status: res.status })
+      }
+    } catch (err) {
+      console.error('Order Slack alert failed to send', { orderId: inserted[0].id, err })
+    }
+  }
+
   if (inserted.length > 0 && resend && customerEmail) {
     const shipDateLine =
       shipWindow === 'early'
