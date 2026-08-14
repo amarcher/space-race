@@ -119,14 +119,31 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       orderRef: String(inserted[0].id).slice(0, 8),
     })
 
-    await resend.emails.send({
-      // TODO: verify a spaceexplorer.tech sending domain in Resend before launch —
-      // see docs/store-wayfinder.md Phase 1.
-      from: 'Space Race <orders@spaceexplorer.tech>',
-      to: customerEmail,
-      subject: email.subject,
-      text: email.text,
-      html: email.html,
-    })
+    // The order is already safely in the database by this point, so a failed
+    // send must not fail the webhook: throwing here would return 500 to Stripe,
+    // which then retries — and on the retry the insert conflicts, inserted is
+    // empty, and we skip the email entirely. The buyer would silently get no
+    // confirmation while Stripe's dashboard showed a failed delivery. Log it
+    // and let the webhook succeed; the order is what matters.
+    //
+    // The likeliest cause is the sending domain not being verified in Resend
+    // yet — see docs/store-wayfinder.md Phase 1 and docs/store-ops.md.
+    try {
+      const sent = await resend.emails.send({
+        from: 'Space Race <orders@spaceexplorer.tech>',
+        to: customerEmail,
+        subject: email.subject,
+        text: email.text,
+        html: email.html,
+      })
+      if (sent.error) {
+        console.error('Confirmation email rejected by Resend', {
+          orderId: inserted[0].id,
+          error: sent.error,
+        })
+      }
+    } catch (err) {
+      console.error('Confirmation email failed to send', { orderId: inserted[0].id, err })
+    }
   }
 }
