@@ -18,6 +18,10 @@ type Order = {
   customer_name: string | null
   shipping_address: ShippingAddress
   quantity: number
+  // What the buyer picked and paid for at checkout — the service the parcel
+  // has to actually go out by.
+  shipping_service: string | null
+  shipping_cents: number
   amount_total_cents: number
   currency: string
   status: 'paid' | 'fulfilled' | 'cancelled' | 'refunded'
@@ -28,7 +32,13 @@ type Order = {
 }
 
 function formatAddress(a: ShippingAddress) {
-  return [a.line1, a.line2, [a.city, a.state, a.postal_code].filter(Boolean).join(', '), a.country]
+  return [
+    a.line1,
+    a.line2,
+    // "Lexington, MA 02420" — comma after the city only, space before the ZIP.
+    [[a.city, a.state].filter(Boolean).join(', '), a.postal_code].filter(Boolean).join(' '),
+    a.country && a.country !== 'US' ? a.country : null,
+  ]
     .filter(Boolean)
     .join(' · ')
 }
@@ -99,6 +109,11 @@ function OrderRow({ order, secret, onChanged }: { order: Order; secret: string; 
       <td>{formatAddress(order.shipping_address)}</td>
       <td>{order.quantity}</td>
       <td>{order.ship_window}</td>
+      <td>
+        {order.shipping_service ?? '—'}
+        <br />
+        <span className="admin__dim">{formatMoney(order.shipping_cents, order.currency)} paid</span>
+      </td>
       <td>{formatMoney(order.amount_total_cents, order.currency)}</td>
       <td>{order.status}</td>
       <td>
@@ -174,6 +189,7 @@ export function ShopAdmin() {
               <th>Address</th>
               <th>Qty</th>
               <th>Window</th>
+              <th>Ship via</th>
               <th>Total</th>
               <th>Status</th>
               <th>Fulfillment</th>
