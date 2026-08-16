@@ -181,26 +181,31 @@ export function ShopAdmin() {
       {loadError && <p className="admin__error">{loadError}</p>}
       {!orders && !loadError && <p>Loading…</p>}
       {orders && (
-        <table className="admin__table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Address</th>
-              <th>Qty</th>
-              <th>Window</th>
-              <th>Ship via</th>
-              <th>Total</th>
-              <th>Status</th>
-              <th>Fulfillment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <OrderRow key={order.id} order={order} secret={secret} onChanged={() => load(secret)} />
-            ))}
-          </tbody>
-        </table>
+        // The table is wider than any phone screen — scope the scroll to this
+        // wrapper (not the page) so a swipe across the data doesn't drag the
+        // whole document sideways with it.
+        <div className="admin__table-wrap">
+          <table className="admin__table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Address</th>
+                <th>Qty</th>
+                <th>Window</th>
+                <th>Ship via</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Fulfillment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => (
+                <OrderRow key={order.id} order={order} secret={secret} onChanged={() => load(secret)} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )

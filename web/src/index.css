@@ -87,6 +87,15 @@
 
 * { box-sizing: border-box; }
 
+html {
+  /* Stop Android/iOS auto-inflating text size on rotation. Harmless here since
+     the layout is fixed-viewport anyway, but it's a real source of overflow
+     on low-end Android WebViews when a system font-scale setting is layered
+     on top of it — belt and suspenders. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body, #root { height: 100%; }
 
 body {

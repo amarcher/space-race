@@ -6,18 +6,31 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Stop Android/iOS auto-inflating text size on rotation or in a narrow
+     column (e.g. inside the table's scroll area) — the layout is already
+     sized deliberately, so this "helpful" resize just breaks it. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: #07071a;
   color: #e8e6df;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .admin {
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
+  padding-top: max(2rem, calc(env(safe-area-inset-top) + 1rem));
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+  padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 2rem));
 }
 
 .admin h1 {
@@ -35,8 +48,12 @@ body {
 
 .admin input,
 .admin button {
+  /* font: inherit resolves to the body's default (unscaled) size — comfortably
+     >= 16px, so focusing these never triggers iOS's input-zoom. Keep it that
+     way: don't drop font-size below 1rem/16px on any input added here. */
   font: inherit;
   padding: 0.5rem 0.75rem;
+  min-height: 44px;
   border-radius: 6px;
   border: 1px solid #2a2a4a;
   background: #12122b;
@@ -66,8 +83,19 @@ body {
   font-size: 0.85rem;
 }
 
+/* The table is wider than a phone viewport by design (9 data columns) — scroll
+   it horizontally within this wrapper instead of letting the overflow escape
+   into the page, which would drag the whole document sideways on a swipe. */
+.admin__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 .admin__table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -94,13 +122,16 @@ body {
   display: flex;
   gap: 0.4rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .admin__fulfill input {
   width: 140px;
   padding: 0.3rem 0.5rem;
+  min-height: 36px;
 }
 
 .admin__fulfill button {
   padding: 0.3rem 0.6rem;
+  min-height: 36px;
 }

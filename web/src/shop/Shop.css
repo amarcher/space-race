@@ -29,18 +29,36 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Stop Android/iOS auto-inflating text size on rotation — the layout is
+     already sized deliberately for the viewport it's given. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* dvh tracks the browser chrome (address/toolbar) actually on screen, so the
+     page doesn't reserve height for a toolbar that's currently collapsed —
+     the vh fallback is for browsers that don't support dvh yet. */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .shop {
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
+  /* viewport-fit=cover (shop.html) draws under the notch / home-indicator —
+     pad the safe-area insets in on top of the normal spacing so content
+     never sits under a cutout or gets covered by a gesture bar. */
+  padding-top: max(2rem, calc(env(safe-area-inset-top) + 1rem));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-bottom: max(4rem, calc(env(safe-area-inset-bottom) + 2rem));
   display: grid;
   gap: 2rem;
 }
@@ -49,7 +67,7 @@ body {
   .shop {
     grid-template-columns: 1fr 1fr;
     align-items: start;
-    padding-top: 4rem;
+    padding-top: max(4rem, calc(env(safe-area-inset-top) + 1rem));
   }
 }
 
@@ -257,7 +275,14 @@ body {
   color: var(--text-dim);
   cursor: pointer;
   font-size: 0.95rem;
-  padding: 0;
+  /* Text-only buttons default to a tap target no taller than the line box —
+     pad it out to a thumb-friendly size instead of just the glyph height.
+     (.shop is a grid container, so this is padding rather than the usual
+     flow-layout negative-margin trick, which would pull it out of its cell.) */
+  padding: 0.6rem 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   width: fit-content;
 }
 
@@ -265,7 +290,7 @@ body {
   grid-template-columns: 1fr;
   max-width: 560px;
   text-align: center;
-  padding-top: 6rem;
+  padding-top: max(6rem, calc(env(safe-area-inset-top) + 1rem));
 }
 
 .shop__link {
