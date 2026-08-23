@@ -62,48 +62,26 @@ git history / regenerate by fitting 660×990 art centered on 825×1125 cream).
   near edges, booklet stitching + page order, box folds/fit with 107 cards,
   QR scans from print (booklet back page + marketing card), UV coating feel.
 
-## Second Edition — advanced play (pending re-upload)
+## Second Edition — advanced play (prepared, NOT executed)
 
-The rulebook grew **8 → 12 pages** to carry the two Mille Bornes-faithful modes,
-which are also selectable in the apps under *Settings ▸ Advanced play*:
+The rulebook grows **8 → 12 pages** to carry the two Mille Bornes modes, which
+also ship in the apps under *Settings ▸ Advanced play*:
 
 - **p9 — Precision Approach**: land on exactly 1000; a distance card that would
   overshoot is unplayable. Safeties are exempt (their +100 clamps to the line).
 - **p10–11 — Navigator's Ledger**: only distance cards move your ship; safeties
   and Slingshots bank points, tallied on p11 against the full scoring table.
 
-### How the page count actually works on TGC
+All 12 pages are rendered and in `exports/booklet/`. Cards, tuck box, and pages
+1–7 are unchanged.
 
-**There is no page-count field.** Checked in the live editor (2026-08-23): the
-Small Booklet component derives "*N* pages per book" from **how many Page
-records the component has**. Each Page is its own record with a Name, a Page
-Number, and one image upload. So growing the book means *adding Page records*,
-not editing a setting — and every added page needs its PNG uploaded to it.
+**Nothing has been changed on The Game Crafter**, and nothing should be until
+the modes have been playtested. We are taking TGC's **Copy** path rather than
+editing the live listing — TGC has no versioning or rollback, `edition` is a
+free-text label, and Automatic Pricing would silently move the live shop price.
 
-Component:
-`.../make/games/AE2D3926-…/SmallBooklet/20A50F26-864F-11F1-BF2E-44AF76806B7A`
-
-Re-upload checklist:
-
-- [ ] `./render-booklet.sh 12` → `exports/booklet/rules-1..12.png` *(done — the
-      12 renders are in `exports/booklet/`)*
-- [ ] 👤 **HUMAN — re-upload `rules-8.png` to the existing page-8.** Page 8 is
-      no longer the back cover: it now carries *Winning / Deck Spent / Ready For
-      More*, and the QR + App Store badge moved to the new page 12. Pages 1–7
-      are unchanged and need no re-upload.
-- [ ] 👤 **HUMAN — "+ Add Page" ×4**, then upload `rules-9.png` … `rules-12.png`
-      to pages 9–12 in order. Use *Renumber Pages* afterwards if the numbering
-      drifts. Page count must stay a multiple of 4 — 12 is the next one up.
-- [ ] 👤 **HUMAN — re-check price.** Cost Each was **$28.11** at 8 pages; four
-      more pages raise it. Compare against the retail price before selling more.
-- [ ] 👤 **HUMAN — proof it.** *Proof All* on the component, and eyeball the
-      saddle-stitch imposition — TGC prints booklet pages 4 to a sheet, so a
-      page-order mistake only shows up in the proof.
-- [ ] 👤 **HUMAN — box back**: no component change, but the blurb can now mention
-      two advanced modes if there's room.
-- [ ] Keep the wording in sync with `web/src/components/Gallery.tsx`
-      (`.rules__advanced`) — a player who learns one should be able to teach the
-      other.
+👉 **The full plan, ready-to-paste shop copy, and step-by-step runbook live in
+[`second-edition.md`](./second-edition.md).**
 
 ## Follow-ups
 
