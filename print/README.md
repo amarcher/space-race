@@ -72,13 +72,33 @@ which are also selectable in the apps under *Settings ▸ Advanced play*:
 - **p10–11 — Navigator's Ledger**: only distance cards move your ship; safeties
   and Slingshots bank points, tallied on p11 against the full scoring table.
 
+### How the page count actually works on TGC
+
+**There is no page-count field.** Checked in the live editor (2026-08-23): the
+Small Booklet component derives "*N* pages per book" from **how many Page
+records the component has**. Each Page is its own record with a Name, a Page
+Number, and one image upload. So growing the book means *adding Page records*,
+not editing a setting — and every added page needs its PNG uploaded to it.
+
+Component:
+`.../make/games/AE2D3926-…/SmallBooklet/20A50F26-864F-11F1-BF2E-44AF76806B7A`
+
 Re-upload checklist:
 
 - [ ] `./render-booklet.sh 12` → `exports/booklet/rules-1..12.png` *(done — the
       12 renders are in `exports/booklet/`)*
-- [ ] 👤 **HUMAN — TGC product**: change the Small Booklet page count from **8 to
-      12** before uploading, or the upload is rejected. This changes the per-unit
-      cost — re-check the retail price against the new print cost.
+- [ ] 👤 **HUMAN — re-upload `rules-8.png` to the existing page-8.** Page 8 is
+      no longer the back cover: it now carries *Winning / Deck Spent / Ready For
+      More*, and the QR + App Store badge moved to the new page 12. Pages 1–7
+      are unchanged and need no re-upload.
+- [ ] 👤 **HUMAN — "+ Add Page" ×4**, then upload `rules-9.png` … `rules-12.png`
+      to pages 9–12 in order. Use *Renumber Pages* afterwards if the numbering
+      drifts. Page count must stay a multiple of 4 — 12 is the next one up.
+- [ ] 👤 **HUMAN — re-check price.** Cost Each was **$28.11** at 8 pages; four
+      more pages raise it. Compare against the retail price before selling more.
+- [ ] 👤 **HUMAN — proof it.** *Proof All* on the component, and eyeball the
+      saddle-stitch imposition — TGC prints booklet pages 4 to a sheet, so a
+      page-order mistake only shows up in the proof.
 - [ ] 👤 **HUMAN — box back**: no component change, but the blurb can now mention
       two advanced modes if there's room.
 - [ ] Keep the wording in sync with `web/src/components/Gallery.tsx`
