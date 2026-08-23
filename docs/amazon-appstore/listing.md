@@ -29,7 +29,7 @@ also spares us Amazon's separate Fire TV asset set.
 | **Binary** | `web/android/app/build/outputs/apk/release/app-release.apk` |
 | **Build command** | `npm run amazon:release` (= `./scripts/android-release.sh --amazon`) |
 | **Package name** | `tech.spaceexplorer.spacerace` (same as Play/iOS) |
-| **Version** | `versionName 1.2.1` / `versionCode 15` |
+| **Version** | `versionName 1.3.0` / `versionCode 16` |
 | **Approx. size** | ~84 MB |
 | **Allow Amazon to apply DRM?** | **No** |
 
