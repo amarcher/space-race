@@ -1127,14 +1127,30 @@ export function Table({
       {settingsOpen && (
         <Settings
           rules={rules}
-          onChange={setRules}
+          onChange={(next) => {
+            setRules(next)
+            // Rules are baked into GameState at createGame, so a toggle can only
+            // reach a game that hasn't been dealt yet. When the current deal has
+            // nothing worth keeping, RE-DEAL right now so the change actually
+            // takes — otherwise the player flips a mode, gets no "next game"
+            // note (that note is gated on the very same bar), plays on under the
+            // OLD rules, and the mode looks broken. Same bar as the restart
+            // guard: an untouched deal, or one whose only motion was the opening
+            // draw, costs nothing to throw away.
+            if (!restartNeedsConfirm) {
+              const dealt = createGame({ rules: next })
+              freshDeckLen.current = dealt.deck.length
+              setSelectedUid(null)
+              setState(dealt)
+            }
+          }}
           prefs={prefs}
           onChangePrefs={(p) => {
             savePrefs(p)
             setPrefs(p)
           }}
           onClose={() => setSettingsOpen(false)}
-          gameInProgress={gameInProgress}
+          rulesLocked={restartNeedsConfirm}
         />
       )}
 
