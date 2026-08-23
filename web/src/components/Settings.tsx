@@ -5,6 +5,7 @@
 // the player flips a toggle mid-game, we surface a subtle "takes effect next
 // game" note rather than mutating the live rules.
 import { useState } from 'react'
+import { WIN_DISTANCE } from '../game/cards'
 import { SCRY_REVEAL, type GameRules } from '../game/rules'
 import { saveRules } from '../settings'
 import { LABEL_HIDE_GAMES, type Prefs } from '../prefs'
@@ -97,6 +98,27 @@ export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, gameI
             help="Blocking hazards clear themselves after a few turns."
             checked={draft.selfHeal}
             onChange={(v) => set('selfHeal', v)}
+          />
+        </section>
+
+        {/* The two Mille Bornes modes. Kept in their own section because they
+            change the GOAL and the SCORE rather than adding a lever — and because
+            the printed rulebook presents them the same way, as advanced play. */}
+        <section className="settings__section">
+          <h3 className="settings__section-title">Advanced play</h3>
+
+          <Toggle
+            label="Precision approach"
+            help={`Land on EXACTLY ${WIN_DISTANCE} light-years to win — a jump that would overshoot can't be played. Save your short hops for the landing.`}
+            checked={draft.exactFinish}
+            onChange={(v) => set('exactFinish', v)}
+          />
+
+          <Toggle
+            label="Navigator's ledger"
+            help="Only distance cards move your ship. Safeties and Slingshots bank points instead, counted up at the end of the round."
+            checked={draft.ledgerScoring}
+            onChange={(v) => set('ledgerScoring', v)}
           />
         </section>
 

@@ -7,7 +7,15 @@ import {
   HAND_SIZE,
   LANES,
   MAX_200_PER_PLAYER,
+  SAFETY_COUNT,
   SAFETY_MILEAGE,
+  SCORE_ALL_SAFETIES,
+  SCORE_DELAYED_ACTION,
+  SCORE_SAFE_TRIP,
+  SCORE_SAFETY,
+  SCORE_SHUTOUT,
+  SCORE_SLINGSHOT,
+  SCORE_TRIP_COMPLETED,
   SLINGSHOT_MILEAGE,
   WIN_DISTANCE,
   buildDeck,
@@ -285,19 +293,31 @@ export const drawReveal = (s: GameState, seat: number): number => {
   return 1 // classic blind draw
 }
 
+/** THE seam that owns distance-hop legality — every caller (legalMoves, the
+ * burst check, the AI) asks this and nobody re-derives it. Assumes the player is
+ * already launched and unblocked; this is purely about the VALUE:
+ *   · the Tractor Beam speed limit caps you at SPEED_LIMIT_VALUE,
+ *   · you may never bank more than MAX_200_PER_PLAYER hyperwarps,
+ *   · PRECISION APPROACH forbids any hop that would carry you PAST the line —
+ *     that single clause is the whole of the exact-1000 rule.
+ */
+export const canHop = (p: PlayerState, value: number, exactFinish: boolean): boolean => {
+  if (speedLimited(p) && value > SPEED_LIMIT_VALUE) return false
+  if (value === 200 && p.count200 >= MAX_200_PER_PLAYER) return false
+  if (exactFinish && p.distance + value > WIN_DISTANCE) return false
+  return true
+}
+
 /** Whether this player could legally PLAY a distance card right now (started, not
- * blocked, holds a card whose value clears the speed-limit / 200-cap rules). The
- * momentum BURST is only offered when this is true, so it's never a dead button. */
-export const canPlayDistance = (p: PlayerState): boolean => {
+ * blocked, holds a card whose value clears the speed-limit / 200-cap / exact-finish
+ * rules). The momentum BURST is only offered when this is true, so it's never a
+ * dead button — including in PRECISION APPROACH, where a hand of overshooting
+ * cards leaves you with nothing to chain. */
+export const canPlayDistance = (p: PlayerState, exactFinish = false): boolean => {
   if (!p.started || activeHazard(p) !== null) return false
-  const slow = speedLimited(p)
   return p.hand.some((c) => {
     const def = defOf(c)
-    if (def.type !== 'distance') return false
-    const v = def.value ?? 0
-    if (slow && v > SPEED_LIMIT_VALUE) return false
-    if (v === 200 && p.count200 >= MAX_200_PER_PLAYER) return false
-    return true
+    return def.type === 'distance' && canHop(p, def.value ?? 0, exactFinish)
   })
 }
 
@@ -308,7 +328,7 @@ export const canBurst = (s: GameState, seat: number): boolean =>
   s.turn === seat &&
   s.breakaway === null &&
   s.momentum[seat] >= MOMENTUM_CAP &&
-  canPlayDistance(s.players[seat])
+  canPlayDistance(s.players[seat], s.rules.exactFinish)
 
 /** Can `attacker`'s hand hazard `target` right now? (ignores Slingshot) */
 export const canAttack = (target: PlayerState, hazardKind: string): boolean => {
@@ -354,6 +374,12 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     for (const p of players) p.hand.push(deck.pop()!)
   }
 
+  const rules = resolveRules(opts.rules)
+  // PRECISION APPROACH changes the goal itself, so the opening line has to say so.
+  const goal = rules.exactFinish
+    ? `Race to EXACTLY ${WIN_DISTANCE} light-years — no overshooting.`
+    : `Race to ${WIN_DISTANCE} light-years.`
+
   return {
     deck,
     discard: [],
@@ -363,13 +389,13 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     winner: null,
     logSeq: 1,
     lastSlingshot: null,
-    rules: resolveRules(opts.rules),
+    rules,
     scry: null,
     catchUpScry: false,
     momentum: [0, 0],
     breakaway: null,
     lastHeal: null,
-    log: [{ id: 0, seat: -1, text: `Race to ${WIN_DISTANCE} light-years. ${names[0]} launches first.`, kind: 'info' }],
+    log: [{ id: 0, seat: -1, text: `${goal} ${names[0]} launches first.`, kind: 'info' }],
   }
 }
 
@@ -395,19 +421,14 @@ export function legalMoves(state: GameState): Move[] {
   const moves: Move[] = []
   const opp = state.players[other(state.turn)]
   const hzr = activeHazard(me)
-  const slow = speedLimited(me)
 
   for (const card of me.hand) {
     const def = defOf(card)
     switch (def.type) {
       case 'distance':
-        // overshoot is allowed; while speed-limited only ≤50 ly hops are legal
-        if (
-          me.started &&
-          !hzr &&
-          (!slow || (def.value ?? 0) <= SPEED_LIMIT_VALUE) &&
-          (def.value !== 200 || me.count200 < MAX_200_PER_PLAYER)
-        ) {
+        // Speed limit, the two-200 cap and PRECISION APPROACH's no-overshoot rule
+        // all live in canHop — see there. Classic lets you sail past 1000.
+        if (me.started && !hzr && canHop(me, def.value ?? 0, state.rules.exactFinish)) {
           moves.push({ type: 'play', uid: card.uid })
         }
         break
@@ -461,6 +482,30 @@ function beginTurnFor(s: GameState, p: PlayerState) {
     pushLog(s, p.seat, `${p.name}'s ${CARD_DEFS[kind].title} clears on its own — lane recovered.`, 'remedy')
   }
 }
+
+/** THE seam where a safety / Slingshot's bonus is paid out.
+ *
+ * NAVIGATOR'S LEDGER: it pays nothing to the track — the ledger banks it as points
+ * at the end of the round instead (see `scoreRound`), so the light-year total is
+ * purely the distance you flew.
+ *
+ * PRECISION APPROACH (ledger off): the bonus still advances you, but it is CLAMPED
+ * to the finish line. A safety can never be an illegal play — it is your immunity
+ * and it sweeps your lane — so instead of forbidding the overshoot we let it set
+ * you down on exactly WIN_DISTANCE.
+ *
+ * Returns the light-years actually added, so the caller can word its log line. */
+function awardMileage(s: GameState, p: PlayerState, mileage: number): number {
+  if (s.rules.ledgerScoring) return 0
+  const gain = s.rules.exactFinish ? Math.max(0, Math.min(mileage, WIN_DISTANCE - p.distance)) : mileage
+  p.distance += gain
+  return gain
+}
+
+/** How a bonus reads in the log, given where it actually landed: on the track as
+ * light-years, or in the ledger as points. */
+const bonusText = (s: GameState, gained: number, banked: number): string =>
+  s.rules.ledgerScoring ? `+${banked} pts banked` : `+${gained} ly`
 
 function winRound(s: GameState, seat: number) {
   s.winner = seat
@@ -607,7 +652,8 @@ export function applyMove(state: GameState, move: Move): GameState {
     case 'safety': {
       me.hand.splice(idx, 1)
       me.safeties.push(def.kind)
-      me.distance += SAFETY_MILEAGE // revealing a safety also moves you forward
+      // revealing a safety also pays a bonus — onto the track, or into the ledger
+      const gained = awardMileage(s, me, SAFETY_MILEAGE)
       // Rescue Shuttle covers the Stop lane → it doubles as a green light, so it
       // launches you even if you never fired Ignition.
       if (grantsGreenLight(def)) me.started = true
@@ -616,7 +662,12 @@ export function applyMove(state: GameState, move: Move): GameState {
       // clears the instant you're immune.
       const swept = sweepImmunizedHazards(s, me, def)
       const clears = swept.length ? ` Clears ${swept.map((k) => CARD_DEFS[k].title).join(' + ')}.` : ''
-      pushLog(s, me.seat, `${me.name} reveals ${def.title} — immune, +${SAFETY_MILEAGE} ly (now ${me.distance}).${clears}`, 'safety')
+      pushLog(
+        s,
+        me.seat,
+        `${me.name} reveals ${def.title} — immune, ${bonusText(s, gained, SCORE_SAFETY)} (now ${me.distance} ly).${clears}`,
+        'safety',
+      )
       if (me.distance >= WIN_DISTANCE) {
         winRound(s, me.seat)
         return s
@@ -640,14 +691,20 @@ export function applyMove(state: GameState, move: Move): GameState {
         target.safeties.push(sdef.kind)
         target.coupSafeties.push(sdef.kind) // mark it for the sideways board render
         target.coupFourres++
-        target.distance += SLINGSHOT_MILEAGE
+        // Worth double a plain reveal either way: +200 ly on the track, or the
+        // safety's 100 plus the Slingshot's own 100 in the ledger.
+        const slungBy = awardMileage(s, target, SLINGSHOT_MILEAGE)
         if (grantsGreenLight(sdef)) target.started = true // Rescue Shuttle also launches you
         s.discard.push(card) // the hazard is sent to the discard pile
         if (s.deck.length > 0) target.hand.push(s.deck.pop()!) // replacement draw
         pushLog(
           s,
           target.seat,
-          `SLINGSHOT! ${target.name} dodges ${def.title} with ${sdef.title}. +${SLINGSHOT_MILEAGE} ly (now ${target.distance}).`,
+          `SLINGSHOT! ${target.name} dodges ${def.title} with ${sdef.title}. ${bonusText(
+            s,
+            slungBy,
+            SCORE_SAFETY + SCORE_SLINGSHOT,
+          )} (now ${target.distance} ly).`,
           'coup',
         )
         s.lastSlingshot = {
@@ -677,6 +734,15 @@ export function applyMove(state: GameState, move: Move): GameState {
   return s
 }
 
+/** What a Slingshot pays, in whichever currency the active mode pays it: distance
+ * on the track, or points in the ledger. The two happen to come to the same 200,
+ * so only the UNIT changes on screen — one place owns that so the hero caption and
+ * the DOM fallback can never disagree. */
+export const slingshotReward = (rules: GameRules): { amount: number; unit: string } =>
+  rules.ledgerScoring
+    ? { amount: SCORE_SAFETY + SCORE_SLINGSHOT, unit: 'pts' }
+    : { amount: SLINGSHOT_MILEAGE, unit: 'ly' }
+
 export interface ScoreLine {
   label: string
   icon: string
@@ -690,8 +756,11 @@ export interface PlayerScore {
 }
 
 export function scoreRound(state: GameState): PlayerScore[] {
-  // Score is light-years travelled. Safeties/slingshots are already folded into
-  // p.distance as mileage, so we just break the total back out for display.
+  if (state.rules.ledgerScoring) return scoreLedger(state)
+
+  // CLASSIC: the score IS the light-year total. Safeties/slingshots are already
+  // folded into p.distance as mileage, so we just break the total back out for
+  // display.
   return state.players.map((p) => {
     const travel = p.distancePile.reduce((n, c) => n + (defOf(c).value ?? 0), 0)
     const safetyMileage = p.distance - travel
@@ -699,5 +768,39 @@ export function scoreRound(state: GameState): PlayerScore[] {
     if (safetyMileage > 0)
       lines.push({ label: `Safety mileage · ${safetyMileage} ly`, icon: '🛡️', points: safetyMileage })
     return { seat: p.seat, name: p.name, lines, total: p.distance }
+  })
+}
+
+/** NAVIGATOR'S LEDGER: the Mille Bornes end-of-round accounting.
+ *
+ * Distance scores a point per light-year FLOWN (safeties never touched the track
+ * in this mode). Everything after it is a bonus banked off the track — which is
+ * the whole point of the mode: a safety wins you no ground, so its value is the
+ * immunity plus what it's worth here, and doubling it via a Slingshot is the real
+ * prize. The four trip bonuses go solely to the pilot who completed the 1000.
+ *
+ * `state.deck.length === 0` is a faithful read of "the draw pile was already spent
+ * when the trip completed" — the round ends the instant someone crosses, so the
+ * deck can't be drawn down afterwards. */
+function scoreLedger(state: GameState): PlayerScore[] {
+  return state.players.map((p) => {
+    const opp = state.players[other(p.seat)]
+    const lines: ScoreLine[] = [{ label: `Distance flown · ${p.distance} ly`, icon: '🚀', points: p.distance }]
+    const add = (label: string, icon: string, points: number) => {
+      if (points > 0) lines.push({ label, icon, points })
+    }
+
+    add(`Safeties · ${p.safeties.length}`, '🛡️', p.safeties.length * SCORE_SAFETY)
+    if (p.safeties.length === SAFETY_COUNT) add('All four safeties', '🛡️', SCORE_ALL_SAFETIES)
+    add(`Slingshots · ${p.coupFourres}`, '⚡', p.coupFourres * SCORE_SLINGSHOT)
+
+    if (state.winner === p.seat && p.distance >= WIN_DISTANCE) {
+      add('Trip completed', '🏁', SCORE_TRIP_COMPLETED)
+      if (p.count200 === 0) add('Safe trip · no hyperwarps', '🏁', SCORE_SAFE_TRIP)
+      if (state.deck.length === 0) add('Delayed action · deck was spent', '🏁', SCORE_DELAYED_ACTION)
+      if (opp.distance === 0) add('Shutout · rival never moved', '🏆', SCORE_SHUTOUT)
+    }
+
+    return { seat: p.seat, name: p.name, lines, total: lines.reduce((n, l) => n + l.points, 0) }
   })
 }

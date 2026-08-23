@@ -6,6 +6,13 @@ import {
   GALLERY_ORDER,
   LANES,
   SAFETY_MILEAGE,
+  SCORE_ALL_SAFETIES,
+  SCORE_DELAYED_ACTION,
+  SCORE_SAFE_TRIP,
+  SCORE_SAFETY,
+  SCORE_SHUTOUT,
+  SCORE_SLINGSHOT,
+  SCORE_TRIP_COMPLETED,
   SLINGSHOT_MILEAGE,
   WIN_DISTANCE,
   type CardType,
@@ -175,6 +182,75 @@ export function Gallery() {
               <strong>+{SLINGSHOT_MILEAGE} ly</strong>
             </li>
           </ul>
+        </article>
+
+        {/* ---- Advanced play: the two Mille Bornes modes (Settings ▸ Advanced play).
+             Worded to match the printed rulebook's Advanced Play spread, so a
+             player who learned one can teach the other. ---- */}
+        <article className="rules__card rules__advanced">
+          <h3>
+            Advanced play <span className="rules__hint">— switch these on in Settings, together or apart</span>
+          </h3>
+
+          <h4>Precision approach</h4>
+          <p>
+            You must land on <strong>exactly {WIN_DISTANCE} light-years</strong>. A jump that would carry you past the
+            line can't be played at all — so hold back your <strong>25s and 50s</strong> for the touchdown, or you'll
+            sit at 950 with a fistful of hyperwarps while your rival glides in.
+          </p>
+
+          <h4>Navigator's ledger</h4>
+          <p>
+            Only distance cards move your ship — a <span className="rules__chip rules__chip--safety">Safety</span> or a{' '}
+            <span className="rules__chip rules__chip--slingshot">Slingshot</span> wins you no ground. They{' '}
+            <strong>bank points</strong> instead, tallied at the end of the round along with bonuses for finishing the
+            trip, finishing without a 200, finishing after the deck runs dry, and shutting your rival out at zero.
+          </p>
+          {/* Each row is exactly two flex items — one label span, one value — so
+              space-between puts the number on the right instead of scattering the
+              inline chips across the row. */}
+          <ul className="rules__scores">
+            <li>
+              <span>Each light-year flown</span>
+              <strong>1 pt</strong>
+            </li>
+            <li>
+              <span>
+                Each <span className="rules__chip rules__chip--safety">Safety</span> revealed
+              </span>
+              <strong>{SCORE_SAFETY}</strong>
+            </li>
+            <li>
+              <span>All four safeties</span>
+              <strong>+{SCORE_ALL_SAFETIES}</strong>
+            </li>
+            <li>
+              <span>
+                Each <span className="rules__chip rules__chip--slingshot">Slingshot</span>
+              </span>
+              <strong>+{SCORE_SLINGSHOT}</strong>
+            </li>
+            <li>
+              <span>Trip completed</span>
+              <strong>{SCORE_TRIP_COMPLETED}</strong>
+            </li>
+            <li>
+              <span>Safe trip · no 200s used</span>
+              <strong>{SCORE_SAFE_TRIP}</strong>
+            </li>
+            <li>
+              <span>Delayed action · finished after the deck ran out</span>
+              <strong>{SCORE_DELAYED_ACTION}</strong>
+            </li>
+            <li>
+              <span>Shutout · rival never moved</span>
+              <strong>{SCORE_SHUTOUT}</strong>
+            </li>
+          </ul>
+          <p className="rules__hint">
+            The last four go only to the pilot who completes the trip. Highest total wins — which means a pilot who
+            never reaches {WIN_DISTANCE} can still out-score one who does.
+          </p>
         </article>
       </section>
 

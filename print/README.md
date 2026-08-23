@@ -18,7 +18,8 @@ which is the exact file set uploaded to The Game Crafter.
 | `card-front.html?kind=<kind>&variant=noscrim` | `exports/cards/<kind>.png` | 825×1125 (poker w/ bleed) |
 | `render-cards.sh` | all 19 faces | defaults to `noscrim` |
 | `tuck-box.html` | `exports/tuck-box.png` | 3075×2250 (PokerTuckBox108 dieline) |
-| `booklet-page.html?page=1..8` | `exports/booklet/rules-N.png` | 825×1125/page, count must be ×4 |
+| `booklet-page.html?page=1..12` | `exports/booklet/rules-N.png` | 825×1125/page, count must be ×4 |
+| `render-booklet.sh [pages]` | all 12 rulebook pages | defaults to 12; refuses a non-×4 count |
 | `marketing-card-front.html` / `-back.html` | `exports/marketing-card-*.png` | 825×1125 |
 
 Render one-off:
@@ -60,6 +61,29 @@ git history / regenerate by fitting 660×990 art centered on 825×1125 cream).
 - Colors vs screen (golds can darken in print), cut alignment on card captions
   near edges, booklet stitching + page order, box folds/fit with 107 cards,
   QR scans from print (booklet back page + marketing card), UV coating feel.
+
+## Second Edition — advanced play (pending re-upload)
+
+The rulebook grew **8 → 12 pages** to carry the two Mille Bornes-faithful modes,
+which are also selectable in the apps under *Settings ▸ Advanced play*:
+
+- **p9 — Precision Approach**: land on exactly 1000; a distance card that would
+  overshoot is unplayable. Safeties are exempt (their +100 clamps to the line).
+- **p10–11 — Navigator's Ledger**: only distance cards move your ship; safeties
+  and Slingshots bank points, tallied on p11 against the full scoring table.
+
+Re-upload checklist:
+
+- [ ] `./render-booklet.sh 12` → `exports/booklet/rules-1..12.png` *(done — the
+      12 renders are in `exports/booklet/`)*
+- [ ] 👤 **HUMAN — TGC product**: change the Small Booklet page count from **8 to
+      12** before uploading, or the upload is rejected. This changes the per-unit
+      cost — re-check the retail price against the new print cost.
+- [ ] 👤 **HUMAN — box back**: no component change, but the blurb can now mention
+      two advanced modes if there's room.
+- [ ] Keep the wording in sync with `web/src/components/Gallery.tsx`
+      (`.rules__advanced`) — a player who learns one should be able to teach the
+      other.
 
 ## Follow-ups
 

@@ -6,8 +6,19 @@ import { win as hapticWin } from '../native/haptics'
 import { canShare, shareContent } from '../native/share'
 import { prefersReducedMotion } from '../motion'
 import { PlayerTag } from './PlayerTag'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 import './WinTakeover.css'
+
+/** Score-line glyphs from engine.ts → the app's own SVG set. The ⚡/🏁/🏆 rows
+ * only show up under NAVIGATOR'S LEDGER (slingshots + the Mille Bornes trip
+ * bonuses); classic scoring only ever emits the first two. */
+const SCORE_ICON: Record<string, IconName> = {
+  '🚀': 'thrust',
+  '🛡️': 'shield',
+  '⚡': 'bolt',
+  '🏁': 'gate',
+  '🏆': 'trophy',
+}
 
 // ─── Asset manifest ─────────────────────────────────────────────────────────
 // Responsive video selection: mirrors CardTakeover's wide/narrow split.
@@ -275,7 +286,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
                 {humanScore?.lines.map((l, i) => (
                   <li key={i} className="win-takeover__scoreline">
                     <span aria-hidden>
-                      <Icon name={l.icon === '🚀' ? 'thrust' : 'shield'} size={16} />
+                      <Icon name={SCORE_ICON[l.icon] ?? 'shield'} size={16} />
                     </span>
                     <b>{l.points}</b>
                   </li>
@@ -301,7 +312,7 @@ export function WinTakeover({ state, onDone, onDismiss }: WinTakeoverProps) {
                 {aiScore?.lines.map((l, i) => (
                   <li key={i} className="win-takeover__scoreline">
                     <span aria-hidden>
-                      <Icon name={l.icon === '🚀' ? 'thrust' : 'shield'} size={16} />
+                      <Icon name={SCORE_ICON[l.icon] ?? 'shield'} size={16} />
                     </span>
                     <b>{l.points}</b>
                   </li>
