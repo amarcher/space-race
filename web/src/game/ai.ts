@@ -7,6 +7,7 @@ import { CARD_DEFS, MAX_200_PER_PLAYER, WIN_DISTANCE, defOf, type CardDef, type 
 import {
   activeHazard,
   canAttack,
+  canHop,
   hazardsOn,
   hazardTurnsLeft,
   isTrailing,
@@ -31,19 +32,30 @@ function selfHealTurnsForRemedy(state: GameState, p: PlayerState, def: CardDef):
 /** How many distance cards this player could legally PLAY right now (respecting
  * the launch / block / speed-limit / 200-cap rules). Drives the momentum BURST
  * decision: the AI only spends its meter when it can chain a real double-jump. */
-function playableDistanceCount(p: PlayerState): number {
+function playableDistanceCount(p: PlayerState, exactFinish: boolean): number {
   if (!p.started || activeHazard(p) !== null) return 0
-  const slow = speedLimited(p)
   let n = 0
   for (const c of p.hand) {
     const def = defOf(c)
-    if (def.type !== 'distance') continue
-    const v = def.value ?? 0
-    if (slow && v > SPEED_LIMIT_VALUE) continue
-    if (v === 200 && p.count200 >= MAX_200_PER_PLAYER) continue
-    n++
+    if (def.type === 'distance' && canHop(p, def.value ?? 0, exactFinish)) n++
   }
   return n
+}
+
+/** PRECISION APPROACH: would playing `uid` strand us just short of the line?
+ *
+ * This is the skill the exact-finish mode is really about. Only the SHORT tail
+ * matters: leaving a gap of 200+ is fine (plenty of draws left to cover it), but
+ * closing to a 25/50/75 gap you hold no small card for means idling at the
+ * threshold, discarding 100s, while the rival flies past. */
+function strandsFinish(me: PlayerState, uid: string, played: number): boolean {
+  const left = WIN_DISTANCE - me.distance - played
+  if (left <= 0 || left >= 200) return false
+  return !me.hand.some((c) => {
+    if (c.uid === uid) return false // this is the card we're spending
+    const def = defOf(c)
+    return def.type === 'distance' && (def.value ?? 0) <= left
+  })
 }
 
 const HAZARD_WEIGHT: Record<string, number> = {
@@ -138,6 +150,13 @@ function scryValue(state: GameState, me: PlayerState, def: CardDef): number {
       if (v === 200 && me.count200 >= MAX_200_PER_PLAYER) return 8
       // Under a speed limit only small hops are legal, so big cards stall.
       if (slow && v > SPEED_LIMIT_VALUE) return 22 + v * 0.02
+      // PRECISION APPROACH: the landing card is the prize and anything bigger
+      // than the gap is literally unplayable from here — never spend a pick on it.
+      if (state.rules.exactFinish) {
+        if (v === remaining) return 96
+        if (v > remaining) return 6
+        return 40 + v * 0.18
+      }
       // Exact finisher? grab it. Otherwise prefer mileage that fits what's left.
       if (v >= remaining) return 90
       const overshoot = Math.max(0, v - remaining)
@@ -199,7 +218,7 @@ function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
     // for the normal play). Score it just above a single distance play so the AI
     // bursts first, then plays both hops. With <2 distances it's not worth the
     // reset, so we score it below a plain distance play (the AI just hops once).
-    const n = playableDistanceCount(me)
+    const n = playableDistanceCount(me, state.rules.exactFinish)
     if (n >= 2) return 160 // beats any single distance (max ~150) → press the lead
     return -50 // not a real swing right now; prefer the ordinary distance play
   }
@@ -216,7 +235,14 @@ function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
     case 'distance': {
       const v = def.value ?? 0
       if (me.distance + v >= WIN_DISTANCE) return 1000 // winning move
-      return 50 + v * 0.5
+      let score = 50 + v * 0.5
+      // PRECISION APPROACH: a hop that closes the gap to something we can't land
+      // on is worse than a shorter one that keeps the approach open.
+      if (state.rules.exactFinish && strandsFinish(me, mv.uid, v)) score -= 28
+      // NAVIGATOR'S LEDGER: burning a hyperwarp forfeits the Safe Trip bonus, so
+      // once the finish is realistically in reach a 200 costs more than it gains.
+      if (state.rules.ledgerScoring && v === 200 && me.count200 === 0 && me.distance >= 500) score -= 32
+      return score
     }
     case 'remedy': {
       if (def.isGo) return me.started ? 75 : 80 // clear a Black Hole, or launch
@@ -224,7 +250,10 @@ function scoreMove(state: GameState, me: PlayerState, mv: Move): number {
     }
     case 'safety': {
       if (hzr && (def.immuneTo ?? []).includes(hzr)) return 65 // unblock via safety when no remedy
-      return 18 // otherwise low priority — bank the mileage only when idle (hold for a Slingshot)
+      // Otherwise low priority — hold for a Slingshot. In the LEDGER the reveal
+      // wins no ground at all (it's pure points, banked either way), so there's
+      // even less reason to cash it early and forfeit the doubling.
+      return state.rules.ledgerScoring ? 10 : 18
     }
     case 'hazard':
       return 40 + (HAZARD_WEIGHT[def.kind] ?? 10)
@@ -244,7 +273,13 @@ function keepValue(state: GameState, me: PlayerState, uid: string): number {
       break
     case 'distance': {
       const dv = def.value ?? 0
-      if (dv === 200 && me.count200 >= 2) v = 1 // can't play a 3rd 200 — dump it
+      const gap = WIN_DISTANCE - me.distance
+      if (dv === 200 && me.count200 >= MAX_200_PER_PLAYER) v = 1 // can't play a 3rd 200 — dump it
+      // PRECISION APPROACH: a card bigger than the gap can NEVER be played again
+      // this round — it's the first thing to throw. Conversely the short hops are
+      // the landing gear: once the line is in sight, hoard them.
+      else if (state.rules.exactFinish && dv > gap) v = 0
+      else if (state.rules.exactFinish && dv <= SPEED_LIMIT_VALUE && gap <= 300) v = 16
       else v = 5 + dv * 0.05
       break
     }
@@ -266,19 +301,28 @@ function keepValue(state: GameState, me: PlayerState, uid: string): number {
   }
   // Don't feed the opponent: whatever we discard lands face-up on top of the pile
   // for them to grab next turn. Hold cards that would immediately help them.
-  return v + denyBonus(opp, def)
+  return v + denyBonus(opp, def, state.rules.exactFinish)
 }
 
 /** Extra reluctance to discard a card the opponent could pick up and use right away. */
-function denyBonus(opp: PlayerState, def: CardDef): number {
+function denyBonus(opp: PlayerState, def: CardDef, exactFinish: boolean): number {
   if (opp.distance >= WIN_DISTANCE) return 0
   switch (def.type) {
     case 'remedy':
       if (def.isGo && !opp.started) return 6 // would hand them their launch
       if (def.fixes != null && hazardsOn(opp).includes(def.fixes)) return 6 // would unblock them
       return 0
-    case 'distance':
+    case 'distance': {
+      // PRECISION APPROACH: mileage they can't legally land is no gift at all —
+      // and a card that exactly fills their gap is the last thing to hand them.
+      if (exactFinish) {
+        const gap = WIN_DISTANCE - opp.distance
+        const dv = def.value ?? 0
+        if (dv > gap) return 0
+        if (dv === gap) return 8
+      }
       return opp.started ? 1 : 0 // a moving opponent always welcomes free mileage
+    }
     default:
       return 0 // safeties they already can't be handed; hazards don't help them advance
   }

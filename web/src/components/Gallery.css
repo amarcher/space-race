@@ -152,6 +152,26 @@
 }
 .rules__scores strong { color: #fff; font-variant-numeric: tabular-nums; }
 
+/* Advanced play — the two Mille Bornes modes. Marked off with the safety-gold
+   rule so it reads as an optional layer on top of the base rules above it. */
+.rules__advanced { margin-top: 14px; border-left: 3px solid #ffd76a; }
+.rules__advanced h4 {
+  margin: 18px 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd76a;
+}
+.rules__advanced h4:first-of-type { margin-top: 14px; }
+/* the ledger table reads as rows, not the inline chips the base scoring uses */
+.rules__advanced .rules__scores { flex-direction: column; gap: 6px; margin-top: 12px; }
+.rules__advanced .rules__scores li { width: 100%; justify-content: space-between; align-items: baseline; gap: 14px; }
+/* the label may wrap; the value never does and never shrinks */
+.rules__advanced .rules__scores li > span:first-child { flex: 1 1 auto; }
+.rules__advanced .rules__scores li > strong { flex: 0 0 auto; }
+.rules__advanced > .rules__hint { display: block; margin-top: 14px; }
+
 /* on phones the 3-column track collapses to stacked labelled rows */
 @media (max-width: 560px) {
   .tracks__row--head { display: none; }

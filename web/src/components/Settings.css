@@ -19,8 +19,18 @@
 .settings__sheet {
   position: relative;
   width: min(420px, 92vw);
+  /* svh, not vh: on mobile Safari `vh` is the TOOLBAR-COLLAPSED viewport, so a
+     sheet sized in vh hangs behind the browser chrome while the toolbar is up.
+     svh is the small (toolbar-visible) viewport — the sheet always fits, and
+     unlike dvh it doesn't resize under the thumb as the toolbar collapses.
+     The vh line is the fallback for engines without svh. */
   max-height: 86vh;
+  max-height: 86svh;
   overflow-y: auto;
+  /* this is a nested scroller — without `contain`, flicking past the end of the
+     settings list rubber-bands the game board behind it. Has to live HERE, on
+     the scroller itself; an ancestor cannot supply it. */
+  overscroll-behavior: contain;
   padding: 20px 22px 22px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(16, 26, 54, 0.97), rgba(10, 16, 38, 0.97));

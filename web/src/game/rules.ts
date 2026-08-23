@@ -74,6 +74,43 @@ export interface GameRules {
    * no agency" arc problem without changing deck composition.
    */
   selfHeal: boolean
+
+  /**
+   * PRECISION APPROACH (exact finish): you must land on EXACTLY WIN_DISTANCE to
+   * win — no overshoot. A distance card that would carry you PAST the line is
+   * simply not a legal play, so the endgame becomes the Mille Bornes endgame:
+   * you hoard the short hops (25/50/75) that let you touch down cleanly, and a
+   * hand of nothing but 100s a hundred light-years out is a real problem.
+   *
+   * Safeties are the one exception, because a safety is never merely mileage —
+   * it is also your permanent immunity and it sweeps the hazard off your lane, so
+   * it must ALWAYS stay playable. Its bonus mileage is therefore CLAMPED to the
+   * finish line rather than made illegal: reveal a safety at 950 and you land on
+   * exactly 1000 and win. (Moot when `ledgerScoring` is also on — there the bonus
+   * never touches the track at all.)
+   *
+   * If nobody can land exactly before the deck is spent, the round ends the way
+   * it always has: `finishByDistance` awards it to whoever got furthest.
+   */
+  exactFinish: boolean
+
+  /**
+   * NAVIGATOR'S LEDGER (Mille Bornes scoring): the light-year track counts ONLY
+   * the distance you actually flew. Revealing a safety and pulling off a
+   * Slingshot no longer shove you up the track — they are banked as POINTS in the
+   * end-of-round accounting instead (see `scoreRound`), alongside the classic
+   * Mille Bornes end-of-hand bonuses: trip completed, safe trip, delayed action,
+   * shutout.
+   *
+   * This is the mode that makes a safety feel like a Mille Bornes safety. In the
+   * base game a safety is 100 free light-years, so you cash it the moment you are
+   * idle; here it wins you no ground at all, so the only reason to reveal one
+   * early is to unblock — and holding it for the Slingshot doubles its worth.
+   *
+   * Independent of `exactFinish`: either alone, or both together for the full
+   * Mille Bornes feel.
+   */
+  ledgerScoring: boolean
 }
 
 /** Classic Mille Bornes — every mode flag off. The regression-critical baseline. */
@@ -82,6 +119,8 @@ export const DEFAULT_RULES: GameRules = {
   catchUp: false,
   momentum: false,
   selfHeal: false,
+  exactFinish: false,
+  ledgerScoring: false,
 }
 
 /** How many top-of-deck cards a scry draw reveals by default. 2 = the tighter,

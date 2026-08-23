@@ -47,6 +47,7 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
   let coupTotal = 0
   let safetyTotal = 0
   let maxTurns = 0
+  let tripsCompleted = 0 // rounds that actually ended on the finish line, not a spent deck
 
   for (let i = 0; i < N; i++) {
     const { state, turns } = playGame(1000 + i, rules)
@@ -61,6 +62,16 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
     for (const p of state.players) {
       if (state.winner === p.seat && p.distance < WIN_DISTANCE && !stalemate)
         throw new Error(`[${label}] winner below 1000 (not a stalemate finish): ${p.distance}`)
+      // PRECISION APPROACH: nobody may EVER sail past the line — not on a distance
+      // card (illegal) and not on a safety's bonus (clamped). This is the mode.
+      if (state.rules.exactFinish && p.distance > WIN_DISTANCE)
+        throw new Error(`[${label}] overshot the exact finish: ${p.distance}`)
+      // NAVIGATOR'S LEDGER: the track counts distance cards and NOTHING else.
+      if (state.rules.ledgerScoring) {
+        const flown = p.distancePile.reduce((n, c) => n + (CARD_DEFS[c.kind].value ?? 0), 0)
+        if (flown !== p.distance)
+          throw new Error(`[${label}] ledger track drifted: distance=${p.distance}, cards flown=${flown}`)
+      }
       if (p.count200 > MAX_200_PER_PLAYER) throw new Error(`[${label}] too many 200s: ${p.count200}`)
       if (new Set(p.safeties).size !== p.safeties.length) throw new Error(`[${label}] duplicate safety revealed`)
       coupTotal += p.coupFourres
@@ -75,6 +86,7 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
     const moves = legalMoves(state)
     void moves
 
+    if (state.winner != null && state.players[state.winner].distance >= WIN_DISTANCE) tripsCompleted++
     wins[state.winner ?? 2]++
     maxTurns = Math.max(maxTurns, turns)
   }
@@ -87,6 +99,10 @@ function runMode(label: string, rules: Partial<GameRules> | undefined, N: number
   console.log(`  Counter-Thrusts total: ${coupTotal}   safeties revealed total: ${safetyTotal}`)
   console.log(`  Max turns in a game: ${maxTurns}`)
   console.log(`  Sample game score: ${scores.map((s) => `${s.name}=${s.total}`).join('  ')}`)
+  if (rules?.exactFinish) {
+    const exact = tripsCompleted / N
+    console.log(`  Trips landed exactly on ${WIN_DISTANCE}: ${tripsCompleted}/${N} (${(exact * 100).toFixed(1)}%)`)
+  }
 }
 
 // A normally-played safety must sweep the matching active hazard(s) off the board
@@ -132,6 +148,15 @@ runMode('scry-3', { scry: true, scryReveal: 3 }, N) // the wider opt-in peek
 runMode('catchUp', { catchUp: true }, N)
 runMode('momentum', { momentum: true }, N)
 runMode('selfHeal', { selfHeal: true }, N)
+// The two Mille Bornes advanced modes — alone, together, and stacked on the rest.
+runMode('exactFinish', { exactFinish: true }, N)
+runMode('ledger', { ledgerScoring: true }, N)
+runMode('milleBornes', { exactFinish: true, ledgerScoring: true }, N)
 runMode('all-modes', { scry: true, catchUp: true, momentum: true, selfHeal: true }, N)
+runMode(
+  'all-modes+mb',
+  { scry: true, catchUp: true, momentum: true, selfHeal: true, exactFinish: true, ledgerScoring: true },
+  N,
+)
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')

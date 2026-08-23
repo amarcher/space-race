@@ -100,6 +100,28 @@ export const MAX_200_PER_PLAYER = 2
 export const SAFETY_MILEAGE = 100
 /** A Slingshot (instant safety vs the matching hazard) is worth double. */
 export const SLINGSHOT_MILEAGE = 200
+/** How many distinct safeties exist in the deck (drives the all-four bonus). */
+export const SAFETY_COUNT = 4
+
+// ---- NAVIGATOR'S LEDGER scoring table (the Mille Bornes end-of-hand accounting) ----
+// Only consulted when `rules.ledgerScoring` is on. Distance scores 1 point per
+// light-year flown; every line below is a BONUS banked off the track. The trip
+// bonuses go solely to the pilot who actually completed the 1000.
+/** Each safety revealed, however it got there. */
+export const SCORE_SAFETY = 100
+/** Bonus for holding all four safeties at the end of the round. */
+export const SCORE_ALL_SAFETIES = 300
+/** Each Slingshot, ON TOP of that safety's own SCORE_SAFETY — so a slung safety
+ * is worth 200 in total, exactly like the base game's +200 ly. */
+export const SCORE_SLINGSHOT = 100
+/** Reaching the finish line at all. */
+export const SCORE_TRIP_COMPLETED = 400
+/** Completing the trip without playing a single 200 — the careful pilot's bonus. */
+export const SCORE_SAFE_TRIP = 300
+/** Completing the trip after the draw pile has run dry. */
+export const SCORE_DELAYED_ACTION = 300
+/** Completing the trip while your rival never travelled a single light-year. */
+export const SCORE_SHUTOUT = 500
 
 export const artUrl = (def: CardDef): string => `/cards/${def.art}.webp`
 export const CARD_BACK_URL = '/cards/card-back.webp'

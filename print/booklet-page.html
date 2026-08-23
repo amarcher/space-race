@@ -4,7 +4,11 @@
   Rulebook for TGC Small Booklet (2.5"x3.5", saddle-stitched, pages 825x1125
   @300dpi, count multiple of 4). Classic dark rulebook style: cosmic art
   backgrounds, translucent panels, embedded card photos with counts.
-  Open with ?page=1..8. Render via print/render-booklet.sh.
+  Open with ?page=1..12. Render via print/render-booklet.sh.
+
+  SECOND EDITION: grew 8 -> 12 pages to carry the two advanced modes (pages
+  9-11). 12 is the next multiple of 4, so the saddle stitch still works, but the
+  TGC product's page count MUST be updated from 8 to 12 before re-upload.
 -->
 <head>
 <meta charset="utf-8">
@@ -117,19 +121,69 @@ const PAGES = {
       </div>
       <div class="panel" style="margin-top:24px; padding:20px 32px;">
       <p style="font-size:24px;"><strong>Slingshot:</strong> if a hazard is played on you and you hold the matching safety, reveal it immediately. The hazard goes straight to the discard pile, you draw an extra card, and the safety counts for <strong>+200 light-years</strong>.</p></div>`,
-  8: `<img class="bg" src="marketing-front-art.png"><div class="shade"></div><div class="inner">
+  8: BG_COSMIC + `<div class="inner">
       <div class="panel" style="padding:24px 32px;"><h2 style="margin-bottom:10px;">Winning</h2>
       <p style="font-size:25px;">The first pilot to reach <strong>1000 light-years</strong> wins the race.</p></div>
-      <div style="margin-top:28px; background:#f4eee0; border-radius:18px; padding:34px 30px 30px; text-align:center;">
+      <div class="panel" style="margin-top:22px; padding:24px 32px;"><h2 style="margin-bottom:10px;">Deck Spent?</h2>
+      <p style="font-size:24px;">If the draw pile runs out and nobody can play, the race is called: the pilot who travelled <strong>furthest</strong> wins.</p></div>
+      <div class="panel" style="margin-top:22px; padding:24px 32px;"><h2 style="margin-bottom:10px;">Ready For More?</h2>
+      <p style="font-size:24px;">Two <strong>advanced modes</strong> follow. Play either one on its own, or both together for the full challenge. <em>Agree which are in play before you deal.</em></p></div>`,
+
+  // ---- Advanced play (pages 9–11) -----------------------------------------
+  // Both modes also ship in the apps under Settings ▸ Advanced play. Keep the
+  // wording here and in web/src/components/Gallery.tsx saying the same thing —
+  // a player who learns one should be able to teach the other.
+  9: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:24px 32px;">
+      <p style="font-size:19px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,235,180,0.75); margin-bottom:8px;">Advanced Play · One</p>
+      <h2 style="margin-bottom:12px;">Precision Approach</h2>
+      <p style="font-size:24px;">You must land on <strong>exactly 1000 light-years</strong>. A distance card that would carry you <em>past</em> the line cannot be played at all.</p></div>
+      <div class="panel" style="margin-top:20px; padding:22px 32px;">
+      <p style="font-size:23px;">So hold back your <strong>25s and 50s</strong> for the touchdown. Spend them early and you will sit at 950 with a fistful of hyperwarps, discarding, while your rival glides in.</p></div>
+      <div class="panel" style="margin-top:20px; padding:22px 32px;">
+      <p style="font-size:23px;"><strong>Safeties are the exception.</strong> A safety is your immunity, not just mileage, so it can always be played — its 100 light-years simply stops at the line. Reveal one at 950 and you land on exactly 1000 and win.</p></div>`,
+
+  10: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:24px 32px;">
+      <p style="font-size:19px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,235,180,0.75); margin-bottom:8px;">Advanced Play · Two</p>
+      <h2 style="margin-bottom:12px;">Navigator's Ledger</h2>
+      <p style="font-size:24px;">Only <strong>distance cards</strong> move your ship. A safety or a Slingshot wins you no ground at all — they <strong>bank points</strong> instead.</p></div>
+      <div class="panel" style="margin-top:20px; padding:22px 32px;">
+      <p style="font-size:23px;">The race still ends when a pilot reaches 1000 light-years, but the <em>winner is the highest score</em> on the next page — so a pilot who never finishes the trip can still take the round.</p></div>
+      <div class="panel" style="margin-top:20px; padding:22px 32px;">
+      <p style="font-size:23px;">This is what makes a safety worth <strong>holding</strong>. Reveal it and you bank 100. Save it to dodge the matching hazard — a <strong>Slingshot</strong> — and it is worth 200.</p></div>`,
+
+  11: BG_COSMIC + `<div class="inner">
+      <div class="panel" style="padding:22px 32px;"><h2 style="margin-bottom:6px;">Scoring the Ledger</h2>
+      <p style="font-size:21px;">Tally at the end of the round. <em>Pen and paper required.</em></p>
+      <table class="scoring" style="margin-top:14px;">
+        <tr><td>Each light-year flown</td><td>1</td></tr>
+        <tr><td>Each safety revealed</td><td>100</td></tr>
+        <tr><td>All four safeties</td><td>+300</td></tr>
+        <tr><td>Each Slingshot</td><td>+100</td></tr>
+        <tr><td>Trip completed</td><td>400</td></tr>
+        <tr><td>Safe trip — no 200s used</td><td>300</td></tr>
+        <tr><td>Delayed action — finished after the deck ran out</td><td>300</td></tr>
+        <tr><td>Shutout — rival never moved</td><td>500</td></tr>
+      </table></div>
+      <div class="panel" style="margin-top:20px; padding:20px 32px;">
+      <p style="font-size:22px;">The last four go <strong>only</strong> to the pilot who completed the trip. Highest total wins the round.</p>
+      <p style="font-size:22px; margin-top:12px;"><em>Playing a match?</em> Keep a running total and play rounds until someone passes <strong>5000</strong>.</p></div>`,
+
+  12: `<img class="bg" src="marketing-front-art.png"><div class="shade"></div><div class="inner">
+      <div style="background:#f4eee0; border-radius:18px; padding:34px 30px 30px; text-align:center;">
         <p style="font-family:'Unbounded'; font-weight:700; font-size:26px; color:#7a5c14;">TAKE THE RACE ANYWHERE</p>
         <img src="qr-play-online.png" style="width:300px; height:300px; margin:22px auto 0; display:block; image-rendering:pixelated;">
         <p style="font-family:'Unbounded'; font-weight:700; font-size:22px; color:#3a2f1e; margin-top:20px;">game.spaceexplorer.tech</p>
         <img src="app-store-badge.svg" style="height:88px; margin-top:18px;">
       </div>
+      <p style="text-align:center; font-size:22px; font-weight:600; color:rgba(255,235,180,0.9); margin-top:26px; text-shadow:0 2px 10px rgba(0,0,0,0.9);">Both advanced modes are in the apps too —<br>Settings ▸ Advanced play.</p>
       <div class="copyright" style="text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7);">© 2026 Andrew Archer</div>`,
 };
+// Page 1 is the cover and the last page is the back cover — neither gets a number.
+const LAST = Math.max(...Object.keys(PAGES).map(Number));
 const n = +(new URLSearchParams(location.search).get('page') || 1);
-document.body.innerHTML = PAGES[n] + (n > 1 && n < 8 ? `<div class="pagenum">${n - 1}</div>` : '');
+document.body.innerHTML = PAGES[n] + (n > 1 && n < LAST ? `<div class="pagenum">${n - 1}</div>` : '');
 </script>
 </body>
 </html>

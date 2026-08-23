@@ -8,6 +8,7 @@ import {
   drawReveal,
   legalMoves,
   scoreRound,
+  slingshotReward,
   type GameRules,
   type GameState,
   type Move,
@@ -18,7 +19,6 @@ import { loadRules } from '../settings'
 import { bumpGamesPlayed, LABEL_HIDE_GAMES, loadGamesPlayed, loadPrefs, savePrefs, type Prefs } from '../prefs'
 import { Settings } from './Settings'
 import { cardHeroVideo, cardSlingshotHeroVideo, cardSlingshotVideo, cardVideo } from '../game/cardArt'
-import { SLINGSHOT_MILEAGE } from '../game/cards'
 import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import * as haptics from '../native/haptics'
@@ -645,6 +645,8 @@ export function Table({
     // so the Slingshot always plays cleanly after, never overlapping
     if (takeover) return
     lastSlingId.current = ev.id
+    // the reward reads as light-years on the track, or ledger points — see engine
+    const slingReward = slingshotReward(state.rules)
     playSfx('slingshot')
     haptics.coupFourre() // the showiest reversal — always worth a heavy buzz
 
@@ -662,7 +664,7 @@ export function Table({
         <>
           <span className={`sling-cap__word${foe ? ' sling-cap__word--foe' : ''}`}>SLINGSHOT!</span>
           <span className={`sling-cap__pts${foe ? ' sling-cap__pts--foe' : ''}`}>
-            <Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly
+            <Icon name="bolt" /> +{slingReward.amount} {slingReward.unit}
           </span>
         </>
       )
@@ -1078,7 +1080,7 @@ export function Table({
       )}
 
 
-      {slingshot && <SlingshotOverlay event={slingshot} />}
+      {slingshot && <SlingshotOverlay event={slingshot} rules={state.rules} />}
 
       {/* SCRY: the human peeks the top of the deck and picks one card. */}
       {scryPhaseHuman && state.scry && (
@@ -1262,8 +1264,16 @@ function Scoreboard({
   onClose: () => void
 }) {
   const scores = scoreRound(state)
-  // map the score-line glyphs returned by engine.ts (untouched) → bespoke SVG
-  const scoreIcon: Record<string, IconName> = { '🚀': 'thrust', '🛡️': 'shield' }
+  // map the score-line glyphs returned by engine.ts (untouched) → bespoke SVG.
+  // The ⚡/🏁/🏆 rows only appear under NAVIGATOR'S LEDGER (slingshots and the
+  // Mille Bornes trip bonuses); classic scoring uses just the first two.
+  const scoreIcon: Record<string, IconName> = {
+    '🚀': 'thrust',
+    '🛡️': 'shield',
+    '⚡': 'bolt',
+    '🏁': 'gate',
+    '🏆': 'trophy',
+  }
   return (
     // click the backdrop (outside the card) to dismiss and inspect the final board
     <div className="scoreboard" onClick={onClose}>

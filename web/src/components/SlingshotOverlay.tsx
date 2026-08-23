@@ -1,5 +1,5 @@
-import { SLINGSHOT_MILEAGE } from '../game/cards'
-import type { SlingshotEvent } from '../game/engine'
+import { slingshotReward, type SlingshotEvent } from '../game/engine'
+import type { GameRules } from '../game/rules'
 import { Card } from './Card'
 import { Icon } from './Icon'
 import './SlingshotOverlay.css'
@@ -15,8 +15,9 @@ import './SlingshotOverlay.css'
  * When the OPPONENT pulls it off (your hazard dodged), the banner burns red
  * instead of gold — same spectacle, bad news for you.
  */
-export function SlingshotOverlay({ event }: { event: SlingshotEvent }) {
+export function SlingshotOverlay({ event, rules }: { event: SlingshotEvent; rules: GameRules }) {
   const foe = event.seat !== 0
+  const reward = slingshotReward(rules)
   return (
     <div className={`sling ${foe ? 'sling--foe' : ''}`} key={event.id} aria-label="Slingshot!">
       <div className="sling__scene">
@@ -33,7 +34,7 @@ export function SlingshotOverlay({ event }: { event: SlingshotEvent }) {
       </div>
       <div className="sling__banner">
         <span className="sling__word">SLINGSHOT!</span>
-        <span className="sling__pts"><Icon name="bolt" /> +{SLINGSHOT_MILEAGE} ly</span>
+        <span className="sling__pts"><Icon name="bolt" /> +{reward.amount} {reward.unit}</span>
       </div>
     </div>
   )
