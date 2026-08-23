@@ -22,15 +22,20 @@ interface SettingsProps {
   prefs: Prefs
   onChangePrefs: (prefs: Prefs) => void
   onClose: () => void
-  /** true while a game is actually in progress → show the "next game" note */
-  gameInProgress: boolean
+  /** True when a live game is HOLDING the current rules, so a change can't reach
+   * it and has to wait for the next round → show the "next game" note.
+   *
+   * When this is false the parent RE-DEALS on change instead, so the note would
+   * be a lie: the new rules are already live. Both behaviours hang off the same
+   * bar (the restart guard's) precisely so they can never disagree. */
+  rulesLocked: boolean
 }
 
-export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, gameInProgress }: SettingsProps) {
+export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, rulesLocked }: SettingsProps) {
   // local mirror so the toggle flips instantly; persisted + lifted on each change
   const [draft, setDraft] = useState<GameRules>(rules)
   const [prefsDraft, setPrefsDraft] = useState<Prefs>(prefs)
-  // becomes true once the user changes anything during a live game
+  // becomes true once the user changes a rule that a live game is holding onto
   const [touched, setTouched] = useState(false)
 
   const set = <K extends keyof GameRules>(key: K, value: GameRules[K]) => {
@@ -38,7 +43,7 @@ export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, gameI
     setDraft(next)
     saveRules(next)
     onChange(next)
-    if (gameInProgress) setTouched(true)
+    if (rulesLocked) setTouched(true)
     playSfx('ui-click')
   }
 
