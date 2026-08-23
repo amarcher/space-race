@@ -122,8 +122,42 @@ Play it free in your browser or on iPhone first: game.spaceexplorer.tech
    Edition listing never had these filled, so there is nothing to inherit.
 7. Check the new Cost Each and MSRP before publishing.
 8. Order a copy → wait out the 10-day publish gate → publish.
-9. Decide what happens to the First Edition listing — leave it up as the
-   8-page book, or unpublish it. **Open question, not decided.**
+9. **Unpublish the First Edition listing** (decided 2026-08-23). Do this only
+   *after* the Second Edition is actually published — see below.
+
+## Retiring the First Edition
+
+Decision: the First Edition listing comes down once the Second is live, so there
+is never a moment where the shop sells the 8-page book alongside the 12-page one.
+
+What that actually does, checked in Shop Preferences on 2026-08-23:
+
+| Setting | Value | Consequence |
+|---|---|---|
+| Allow sales even when unpublished? | **No** | Unpublishing genuinely stops TGC sales. This is the intent. |
+| Allow viewing even when unpublished? | **No** | The public page goes **dark entirely** — not just un-buyable. |
+
+So `thegamecrafter.com/games/space-race:-1000-light-years` becomes inaccessible,
+and the First Edition's one customer review stops being publicly visible along
+with it. If that review is worth keeping reachable, flip *Allow viewing when
+unpublished* to **Yes** before unpublishing and the page survives as a
+read-only archive that cannot be bought. Either is defensible; taking the page
+fully dark is the current call.
+
+Two things that are **not** affected, so they need not weigh on the decision:
+
+- **Nothing links to that URL.** Grepped the repo, the shop site, and the apps —
+  the only TGC links anywhere are to the private `/make/games/…` editor. Nothing
+  404s.
+- **Your own fulfilment is unaffected.** A designer can always order their own
+  unpublished game — that is precisely what the buy-before-publish gate
+  requires — so ordering First Edition stock for the Stripe store keeps working
+  whether or not the listing is public. And `spaceexplorer.tech`, not the TGC
+  shop, is the real sales channel regardless (the TGC page had 11 views).
+
+**Sequence matters:** publish Second, *then* unpublish First. Reversed, there is
+a ≥10-day window (the new record's publish gate) with neither edition buyable on
+TGC.
 
 ## Not verified
 
