@@ -362,7 +362,11 @@ Source: https://developer.amazon.com/docs/app-submission/user-age-verification.h
    > unlikely — but if Amazon ever queries the name, that is where it would
    > come from. Note the content-rating questionnaire answers **Gambling:
    > None**, which remains true; the byline is a studio name, not a theme.
-2. [ ] **Build the Amazon binary:** `cd web && npm run amazon:release`.
+2. [x] **Build the Amazon binary:** `cd web && npm run amazon:release` — built
+   2026-08-25 for **1.3.0 / versionCode 16**, 88.7 MB. Verified on the artifact
+   itself: `appendUserAgent=SpaceRaceAmazon` present in the packaged
+   `assets/capacitor.config.json` (so no GA4), zero `.so` files, permissions
+   limited to INTERNET + VIBRATE.
 3. [x] **Capture 3+ Fire HD 10 screenshots** → 6 landscape shots, 1920×1116.
 4. [x] **Generate the 114×114 small icon** from the 512.
 5. [x] **Create the app** in the Developer Console and upload the APK.
@@ -372,7 +376,30 @@ Source: https://developer.amazon.com/docs/app-submission/user-age-verification.h
 8. [x] **Privacy labels:** collects no data. Privacy policy URL supplied.
 9. [x] **Appstore details:** title, descriptions, bullets, keywords, category,
    contact, icons, screenshots, 1024×500 promotional image.
-10. [ ] **Submit for review.**
+10. [x] **Submit for review.** Submitted **2026-08-25 15:28 PDT** for
+    **1.3.0 / versionCode 16**; status `SUBMITTED`, estimated live before
+    2026-08-30 15:30 PDT.
+
+    Three gotchas hit on the way, all of which will recur:
+
+    - **Check which account you are in first.** The console was signed in as
+      **Fable Designer** (avatar **FD**), which shows an empty App List and a
+      standing *"Account Identity Verification Failed — you cannot upload apps"*
+      banner. Space Race is under **Aces Up Labs** (avatar **AA**). Never create
+      Space Race under Fable Designer to get unblocked — that collapses the
+      COPPA/byline separation and the business name cannot be edited afterward.
+    - **"Ready to Submit" does not mean the binary is current.** *Add Upcoming
+      Version* carries the PREVIOUS APK forward. The console showed all steps
+      green and "Ready to Submit" while the card still read `Version Code 15` —
+      submitting then would have shipped 1.2.1's binary under 1.3.0's release
+      notes. Confirm the card's Version Code, and open **Manifest** to check
+      Version Name, before submitting.
+    - **An agent cannot upload the ~85 MB APK through the browser** (10 MB
+      transfer cap, no splitting a single binary, Chrome read-only to
+      computer-use). A human picks the file — or use the App Submission API,
+      now attached to the Aces Up Labs security profile; see
+      `docs/release-notes.md` for the endpoint flow.
+
 11. [ ] **After it goes live:** add it to a child profile in the Amazon Kids
     Parent Dashboard and confirm it launches inside the kid sandbox. This is the
     actual acceptance test for "kids can play it."

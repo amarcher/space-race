@@ -61,6 +61,26 @@ fi
 # --- signed path ---
 : "${TEAM_ID:?Set TEAM_ID to your Apple Developer Team ID for a signed build}"
 
+# Automatic signing has to talk to Apple to fetch/renew the cloud-managed
+# distribution cert and the provisioning profile. Given an App Store Connect API
+# key, hand it to xcodebuild explicitly: otherwise -allowProvisioningUpdates
+# falls back on Xcode's signed-in Apple ID, whose session expires silently and
+# fails the archive ~10 minutes in. Same key altool uses for --upload below.
+AUTH_ARGS=()
+if [[ -n "${ASC_API_KEY_ID:-}" && -n "${ASC_API_ISSUER_ID:-}" ]]; then
+  ASC_KEY_PATH="${ASC_API_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_API_KEY_ID}.p8}"
+  if [[ -f "$ASC_KEY_PATH" ]]; then
+    AUTH_ARGS=(
+      -authenticationKeyPath "$ASC_KEY_PATH"
+      -authenticationKeyID "$ASC_API_KEY_ID"
+      -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+    )
+    echo "==> Signing auth: App Store Connect API key $ASC_API_KEY_ID"
+  else
+    echo "!! ASC_API_KEY_ID set but $ASC_KEY_PATH is missing — falling back to Xcode's Apple ID session" >&2
+  fi
+fi
+
 echo "==> Archiving (signed, team $TEAM_ID)"
 xcodebuild \
   -project "$PROJECT" \
@@ -69,6 +89,7 @@ xcodebuild \
   -archivePath "$ARCHIVE" \
   archive \
   -allowProvisioningUpdates \
+  "${AUTH_ARGS[@]}" \
   CODE_SIGN_STYLE=Automatic \
   DEVELOPMENT_TEAM="$TEAM_ID"
 
@@ -99,7 +120,8 @@ xcodebuild \
   -archivePath "$ARCHIVE" \
   -exportOptionsPlist "$EXPORT_OPTIONS" \
   -exportPath "$EXPORT_DIR" \
-  -allowProvisioningUpdates
+  -allowProvisioningUpdates \
+  "${AUTH_ARGS[@]}"
 
 echo "==> .ipa at $EXPORT_DIR"
 
