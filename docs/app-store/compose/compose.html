@@ -5,7 +5,7 @@
      at the exact pixel size App Store Connect expects. Headless Chrome does the
      rasterizing — see render.sh next to this file.
 
-       file://…/compose.html?slide=<id>&size=<iphone|ipad>
+       file://…/compose.html?slide=<id>&size=<iphone69|iphone65|ipad>
 
      Slides (captures live in ../screenshots/) are defined in SLIDES below.
      Brand ingredients come straight from the app: Unbounded/Inter woff2 from
@@ -40,7 +40,7 @@
   .star { position: absolute; border-radius: 50%; background: #fff; }
 
   /* --- caption block --- */
-  .caption { text-align: center; z-index: 2; padding: 0 90px; }
+  .caption { text-align: center; z-index: 2; padding: 0 calc(90px * var(--u)); }
   .caption h1 {
     font-family: 'Unbounded'; font-weight: 900;
     font-size: var(--h1-size); line-height: 1.12; margin: 0;
@@ -56,7 +56,7 @@
   }
   .caption p {
     font-weight: 500; font-size: var(--sub-size); line-height: 1.35;
-    color: rgba(255, 236, 205, 0.85); margin: 26px 0 0;
+    color: rgba(255, 236, 205, 0.85); margin: calc(26px * var(--u)) 0 0;
   }
 
   /* --- device frame: iPhone-style — uniform black bezel inside a thin
@@ -93,9 +93,9 @@
   }
   /* dynamic-island hint (iphone only) */
   .device .island {
-    position: absolute; top: calc(var(--bezel) + 18px); left: 50%;
+    position: absolute; top: calc(var(--bezel) + 18px * var(--u)); left: 50%;
     transform: translateX(-50%);
-    width: 190px; height: 56px; border-radius: 999px;
+    width: calc(190px * var(--u)); height: calc(56px * var(--u)); border-radius: 999px;
     background: #050510;
   }
   .ipad .island { display: none; }
@@ -110,13 +110,13 @@
   }
 
   /* --- badge row (sits under the sub-caption, above the device) --- */
-  .badges { display: flex; gap: 26px; align-items: center; justify-content: center; margin-top: 44px; }
+  .badges { display: flex; gap: calc(26px * var(--u)); align-items: center; justify-content: center; margin-top: calc(44px * var(--u)); }
   .badge {
     font-weight: 600; font-size: var(--badge-size);
     letter-spacing: 0.14em; text-transform: uppercase;
     color: rgba(255, 232, 190, 0.85);
     border: 2px solid rgba(255, 205, 110, 0.4);
-    border-radius: 999px; padding: 16px 34px;
+    border-radius: 999px; padding: calc(16px * var(--u)) calc(34px * var(--u));
     background: rgba(48, 36, 14, 0.5);
   }
 </style>
@@ -124,13 +124,29 @@
 <body>
 <script>
   const params = new URLSearchParams(location.search)
-  const SIZE = params.get('size') || 'iphone'
+  const SIZE = params.get('size') || 'iphone69'
   const SLIDE = params.get('slide') || 'takeover'
 
-  // page + layout geometry per ASC size class
+  // Page + layout geometry per ASC size class. The iPhone composition was
+  // authored on the 6.5" canvas; the 6.9" one is that same card scaled by width
+  // (1320/1284 = 1.028), so both classes render as the same picture -- only the
+  // pixel grid changes. --u carries that scale into the hand-tuned CSS lengths.
+  const IPHONE_65 = { w: 1284, h: 2778, shotW: 940, h1: 104, sub: 46, badge: 30, radius: 74, bezel: 22, capTop: 150, gap: 96 }
+  const scaleTo = (base, w, h) => {
+    const k = w / base.w
+    const out = { w, h, base: base.w }
+    for (const key of ['shotW', 'h1', 'sub', 'badge', 'radius', 'bezel', 'capTop', 'gap']) {
+      out[key] = Math.round(base[key] * k)
+    }
+    return out
+  }
   const GEOM = {
-    iphone: { w: 1284, h: 2778, shotW: 940, h1: 104, sub: 46, badge: 30, radius: 74, bezel: 22, capTop: 150, gap: 96 },
-    ipad:   { w: 2064, h: 2752, shotW: 1360, h1: 118, sub: 50, badge: 32, radius: 64, bezel: 26, capTop: 130, gap: 86 },
+    // 6.9" -- iPhone 17/16 Pro Max, Air, 15/16 Plus. Apple's current BASE iPhone
+    // class; ASC's API calls this slot APP_IPHONE_67 (there is no _69 enum).
+    iphone69: scaleTo(IPHONE_65, 1320, 2868),
+    // 6.5" -- the fallback class Apple upscales from. What 1.0-1.3.0 shipped.
+    iphone65: { ...IPHONE_65, base: IPHONE_65.w },
+    ipad:     { w: 2064, h: 2752, base: 2064, shotW: 1360, h1: 118, sub: 50, badge: 32, radius: 64, bezel: 26, capTop: 130, gap: 86 },
   }[SIZE]
 
   const SLIDES = {
@@ -183,6 +199,7 @@
   root.style.setProperty('--badge-size', GEOM.badge + 'px')
   root.style.setProperty('--dev-radius', GEOM.radius + 'px')
   root.style.setProperty('--bezel', GEOM.bezel + 'px')
+  root.style.setProperty('--u', (GEOM.w / GEOM.base).toFixed(5))
 
   // deterministic pseudo-random starfield (seeded so renders are reproducible)
   let seed = 42
