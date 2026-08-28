@@ -22,21 +22,36 @@ strings should say so too. Two files to change, both in `web/`:
   **2026-08-25**. ASC reports the version record `READY_FOR_SALE` /
   `READY_FOR_DISTRIBUTION`, and the public store is serving 1.3.0 with this
   release's What's New copy and all 8 screenshots + the app preview.
-- **Amazon Appstore — submitted 2026-08-25, outcome unconfirmed.** The
-  Submission API now returns **no open edit** for the app, so the `REVIEW` edit
-  has closed one way or the other — but the API exposes nothing but `/edits`,
-  so it cannot say whether that means *published* or *rejected*. Confirm in the
-  Console (Aces Up Labs) before treating it as live.
+- **Amazon Appstore — live.** Submitted 2026-08-25, approved, and now serving
+  **Version 1.3.0** (84.6 MB, Aces Up Labs, permissions listed as network
+  sockets + vibration only — exactly what we shipped). The Submission API
+  agrees indirectly: `GET /edits` returns `{}`, i.e. the `REVIEW` edit has
+  closed.
 - **Play — never shipped.** Not "behind on a version": there is no public Play
   listing at all, and every 👤 HUMAN step in `docs/android-roadmap.md`'s Phase 4
   (Play Console account, internal testing, listing, data safety, content rating,
   submit) is still open.
 
-Check the App Store side from anywhere, no credentials needed:
+### Checking a store's live version without credentials
+
+Both of these answer "what is the public store actually serving right now",
+which is the question `GET /edits` and the ASC version record can't quite
+answer on their own.
+
+**App Store** — the iTunes lookup API, no auth:
 
     curl -s "https://itunes.apple.com/lookup?id=6788064058&country=us" \
       | python3 -c "import json,sys; r=json.load(sys.stdin)['results'][0]; \
                     print(r['version'], r['currentVersionReleaseDate'])"
+
+**Amazon Appstore** — the public listing is
+**[B0GXHBHD78](https://www.amazon.com/dp/B0GXHBHD78)**; *Technical details ▸
+Version* is the live version. (Worth writing down, because it is genuinely hard
+to find: searching the exact display title in **Apps & Games** returns *no
+results*, and `amazon.com/gp/mas/dl/android?p=tech.spaceexplorer.spacerace`
+404s. Searching the byline **Aces Up Labs** is what surfaces it. The Submission
+API is no help here — it exposes only `/edits`, with no published-version
+endpoint.)
 
 > ℹ️ **The iOS jump was 1.2.0 → 1.3.0.** 1.2.1 was cut for the Amazon Appstore
 > ship (`849ec85`) and went to web and Amazon only — it was never uploaded to
@@ -83,9 +98,8 @@ Also: opening the rules no longer ends your game in progress.
       startable: the Play Console app doesn't exist yet (roadmap Phase 4).
 - [x] `cd web && npm run amazon:release` → APK built, verified, uploaded and
       **submitted 2026-08-25** (88.7 MB; `versionCode 16` / `1.3.0`,
-      `appendUserAgent=SpaceRaceAmazon`, no `.so`, only INTERNET+VIBRATE).
-      *Submitted is all this line claims — see the status block for what the
-      review did with it.*
+      `appendUserAgent=SpaceRaceAmazon`, no `.so`, only INTERNET+VIBRATE) —
+      **approved and live**, confirmed on the public listing 2026-08-28.
 - [x] Paste the What's New block above — done for iOS and Amazon; still owed to Play
 - [x] No new screenshots needed — the 8 existing shots (6 iPhone 6.5, 2 iPad
       12.9) carried over to the 1.3.0 record automatically and read COMPLETE,
