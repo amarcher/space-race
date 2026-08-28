@@ -62,11 +62,26 @@ export type Phase = 'draw' | 'scry' | 'play' | 'roundOver'
 
 export type LogKind = 'hazard' | 'remedy' | 'safety' | 'distance' | 'coup' | 'win' | 'info'
 
+/** What physically happened to a row's card, where its LogKind can't say it on
+ * its own: the same remedy card can be PLAYED or DISCARDED, and a hazard can
+ * leave a lane because someone fixed it or because it healed itself. 'play' is
+ * the default and stays implicit. */
+export type LogAct = 'discard' | 'take' | 'heal'
+
+/** One line of history. The log renders CARD ART rather than prose, so an entry
+ * names the cards it is about — `text` survives as the accessible/tooltip
+ * description, not as the thing the player is expected to read. */
 export interface LogEntry {
   id: number
   seat: number
   text: string
   kind: LogKind
+  /** the card the row is ABOUT: played, revealed, discarded or taken. */
+  card?: string
+  /** cards this row acts UPON and takes off the board — the hazard a remedy
+   * clears, the hazard a Slingshot dodges, the hazards a safety sweeps. */
+  against?: string[]
+  act?: LogAct
 }
 
 export interface SlingshotEvent {
@@ -457,8 +472,10 @@ export function legalMoves(state: GameState): Move[] {
   return moves
 }
 
-function pushLog(s: GameState, seat: number, text: string, kind: LogKind) {
-  s.log.push({ id: s.logSeq++, seat, text, kind })
+type LogCards = Pick<LogEntry, 'card' | 'against' | 'act'>
+
+function pushLog(s: GameState, seat: number, text: string, kind: LogKind, cards: LogCards = {}) {
+  s.log.push({ id: s.logSeq++, seat, text, kind, ...cards })
 }
 
 function endTurn(s: GameState) {
@@ -479,7 +496,10 @@ function beginTurnFor(s: GameState, p: PlayerState) {
   const healed = ageAndHealHazards(s, p)
   for (const kind of healed) {
     s.lastHeal = { id: s.logSeq, seat: p.seat, hazardKind: kind }
-    pushLog(s, p.seat, `${p.name}'s ${CARD_DEFS[kind].title} clears on its own — lane recovered.`, 'remedy')
+    pushLog(s, p.seat, `${p.name}'s ${CARD_DEFS[kind].title} clears on its own — lane recovered.`, 'remedy', {
+      card: kind,
+      act: 'heal',
+    })
   }
 }
 
@@ -535,7 +555,10 @@ export function applyMove(state: GameState, move: Move): GameState {
       // The top of the discard is already face-up — no scry there, just take it.
       const card = s.discard.pop()!
       me.hand.push(card)
-      pushLog(s, me.seat, `${me.name} takes ${defOf(card).title} from the discard pile.`, 'info')
+      pushLog(s, me.seat, `${me.name} takes ${defOf(card).title} from the discard pile.`, 'info', {
+        card: card.kind,
+        act: 'take',
+      })
       s.phase = 'play'
       return s
     }
@@ -578,6 +601,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         ? `${me.name} catches a tailwind and scouts the stars — takes ${defOf(picked).title}.`
         : `${me.name} scouts the stars and takes ${defOf(picked).title}.`,
       'info',
+      { card: picked.kind, act: 'take' },
     )
     s.phase = 'play'
     return s
@@ -602,7 +626,7 @@ export function applyMove(state: GameState, move: Move): GameState {
   if (move.type === 'discard') {
     me.hand.splice(idx, 1)
     s.discard.push(card)
-    pushLog(s, me.seat, `${me.name} discards ${def.title}.`, 'info')
+    pushLog(s, me.seat, `${me.name} discards ${def.title}.`, 'info', { card: def.kind, act: 'discard' })
     endTurn(s)
     return s
   }
@@ -614,7 +638,9 @@ export function applyMove(state: GameState, move: Move): GameState {
       me.distancePile.push(card)
       me.distance += def.value ?? 0
       if (def.value === 200) me.count200++
-      pushLog(s, me.seat, `${me.name} warps ${def.value} ly — now at ${me.distance}.`, 'distance')
+      pushLog(s, me.seat, `${me.name} warps ${def.value} ly — now at ${me.distance}.`, 'distance', {
+        card: def.kind,
+      })
       if (me.distance >= WIN_DISTANCE) {
         winRound(s, me.seat)
         return s
@@ -639,11 +665,14 @@ export function applyMove(state: GameState, move: Move): GameState {
       me.battle[def.lane!].push(card)
       if (def.isGo && !me.started) {
         me.started = true
-        pushLog(s, me.seat, `${me.name} fires Ignition — engines hot.`, 'remedy')
+        pushLog(s, me.seat, `${me.name} fires Ignition — engines hot.`, 'remedy', { card: def.kind })
       } else if (laneHzr && CARD_DEFS[laneHzr].fixedBy === def.kind) {
-        pushLog(s, me.seat, `${me.name} clears ${CARD_DEFS[laneHzr].title} with ${def.title}.`, 'remedy')
+        pushLog(s, me.seat, `${me.name} clears ${CARD_DEFS[laneHzr].title} with ${def.title}.`, 'remedy', {
+          card: def.kind,
+          against: [laneHzr],
+        })
       } else {
-        pushLog(s, me.seat, `${me.name} plays ${def.title}.`, 'remedy')
+        pushLog(s, me.seat, `${me.name} plays ${def.title}.`, 'remedy', { card: def.kind })
       }
       endTurn(s)
       return s
@@ -667,6 +696,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         me.seat,
         `${me.name} reveals ${def.title} — immune, ${bonusText(s, gained, SCORE_SAFETY)} (now ${me.distance} ly).${clears}`,
         'safety',
+        { card: def.kind, against: swept.length ? swept : undefined },
       )
       if (me.distance >= WIN_DISTANCE) {
         winRound(s, me.seat)
@@ -706,6 +736,7 @@ export function applyMove(state: GameState, move: Move): GameState {
             SCORE_SAFETY + SCORE_SLINGSHOT,
           )} (now ${target.distance} ly).`,
           'coup',
+          { card: sdef.kind, against: [def.kind] },
         )
         s.lastSlingshot = {
           id: s.logSeq,
@@ -725,7 +756,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       }
 
       target.battle[def.lane!].push(card)
-      pushLog(s, me.seat, `${me.name} hits ${target.name} with ${def.title}.`, 'hazard')
+      pushLog(s, me.seat, `${me.name} hits ${target.name} with ${def.title}.`, 'hazard', { card: def.kind })
       endTurn(s)
       return s
     }

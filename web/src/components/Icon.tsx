@@ -12,6 +12,7 @@ export type IconName =
   | 'trophy' // win
   | 'play' // commit a card
   | 'bin' // discard / trash
+  | 'take' // picked up into hand (from the discard pile, or a scry reveal)
   | 'check' // valid "drop to play" confirmation
   | 'restart' // new round
   | 'cards' // card gallery
@@ -107,6 +108,15 @@ export function Icon({ name, size = '1em', className }: IconProps) {
         <svg {...common}>
           <path d="M4 7h16M9.5 7V4.5h5V7M6 7l1 13h10l1-13" />
           <path d="M10 11v6M14 11v6" />
+        </svg>
+      )
+    case 'take':
+      // a card lifted UP off a pile — "taken into hand". Deliberately unlike
+      // 'share' (a box + arrow): the arrow rises off a flat stack, not out of one.
+      return (
+        <svg {...common}>
+          <path d="M3.5 16l8.5-3.8 8.5 3.8-8.5 4z" />
+          <path d="M12 10V2.8M8.6 6.2L12 2.8l3.4 3.4" />
         </svg>
       )
     case 'check':

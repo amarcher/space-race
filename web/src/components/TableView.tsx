@@ -177,7 +177,7 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
 
       {showLog && (
         <aside className="table__log" aria-label="Game log">
-          <GameLog log={game.log} limit={18} />
+          <GameLog log={game.log} />
         </aside>
       )}
 
