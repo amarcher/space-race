@@ -82,6 +82,13 @@ export interface LogEntry {
    * clears, the hazard a Slingshot dodges, the hazards a safety sweeps. */
   against?: string[]
   act?: LogAct
+  /** `card`'s identity is PRIVATE TO `seat` — it came off the deck and went
+   * straight into a hand, so no opponent ever saw its face. The entry still
+   * records the truth (this is the game state, and the AI reasons over it), but
+   * the log MUST NOT show it to anyone but `seat`. See LogRow, which conceals
+   * the art, the preview and the text alike. Contrast a take off the DISCARD:
+   * that card was face-up on the table, so it is public and not flagged. */
+  hidden?: true
 }
 
 export interface SlingshotEvent {
@@ -472,7 +479,7 @@ export function legalMoves(state: GameState): Move[] {
   return moves
 }
 
-type LogCards = Pick<LogEntry, 'card' | 'against' | 'act'>
+type LogCards = Pick<LogEntry, 'card' | 'against' | 'act' | 'hidden'>
 
 function pushLog(s: GameState, seat: number, text: string, kind: LogKind, cards: LogCards = {}) {
   s.log.push({ id: s.logSeq++, seat, text, kind, ...cards })
@@ -601,7 +608,8 @@ export function applyMove(state: GameState, move: Move): GameState {
         ? `${me.name} catches a tailwind and scouts the stars — takes ${defOf(picked).title}.`
         : `${me.name} scouts the stars and takes ${defOf(picked).title}.`,
       'info',
-      { card: picked.kind, act: 'take' },
+      // straight off the deck into a hand: private to the mover (see `hidden`)
+      { card: picked.kind, act: 'take', hidden: true },
     )
     s.phase = 'play'
     return s
