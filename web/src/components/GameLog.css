@@ -1,0 +1,186 @@
+/* The game log. Card art, not sentences — see GameLog.tsx for the vocabulary.
+   Lives here rather than in Table.css so the TV stage and the app can't drift. */
+
+.log {
+  --log-thumb: clamp(30px, 6.5vw, 40px);
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  width: 100%;
+  max-height: 62vh;
+  /* the dropdown may be summoned with mobile Safari's toolbar expanded or
+     collapsed; size to the LIVE viewport so it never runs off the bottom.
+     (Nothing here is laid out FROM this height, so mid-scroll reflow is moot.) */
+  max-height: 62dvh;
+  overflow-y: auto;
+  /* a nested scroller: don't rubber-band the table behind it once the log has
+     been scrolled to an end */
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  border-radius: 14px;
+  background: rgba(8, 8, 24, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+}
+
+.log__line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 3px 4px;
+  line-height: 1;
+  opacity: 0.78;
+  border-radius: 10px;
+  position: relative; /* anchor for the visually-hidden .log__sr line */
+  /* every row is a press-and-hold preview target sitting INSIDE this scroller:
+     allow the vertical pan through (`none` here silently kills flick-scrolling
+     the log on touch), while still suppressing double-tap zoom and sideways pan. */
+  touch-action: pan-y;
+}
+.log__line:first-child {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+/* rows that name a card are interactive — hover/press pops its art full size */
+.log__line--card { cursor: pointer; }
+.log__line--card:hover,
+.log__line--on {
+  opacity: 1;
+  background: rgba(125, 240, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(125, 240, 255, 0.25);
+}
+
+/* fixed slot so every thumbnail lands in the same column, seat or no seat */
+.log__who {
+  flex: none;
+  width: 24px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+/* the standalone glyph for rows that name no card (the win, the spent deck,
+   a BREAKAWAY) — sized to fill the thumbnail's slot so the column still reads */
+.log__glyph {
+  flex: none;
+  width: var(--log-thumb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.log__line--win .log__glyph { color: #ffd76a; font-size: 24px; }
+.log__line--coup .log__glyph { color: #7df0ff; font-size: 23px; }
+
+/* the accessible/searchable line. The log is deliberately wordless on screen,
+   but the sentence is still what a screen reader should hear. */
+.log__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── the thumbnail ─────────────────────────────────────────────────────────── */
+
+.logcard {
+  position: relative;
+  flex: none;
+  width: var(--log-thumb);
+  aspect-ratio: 3 / 4;
+}
+/* the clip lives on the frame, not on .logcard, so the badge can hang off the
+   corner without being cut away */
+.logcard__frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.logcard__art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+/* tint the thumb's edge by card type, the same four colours the table rings use */
+.logcard[data-type='distance'] .logcard__frame { box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(111, 183, 255, 0.55); }
+.logcard[data-type='hazard'] .logcard__frame { box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 90, 110, 0.55); }
+.logcard[data-type='remedy'] .logcard__frame { box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(79, 224, 139, 0.5); }
+.logcard[data-type='safety'] .logcard__frame { box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 215, 106, 0.6); }
+
+/* the warp numeral — the whole point of a distance row */
+.logcard__value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, inherit);
+  font-size: calc(var(--log-thumb) * 0.37);
+  font-weight: 800;
+  color: #ffe9a8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.7);
+}
+
+/* SPENT — discarded, or a hazard that healed itself. The card has left play, so
+   the art goes faint and desaturated and the badge (trash / wrench) sits on it. */
+.logcard--spent .logcard__art { filter: grayscale(0.85) brightness(0.5) contrast(0.9); }
+.logcard--spent .logcard__value { opacity: 0.45; }
+.logcard--spent .logcard__frame { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1); }
+
+/* VOID — a card this row took OFF the board: smaller, greyed, struck through. */
+.logcard--void {
+  width: calc(var(--log-thumb) * 0.74);
+  margin-left: -2px;
+}
+.logcard--void .logcard__art { filter: grayscale(1) brightness(0.42); }
+.logcard--void .logcard__frame { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.logcard__slash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    rgba(255, 120, 130, 0.72) calc(50% - 1px),
+    rgba(255, 120, 130, 0.72) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+/* the VERB, pinned to the thumbnail's outer corner */
+.logcard__badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  border-radius: 50%;
+  background: rgba(6, 8, 22, 0.94);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+  color: #dbe9ff;
+}
+.log__line--hazard .logcard__badge { color: #ff8a96; box-shadow: 0 0 0 1px rgba(255, 90, 110, 0.5); }
+.log__line--remedy .logcard__badge { color: #74e8a5; box-shadow: 0 0 0 1px rgba(79, 224, 139, 0.5); }
+.log__line--safety .logcard__badge { color: #ffd76a; box-shadow: 0 0 0 1px rgba(255, 215, 106, 0.55); }
+.log__line--distance .logcard__badge { color: #9ccbff; box-shadow: 0 0 0 1px rgba(111, 183, 255, 0.5); }
+.log__line--coup .logcard__badge { color: #7df0ff; box-shadow: 0 0 0 1px rgba(125, 240, 255, 0.6); }
+/* a discard is a discard whatever the card was — keep its badge neutral */
+.log__line--info .logcard__badge { color: #cfd6e6; }
