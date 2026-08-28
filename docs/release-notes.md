@@ -16,16 +16,33 @@ strings should say so too. Two files to change, both in `web/`:
 
 ## 1.3.0 · build 16 — Advanced play
 
-**Status:** **submitted to the App Store and the Amazon Appstore 2026-08-25.**
-iOS build 16 is `WAITING_FOR_REVIEW` (release type *after approval*); Amazon is
-`SUBMITTED`, estimated live before 2026-08-30 15:30 PDT. **Play has not been
-submitted** — it stays on 1.2.1.
+**Status (re-verified 2026-08-28):**
 
-> ⚠️ **The App Store is still serving 1.2.0.** 1.2.1 was cut for the Amazon
-> Appstore ship (`849ec85`) and went to web and Amazon only — it was never
-> uploaded to App Store Connect. So the iOS jump is **1.2.0 → 1.3.0**, and the
-> gallery fix below, though it landed back on 2026-08-06, reaches iOS users for
-> the first time in this release. Play/Amazon jump 1.2.1 → 1.3.0 as normal.
+- **App Store — live.** 1.3.0 / build 16 was approved and released on
+  **2026-08-25**. ASC reports the version record `READY_FOR_SALE` /
+  `READY_FOR_DISTRIBUTION`, and the public store is serving 1.3.0 with this
+  release's What's New copy and all 8 screenshots + the app preview.
+- **Amazon Appstore — submitted 2026-08-25, outcome unconfirmed.** The
+  Submission API now returns **no open edit** for the app, so the `REVIEW` edit
+  has closed one way or the other — but the API exposes nothing but `/edits`,
+  so it cannot say whether that means *published* or *rejected*. Confirm in the
+  Console (Aces Up Labs) before treating it as live.
+- **Play — never shipped.** Not "behind on a version": there is no public Play
+  listing at all, and every 👤 HUMAN step in `docs/android-roadmap.md`'s Phase 4
+  (Play Console account, internal testing, listing, data safety, content rating,
+  submit) is still open.
+
+Check the App Store side from anywhere, no credentials needed:
+
+    curl -s "https://itunes.apple.com/lookup?id=6788064058&country=us" \
+      | python3 -c "import json,sys; r=json.load(sys.stdin)['results'][0]; \
+                    print(r['version'], r['currentVersionReleaseDate'])"
+
+> ℹ️ **The iOS jump was 1.2.0 → 1.3.0.** 1.2.1 was cut for the Amazon Appstore
+> ship (`849ec85`) and went to web and Amazon only — it was never uploaded to
+> App Store Connect. So the gallery fix below, though it landed back on
+> 2026-08-06, reached iOS users for the first time in this release. Amazon
+> jumped 1.2.1 → 1.3.0; Play jumped nowhere.
 
 ### What's New (paste-ready, ~490 chars — under every store's limit)
 
@@ -60,14 +77,19 @@ Also: opening the rules no longer ends your game in progress.
 ### Submission checklist
 
 - [x] `cd web && npm run ios:archive` → uploaded to ASC **2026-08-25**. Build 16
-      attached to the 1.3.0 record, What's New set, submitted for review.
-- [ ] `cd web && npm run android:release` → Play Console
+      attached to the 1.3.0 record, What's New set, submitted for review —
+      **approved and live on the App Store the same day.**
+- [ ] `cd web && npm run android:release` → Play Console. Not started, and not
+      startable: the Play Console app doesn't exist yet (roadmap Phase 4).
 - [x] `cd web && npm run amazon:release` → APK built, verified, uploaded and
       **submitted 2026-08-25** (88.7 MB; `versionCode 16` / `1.3.0`,
       `appendUserAgent=SpaceRaceAmazon`, no `.so`, only INTERNET+VIBRATE).
+      *Submitted is all this line claims — see the status block for what the
+      review did with it.*
 - [x] Paste the What's New block above — done for iOS and Amazon; still owed to Play
 - [x] No new screenshots needed — the 8 existing shots (6 iPhone 6.5, 2 iPad
-      12.9) carried over to the 1.3.0 record automatically and read COMPLETE
+      12.9) carried over to the 1.3.0 record automatically and read COMPLETE,
+      as did the app preview (confirmed on the live record 2026-08-28)
 
 > **Amazon account gotcha (resolved 2026-08-25, will recur).** The Appstore
 > console was signed in as **Fable Designer**, which has an empty App List and a
@@ -153,5 +175,5 @@ when it is an auth problem.
 - **1.2.1 · build 15** (2026-08-06) — Amazon Appstore ship: analytics-free
   child-directed build, plus the gallery fix. **Web + Amazon only; never
   submitted to the App Store.**
-- **1.2.0 · build 14** — Tractor Beam ≤50 cap tag. The version currently live
-  on the App Store.
+- **1.2.0 · build 14** (2026-07-27) — Tractor Beam ≤50 cap tag. Was the live
+  App Store version until 1.3.0 replaced it on 2026-08-25.
