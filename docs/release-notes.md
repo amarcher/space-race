@@ -16,7 +16,10 @@ strings should say so too. Two files to change, both in `web/`:
 
 ## 1.3.0 · build 16 — Advanced play
 
-**Status:** version bumped, not yet submitted anywhere.
+**Status:** **submitted to the App Store and the Amazon Appstore 2026-08-25.**
+iOS build 16 is `WAITING_FOR_REVIEW` (release type *after approval*); Amazon is
+`SUBMITTED`, estimated live before 2026-08-30 15:30 PDT. **Play has not been
+submitted** — it stays on 1.2.1.
 
 > ⚠️ **The App Store is still serving 1.2.0.** 1.2.1 was cut for the Amazon
 > Appstore ship (`849ec85`) and went to web and Amazon only — it was never
@@ -50,16 +53,98 @@ Also: opening the rules no longer ends your game in progress.
   replacement view, so a game in progress survives a trip to it. Already live
   on web and Amazon since 1.2.1; **new to App Store users in 1.3.0.**
 - Settings sheet sizing/scroll-containment fix (it grew past a phone viewport).
+- **Mode-toggle fix** (#185) — flipping an Advanced-play toggle on an untouched
+  deal re-deals so the new rules actually take effect. Without it the headline
+  feature of this release silently does nothing on the most common path.
 
 ### Submission checklist
 
-- [ ] `cd web && npm run ios` then `npm run ios:archive` → upload to ASC
+- [x] `cd web && npm run ios:archive` → uploaded to ASC **2026-08-25**. Build 16
+      attached to the 1.3.0 record, What's New set, submitted for review.
 - [ ] `cd web && npm run android:release` → Play Console
-- [ ] `cd web && npm run amazon:release` → Amazon Appstore console
-      (see `docs/amazon-appstore/listing.md` — DRM stays **No**)
-- [ ] Paste the What's New block above into all three
-- [ ] No new screenshots needed — no changes to the play surface itself; the
-      new UI is confined to Settings and the rules page
+- [x] `cd web && npm run amazon:release` → APK built, verified, uploaded and
+      **submitted 2026-08-25** (88.7 MB; `versionCode 16` / `1.3.0`,
+      `appendUserAgent=SpaceRaceAmazon`, no `.so`, only INTERNET+VIBRATE).
+- [x] Paste the What's New block above — done for iOS and Amazon; still owed to Play
+- [x] No new screenshots needed — the 8 existing shots (6 iPhone 6.5, 2 iPad
+      12.9) carried over to the 1.3.0 record automatically and read COMPLETE
+
+> **Amazon account gotcha (resolved 2026-08-25, will recur).** The Appstore
+> console was signed in as **Fable Designer**, which has an empty App List and a
+> standing *"Account Identity Verification Failed — you cannot upload apps"*
+> banner. Space Race lives under the **Aces Up Labs** account. Check the avatar
+> initials before touching anything: **AA** = Aces Up Labs (correct), **FD** =
+> Fable Designer (wrong). Never create Space Race under Fable Designer to get
+> unblocked — the child-directed listing must not share a byline with the
+> adult-framed brand, and the business name cannot be edited afterward.
+
+> **⚠️ "Ready to Submit" does not mean the binary is current.** Creating an
+> upcoming version carries the *previous* APK forward, and the console reports
+> "Ready to Submit" with all steps green while the card still reads the old
+> `Version Code`. Submitting there would have shipped 1.2.1's binary under
+> 1.3.0's release notes. **Always confirm the APK card's Version Code, and open
+> *Manifest* to check Version Name, before submitting.**
+
+> **The 88.7 MB APK cannot be uploaded by an agent through the browser** — the
+> tooling caps file transfers at 10 MB and a single binary cannot be split, and
+> Chrome is read-only to computer-use. A human must pick the file, *or* use the
+> App Submission API (see below).
+
+### Amazon App Submission API — `npm run amazon:submit`
+
+`scripts/amazon-submit.sh` (= `npm run amazon:submit`) uploads the built APK and
+release notes and commits the edit, so releases after 1.3.0 need no file picker.
+It does **not** build — run `npm run amazon:release` first, since that is what
+bakes in the Amazon store marker. Credentials live in `~/.zshrc` as
+`AMAZON_CLIENT_ID` / `AMAZON_CLIENT_SECRET` (never in the repo, never
+`VITE_`-prefixed — Vite inlines `VITE_*` into the client bundle).
+
+    cd web && npm run amazon:release && ./scripts/amazon-submit.sh --dry-run
+    ./scripts/amazon-submit.sh          # for real; --no-commit to stop short of submitting
+
+**Verified against the live API 2026-08-25:** preflight, LWA auth, `GET /edits`,
+and the listing shape. The upload / PUT / commit calls have not yet run for real
+(1.3.0 went through the Console), so **always `--dry-run` first.**
+
+The preflight encodes the lessons below: it refuses a Play-synced binary (UA
+marker check), refuses an APK whose `versionCode` disagrees with `build.gradle`,
+and refuses to write to an edit that is not `IN_PROGRESS` — a submitted release
+still comes back from `GET /edits` with status `REVIEW`, so "an edit exists" is
+not "an edit you may write to".
+
+- Base: `https://developer.amazon.com/api/appstore/v1/applications/{appId}`,
+  appId `amzn1.devportal.mobileapp.aada012b80d5411993843b3aa386b91a`
+- Token: `POST https://api.amazon.com/auth/o2/token`,
+  `grant_type=client_credentials`, `scope=appstore::apps:readwrite`, 1 h TTL
+- Flow: create edit → `POST /edits/{id}/apks/large/upload` (use **`/large/`** for
+  our ~85 MB binary) → `PUT /listings/en-US` → `POST /edits/{id}/commit`
+- Every `PUT`/`DELETE` needs `If-Match: {ETag}` from a prior `GET`
+- Only **one open edit per app**, and edits sync both ways with the Console — so
+  do not mix API and Console work on the same release
+- No AAB support (we ship an APK to Amazon, so this is moot). Content rating,
+  pricing and availability still require the Console
+- **Console navigation:** the docs say *Tools & Services ▸ API Access*; it is
+  actually under **My Settings ▸ Enterprise Security Features ▸ API Access**
+
+### iOS signing — read before the next release
+
+The July path (Xcode's signed-in Apple ID → **Cloud Managed Apple Distribution**
+cert) broke: the session expired silently, and `xcodebuild` failed the *export*
+with `Cloud signing permission error / No signing certificate "iOS Distribution"
+found`. The archive step succeeded, which makes this look like a build problem
+when it is an auth problem.
+
+- **An ASC API key cannot rescue this.** `scripts/ios-release.sh` now passes
+  `-authenticationKeyPath/-ID/-IssuerID` when `ASC_API_KEY_ID` is set, which does
+  get the *archive* past a dead session — but cloud-managed certs are reachable
+  only through an Apple ID, so the export still needs Xcode to be signed in.
+- **Fix:** Xcode ▸ Settings ▸ Accounts, sign in to the account owning team
+  `J39B2498YF`. No local distribution private key exists on this machine (the
+  only one in the keychain is an expired 2018 cert), so cloud signing is the
+  path unless someone mints a real Apple Distribution cert + profile.
+- A stale `archer@google.com` entry in Xcode logs
+  `missing Xcode-Token` on every build. Harmless noise; delete it to stop the
+  confusion.
 
 ---
 

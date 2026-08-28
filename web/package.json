@@ -14,7 +14,8 @@
     "android": "npm run build && npx cap sync android && bash scripts/build-android-media.sh --swap",
     "android:release": "bash scripts/android-release.sh",
     "amazon": "npm run build && SPACE_RACE_STORE=amazon npx cap sync android && bash scripts/build-android-media.sh --swap",
-    "amazon:release": "bash scripts/android-release.sh --amazon"
+    "amazon:release": "bash scripts/android-release.sh --amazon",
+    "amazon:submit": "bash scripts/amazon-submit.sh"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",
