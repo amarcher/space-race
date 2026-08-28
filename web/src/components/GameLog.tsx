@@ -1,5 +1,5 @@
 import { cardPoster } from '../game/cardArt'
-import { CARD_DEFS, artUrl } from '../game/cards'
+import { CARD_BACK_URL, CARD_DEFS, artUrl } from '../game/cards'
 import type { LogEntry } from '../game'
 import { PlayerTag } from './PlayerTag'
 import { Icon, type IconName } from './Icon'
@@ -16,6 +16,13 @@ import './GameLog.css'
 // it, greyed and struck through. A non-reader — or anyone glancing mid-turn —
 // gets the history at a glance; `entry.text` survives only as the tooltip and the
 // screen-reader line.
+//
+// HIDDEN INFORMATION. A row flagged `hidden` names a card that went from the deck
+// straight into a hand — private to the seat that drew it. For anyone else this
+// log shows a CARD BACK: you learn THAT they drew, never WHAT. That has to cover
+// all three channels, because the art is only the loudest of them — the hover
+// preview and `entry.text` (tooltip + screen reader) each leak the identity just
+// as completely.
 
 export const whoFor = (seat: number): 'you' | 'cpu' => (seat === 0 ? 'you' : 'cpu')
 
@@ -44,16 +51,32 @@ type Tone = 'live' | 'spent' | 'void'
  * borrows the clip poster where there is one, so the thumb is framed exactly like
  * the card on the table.
  */
-function LogCard({ kind, tone = 'live', badge }: { kind: string; tone?: Tone; badge?: IconName }) {
-  const def = CARD_DEFS[kind]
-  if (!def) return null
+function LogCard({
+  kind,
+  tone = 'live',
+  badge,
+  faceDown = false,
+}: {
+  kind?: string
+  tone?: Tone
+  badge?: IconName
+  faceDown?: boolean
+}) {
+  const def = kind ? CARD_DEFS[kind] : undefined
+  if (!faceDown && !def) return null
   return (
-    <span className={`logcard logcard--${tone}`} data-type={def.type}>
+    <span className={`logcard logcard--${tone} ${faceDown ? 'logcard--back' : ''}`} data-type={faceDown ? undefined : def!.type}>
       <span className="logcard__frame">
-        <img className="logcard__art" src={cardPoster(kind) ?? artUrl(def)} alt="" draggable={false} loading="lazy" />
+        <img
+          className="logcard__art"
+          src={faceDown ? CARD_BACK_URL : cardPoster(kind) ?? artUrl(def!)}
+          alt=""
+          draggable={false}
+          loading="lazy"
+        />
         {/* distance art carries no baked numeral (the table overlays it too) and
             the numeral IS the information on a warp row — keep it. */}
-        {def.type === 'distance' && def.value != null && <b className="logcard__value">{def.value}</b>}
+        {def?.type === 'distance' && def.value != null && <b className="logcard__value">{def.value}</b>}
         {tone === 'void' && <span className="logcard__slash" aria-hidden />}
       </span>
       {badge && (
@@ -68,19 +91,26 @@ function LogCard({ kind, tone = 'live', badge }: { kind: string; tone?: Tone; ba
 /** One game-log row; hovering/pressing pops the row's card at readable size. */
 export function LogRow({ entry, who }: { entry: LogEntry; who: (seat: number) => 'you' | 'cpu' }) {
   const { card, against, act } = entry
-  const { handlers, popover, open } = useCardPreview(card)
+  // A private draw is private to everyone but the drawer. Conceal it BEFORE the
+  // preview hook and the tooltip so no channel can leak what the art doesn't.
+  const concealed = !!entry.hidden && who(entry.seat) !== 'you'
+  const shown = concealed ? undefined : card
+  const label = concealed ? 'The rival draws a card — face down.' : entry.text
+  const { handlers, popover, open } = useCardPreview(shown)
   // a discarded or self-healed card has LEFT play — show it filtered back, which
   // is what the trash / wrench badge is sitting on.
   const tone: Tone = act === 'discard' || act === 'heal' ? 'spent' : 'live'
   return (
     <li
-      className={`log__line log__line--${entry.kind} ${card ? 'log__line--card' : ''} ${open ? 'log__line--on' : ''}`}
-      title={entry.text}
+      className={`log__line log__line--${entry.kind} ${shown ? 'log__line--card' : ''} ${open ? 'log__line--on' : ''}`}
+      title={label}
       {...handlers}
     >
       {/* always rendered, empty for the seatless rows, so the thumbs line up in a column */}
       <span className="log__who">{entry.seat >= 0 && <PlayerTag who={who(entry.seat)} />}</span>
-      {card ? (
+      {concealed ? (
+        <LogCard faceDown tone="live" badge={badgeFor(entry)} />
+      ) : card ? (
         <LogCard kind={card} tone={tone} badge={badgeFor(entry)} />
       ) : (
         <span className="log__glyph">
@@ -90,7 +120,7 @@ export function LogRow({ entry, who }: { entry: LogEntry; who: (seat: number) =>
       {against?.map((k) => (
         <LogCard key={k} kind={k} tone="void" />
       ))}
-      <span className="log__sr">{entry.text}</span>
+      <span className="log__sr">{label}</span>
       {popover}
     </li>
   )
