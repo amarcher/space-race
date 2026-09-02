@@ -11,7 +11,7 @@ workspace/channel) — PLUS the worktree-isolation regression suite ported from
 storybook-studio/fable-agent (2026-08-14 incident: see poller.py's
 make_worktree docstring), PLUS the follow-through suite ported from the same
 place on 2026-09-01 (conditions, two lanes, wake notes, the continue chain,
-linked memory, the PR-watch verdict, the budget). The worktree scenarios run
+the brain hand-over, the PR-watch verdict, the budget). The worktree scenarios run
 against a REAL local git repo + bare "origin" (a few `git init`/`git init
 --bare`/`git push` calls in fixture setup) — not a mocked filesystem —
 because that's the exact seam a mock would paper over.
@@ -222,7 +222,7 @@ def check_worklist_contract(poller_src, wsrc):
     # ONE spawn path: the queue never runs an agent itself
     if "poller.wake_agent(" not in wsrc:
         fail("worklist.py no longer spawns through poller.wake_agent — the "
-             "worktree, memory link, budget, ledger, continue chain and PR "
+             "worktree, memory hand-over, budget, ledger, continue chain and PR "
              "watch all live there and must not be re-implemented")
     if "subprocess.run([poller.CLAUDE_BIN" in wsrc or "poller.make_worktree(" in wsrc:
         fail("worklist.py spawns claude (or cuts a worktree) itself again — "
@@ -268,13 +268,17 @@ def check_worklist_contract(poller_src, wsrc):
              "is the follow-through queue now, worked as soon as a condition clears")
     # poller: the spawn carries a budget and reports itself; memory is linked
     for frag in ('"--output-format", "json"', '"--max-budget-usd"',
-                 "def link_memory", "def append_ledger", "def take_continue",
+                 "def memory_dir", "def memory_index", '"BRAIN_DIR"', "def follow_main", "def append_ledger", "def take_continue",
                  "RACE_AGENT_NOTE_PATH", "RACE_AGENT_CONTINUE_PATH",
                  "def start_pr_watch", "def defer_for_budget", "MAX_CONTINUES",
                  "def project_key", "os.path.realpath(path)"):
         if frag not in poller_src:
-            fail(f"poller.py lost {frag!r} — budget, ledger, memory link, "
+            fail(f"poller.py lost {frag!r} — budget, ledger, memory, "
                  f"continue chain or PR watch is gone")
+        if "link_memory" in poller_src:
+            fail("poller.py grew a memory symlink again — auto memory is off on "
+                 "this machine, so a linked store is read by nothing; the brief "
+                 "carries the index instead")
     if "uuid.uuid4().hex[:8]" not in poller_src:
         fail("poller.py lost the random worktree-label suffix — two wakes in "
              "one thread would compute the same label and the second would "
@@ -415,6 +419,7 @@ if rec:
             "has_git": os.path.exists(".git"),
             "has_marker": os.path.exists("MARKER.txt"),
             "note_env": note_env, "cont_env": cont_env,
+            "brain": os.environ.get("BRAIN_DIR"),
         }) + "\\n")
 note = os.environ.get("RACE_AGENT_TEST_CLAUDE_NOTE")
 if note and note_env:
@@ -1207,28 +1212,91 @@ def run_follow_through(fx, wl):
     ok("continue: one more wake in the same worktree with the note, "
        "file consumed, chain bounded at 6")
 
-    # 18 — memory: the worktree's project memory is the main checkout's
+    # 18 — memory: the brain's index rides in the brief and BRAIN_DIR names
+    # the store; both are the DEV checkout's store even when the poller runs
+    # from a deploy worktree of it (auto memory is off, so nothing else
+    # would hand a wake its memory)
     key = lambda p: re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(p))
     main_mem = os.path.join(projects_dir, key(fake_repo), "memory")
-    wt_mem = os.path.join(projects_dir, key(got[0]["cwd"]), "memory")
-    if not os.path.isdir(main_mem):
-        fail("link_memory did not create the main checkout's memory dir")
-    if not os.path.islink(wt_mem) or os.path.realpath(wt_mem) != os.path.realpath(main_mem):
-        fail(f"the worktree's memory/ is not a link to the main checkout's: "
-             f"{wt_mem} → {os.path.realpath(wt_mem) if os.path.exists(wt_mem) else 'missing'}")
-    # pre-existing memory in a worktree dir is folded in, never lost
-    stray_wt = os.path.join(state_dir, "worktrees", "stray")
-    stray_mem = os.path.join(projects_dir, key(stray_wt), "memory")
-    os.makedirs(stray_mem)
-    open(os.path.join(stray_mem, "gotcha.md"), "w").write("learned\n")
-    poller.link_memory(stray_wt)
-    if not os.path.exists(os.path.join(main_mem, "gotcha.md")):
-        fail("memory a worktree wrote before the fix was lost instead of "
-             "folded into the shared store")
-    if not os.path.islink(stray_mem):
-        fail("after folding, the worktree memory dir was not replaced by the link")
-    ok("memory: worktree project memory linked to the main checkout's "
-       "(realpath keys); stray memory folded in")
+    os.makedirs(main_mem, exist_ok=True)
+    open(os.path.join(main_mem, "MEMORY.md"), "w").write(
+        "# MEMORY.md\n- IRON: the fake repo's one rule\n")
+    slack_state.add_message(user=ANDREW, text="with memory please")
+    open(recorder, "w").close()
+    poller.main()
+    got = spawns()
+    if len(got) != 1:
+        fail(f"expected one wake for the memory scenario, got {len(got)}")
+    prompt = prompt_of(got[0])
+    if '"memory_index"' not in prompt or "the fake repo's one rule" not in prompt:
+        fail("the wake's brief does not carry the brain's MEMORY.md index")
+    if os.path.realpath(got[0].get("brain") or "/nonexistent") != os.path.realpath(main_mem):
+        fail(f"BRAIN_DIR in the wake's env is {got[0].get('brain')!r}, "
+             f"not the project's store {main_mem}")
+    if os.path.exists(os.path.join(projects_dir, key(got[0]["cwd"]), "memory")):
+        fail("a wake grew a memory store under its own worktree's key")
+    deploy = os.path.join(fx["tmp"], "deploy")
+    _git(["-C", fake_repo, "worktree", "add", "-q", "--track", "-b", "deploy",
+          deploy, "origin/main"])
+    saved_repo, saved_state = poller.REPO, poller.STATE_DIR
+    poller.REPO = deploy
+    if os.path.realpath(poller.memory_dir()) != os.path.realpath(main_mem):
+        fail(f"from a deploy worktree the store resolved to "
+             f"{poller.memory_dir()}, not the dev checkout's {main_mem}")
+    ok("memory: the brain's index in the brief, BRAIN_DIR the dev checkout's "
+       "store — also from a deploy worktree")
+    # follow_main saves state: give it its own dir so the fixture's
+    # watermark is never clobbered by an in-process call
+    poller.STATE_DIR = os.path.join(fx["tmp"], "state-inproc")
+    marker = os.path.join(fake_repo, "MARKER.txt")
+
+    # 18b — the deploy checkout follows origin/main: fast-forward only, on
+    # the `deploy` branch only, at most once per FOLLOW_EVERY_S
+    def head(path):
+        return subprocess.run(["git", "-C", path, "rev-parse", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+    def land(text):
+        open(marker, "a").write(text + "\n")
+        _git(["-C", fake_repo, "add", "MARKER.txt"])
+        _git(["-C", fake_repo, "-c", "user.email=t@t", "-c", "user.name=t",
+              "commit", "-q", "-m", text])
+        _git(["-C", fake_repo, "push", "-q", "origin", "main"])
+    land("second commit")
+    st = {}
+    poller.follow_main(st)
+    if head(deploy) != head(fake_repo):
+        fail("the deploy checkout did not fast-forward onto origin/main")
+    land("third commit")
+    poller.follow_main(st)
+    if head(deploy) == head(fake_repo):
+        fail("follow_main pulled twice inside FOLLOW_EVERY_S")
+    poller.follow_main({})
+    if head(deploy) != head(fake_repo):
+        fail("after the throttle window the deploy checkout did not follow")
+    other = os.path.join(fx["tmp"], "other")
+    _git(["-C", fake_repo, "worktree", "add", "-q", "--track", "-b", "notdeploy",
+          other, "origin/main"])
+    _git(["-C", other, "reset", "-q", "--hard", "HEAD~1"])
+    stale = head(other)
+    poller.REPO = other
+    poller.follow_main({})
+    if head(other) != stale:
+        fail("a checkout that is not on `deploy` was pulled — a dev checkout "
+             "running a sweep by hand would be yanked out from under its owner")
+    poller.REPO = deploy
+    open(os.path.join(deploy, "LOCAL.txt"), "w").write("diverged\n")
+    _git(["-C", deploy, "add", "LOCAL.txt"])
+    _git(["-C", deploy, "-c", "user.email=t@t", "-c", "user.name=t",
+          "commit", "-q", "-m", "local divergence"])
+    diverged = head(deploy)
+    land("fourth commit")
+    poller.follow_main({})
+    if head(deploy) != diverged:
+        fail("a diverged deploy checkout was moved — follow_main must be "
+             "fast-forward only")
+    poller.REPO, poller.STATE_DIR = saved_repo, saved_state
+    ok("deploy: the deploy checkout follows main (ff-only, deploy branch only, "
+       "throttled); a diverged one stays put")
 
     # 19 — the PR watch's whole policy, as a pure function. The shapes are
     #      what `gh pr view --json statusCheckRollup` returns for THIS repo:

@@ -14,9 +14,15 @@ storybook-studio/fable-agent on 2026-09-01.*
 
 - You have the full project harness: the repo, its docs (`docs/store-ops.md`,
   `docs/store-wayfinder.md`, `docs/ios-roadmap.md`, etc.), the gate, and
-  the shared project memory (your worktree's memory is linked to the main
-  checkout's — what you learn is kept, what earlier sessions learned is
-  there). Use them exactly as an interactive session would.
+  the project's memory. Use them exactly as an interactive session would.
+- **Your memory is the brain.** Auto memory is off on this machine, so
+  nothing loads it for you: the brief carries `memory_index` (the head of
+  MEMORY.md — iron rules plus one pointer per memory) and `memory_dir` (the
+  store, also in `$RACE_AGENT_MEMORY_DIR` and `$BRAIN_DIR`). Before acting in a
+  domain the index points at, read that memory file. When you learn
+  something durable, record it there the way `/brain learn` does (the
+  convention is in `~/.claude/skills/brain/SKILL.md`) — what you learn is
+  kept, and the next session, interactive or headless, reads it.
 - **Always reply where the request lives.** In the thread (`thread_ts` from
   the brief) when there is one; as a new top-level message in the channel
   when there is not (an issue item). Never leave a wake unanswered: act,

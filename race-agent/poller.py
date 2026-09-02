@@ -95,11 +95,12 @@ CLAUDE_BIN = os.environ.get("RACE_AGENT_CLAUDE_BIN",
 # deliberate difference from house-agent, per Andrew's call when this was
 # built. Overridable for the offline selftest seam.
 CLAUDE_MODEL = os.environ.get("RACE_AGENT_CLAUDE_MODEL", "opus")
-# Claude Code keys project memory (and sessions) to the working directory:
-# ~/.claude/projects/<cwd with every non-alphanumeric turned into "-">/. A
-# wake in a fresh worktree therefore starts with an EMPTY memory unless its
-# project dir's memory/ is linked back to the main checkout's — see
-# link_memory. The seam is the selftest's (a temp dir stands in for
+# Project memory is the brain (~/.claude/brain): the store under
+# ~/.claude/projects/<key of the checkout Andrew develops in>/memory/. Auto
+# memory is OFF in ~/.claude/settings.json, so Claude Code loads none of it
+# on its own, in any session — a wake gets the index handed to it in its
+# brief (memory_index) and the store's path in BRAIN_DIR, which the brain
+# CLI honours. The seam is the selftest's (a temp dir stands in for
 # ~/.claude/projects); production never sets it.
 CLAUDE_PROJECTS_DIR = os.environ.get("RACE_AGENT_CLAUDE_PROJECTS_DIR",
                                      os.path.expanduser("~/.claude/projects"))
@@ -418,6 +419,9 @@ def spawn_env(tier, note_key=None):
     if note_key:
         env["RACE_AGENT_NOTE_PATH"] = note_path(note_key)
         env["RACE_AGENT_CONTINUE_PATH"] = continue_path(note_key)
+    md = memory_dir()
+    env["RACE_AGENT_MEMORY_DIR"] = md
+    env["BRAIN_DIR"] = md            # the brain CLI's own override
     return env
 
 
@@ -427,53 +431,54 @@ def gh_env():
     return spawn_env("poller")
 
 
-# ------------------------------------------------------------- memory link
+# ------------------------------------------------------------ memory
 def project_key(path):
     """How Claude Code names a working directory under ~/.claude/projects:
     the absolute path with every non-alphanumeric character turned into a
     hyphen (verified 2026-09-01 against this Mac's real entries —
     `-Users-archer-Programs-space-race` and three stray
-    `-Users-archer--space-race-race-agent-worktrees-...` dirs, exactly the
-    orphans link_memory exists to prevent). Resolved first: the binary sees
+    `-Users-archer--space-race-race-agent-worktrees-...` dirs, the
+    orphans a per-cwd store leaves behind). Resolved first: the binary sees
     its cwd through os.getcwd(), so /var/... is /private/var/... to it."""
     return re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path))
 
 
-def link_memory(wt):
-    """Give a worktree wake the SAME project memory the main checkout has.
-
-    Claude Code keys auto-memory to the cwd, so each worktree would
-    otherwise start with an empty memory/ and could never add to the shared
-    one — three such orphan directories existed for this repo before this
-    fix. The link is a symlink from the worktree's project dir to the main
-    checkout's memory/: reads see the gotchas, writes land where the next
-    session (interactive or headless) reads. Sessions themselves stay
-    per-directory; only memory is shared. Never fatal — a wake without
-    memory is worse than one with, but far better than none."""
+def memory_dir():
+    """The project's memory store: the brain of the checkout Andrew develops
+    in, found through git's common dir (the main worktree's .git) rather
+    than through cwd or REPO. The daemon runs from a deploy checkout that is
+    itself a worktree of that checkout, and a wake's cwd is a throwaway
+    worktree — keyed by either, the store is empty (house-agent's first wake
+    from its deploy checkout, 2026-09-02, ran with none of the 239 memories
+    the project has). Falls back to REPO's own key when git can't say."""
+    main = REPO
     try:
-        main_mem = os.path.join(CLAUDE_PROJECTS_DIR, project_key(REPO), "memory")
-        os.makedirs(main_mem, exist_ok=True)
-        proj = os.path.join(CLAUDE_PROJECTS_DIR, project_key(wt))
-        os.makedirs(proj, exist_ok=True)
-        link = os.path.join(proj, "memory")
-        if os.path.islink(link):
-            if os.path.realpath(link) == os.path.realpath(main_mem):
-                return link
-            os.remove(link)
-        elif os.path.isdir(link):
-            # An earlier wake (before this fix) wrote memory here. Fold it
-            # into the shared store rather than lose it, then link.
-            for fn in os.listdir(link):
-                dst = os.path.join(main_mem, fn)
-                if not os.path.exists(dst):
-                    shutil.move(os.path.join(link, fn), dst)
-            shutil.rmtree(link, ignore_errors=True)
-        os.symlink(main_mem, link)
-        return link
-    except OSError as e:
-        log(f"memory link failed for {wt} ({e}) — this wake runs without "
-            f"the shared memory")
-        return None
+        r = subprocess.run(["git", "rev-parse", "--path-format=absolute",
+                            "--git-common-dir"], cwd=REPO,
+                           capture_output=True, text=True, timeout=10)
+        if r.returncode == 0 and r.stdout.strip():
+            main = os.path.dirname(r.stdout.strip())
+    except Exception:
+        pass
+    return os.path.join(CLAUDE_PROJECTS_DIR, project_key(main), "memory")
+
+
+MEMORY_INDEX_LINES, MEMORY_INDEX_BYTES = 200, 25_000   # Claude Code's own cut
+
+
+def memory_index():
+    """What a session with auto memory ON would be handed at start: the
+    head of MEMORY.md — by the brain's convention, the iron rules and one
+    pointer per memory, with the detail read on demand. Nothing loads it
+    for a wake otherwise. Empty when the project has no store yet."""
+    path = os.path.join(memory_dir(), "MEMORY.md")
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = "".join(f.readlines()[:MEMORY_INDEX_LINES])
+        return text.encode("utf-8")[:MEMORY_INDEX_BYTES].decode("utf-8",
+                                                                "ignore")
+    except OSError:
+        return ""
 
 
 # ------------------------------------------------------------------ ledger
@@ -871,7 +876,7 @@ def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main")
       * budget check — over the day's cap the wake is queued for the
         morning, never dropped
       * worktree off `ref` (origin/main, or a PR branch for ci-fix), its
-        project memory linked to the main checkout's
+        brain's index and path in the brief (memory_index)
       * run; if the agent left a continue file, run again in the same
         worktree with that note — up to MAX_CONTINUES
       * ledger line per run
@@ -905,6 +910,8 @@ def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main")
             "thread_ts": thread_ts,
             "tier": tier,
             "payload": pl,
+            "memory_dir": memory_dir(),
+            "memory_index": memory_index(),
             "note": read_note(note_key),
             "context": thread_context(thread_ts) if thread_ts else [],
         }
@@ -946,7 +953,6 @@ def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main")
         wt = resume_wt if resuming else make_worktree(label, ref=ref)
         if resuming:
             log(f"resuming preserved worktree: {wt}")
-        link_memory(wt)
         k, pl, extra = kind, payload, resume_note
         for chain in range(MAX_CONTINUES + 1):
             res = run_claude(prompt_for(k, pl, extra), mode, wt, env, run_log)
@@ -1078,6 +1084,51 @@ def check_shipped(st):
 
 
 # ------------------------------------------------------------------ main
+# ------------------------------------------------------------ deploy
+FOLLOW_EVERY_S = 600
+
+
+def follow_main(st):
+    """The deploy checkout follows origin/main on its own. It is a worktree
+    on a `deploy` branch that tracks origin/main (README, "Deploying"): a
+    fast-forward there IS the deploy, and the daemon re-execs itself when
+    its sources change on disk. At most every ten minutes, only when REPO
+    really is on `deploy` — a dev checkout running a sweep by hand is never
+    pulled out from under its owner — and never anything but a
+    fast-forward: a checkout that has diverged stays where it is and says
+    so in the log."""
+    now = datetime.datetime.now().timestamp()
+    if now - st.get("followed_at", 0) < FOLLOW_EVERY_S:
+        return
+    st["followed_at"] = now
+    save_state(st)
+    if current_branch(REPO) != "deploy":
+        return
+
+    def head():
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                              cwd=REPO, capture_output=True, text=True,
+                              timeout=10).stdout.strip()
+    try:
+        before = head()
+        r = subprocess.run(["git", "pull", "--ff-only", "--quiet"], cwd=REPO,
+                           capture_output=True, text=True, timeout=120,
+                           env=gh_env())
+        after = head()
+    except Exception as e:
+        log(f"deploy checkout: pull failed ({e})")
+        return
+    if r.returncode != 0:
+        why = ((r.stderr or r.stdout).strip().splitlines() or ["?"])[0]
+        log(f"deploy checkout: not a fast-forward, staying on {before} — {why}")
+        return
+    if after != before:
+        log(f"deploy checkout: {before} → {after} (main); the daemon "
+            "re-execs if its sources changed")
+        append_ledger(kind="deploy", key="deploy", ok=True,
+                      detail=f"{before}->{after}")
+
+
 def main():
     lock = acquire_lock()
     if lock is None:
@@ -1133,10 +1184,12 @@ def main():
                    tier=tier)
     if not new:
         log("no new messages")
-    # The two things a sweep does besides messages: say what landed today
-    # (once, after DIGEST_HOUR) and notice a merge that never reached users.
+    # What a sweep does besides messages: say what landed today (once,
+    # after DIGEST_HOUR), notice a merge that never reached users, and
+    # keep the deploy checkout on main.
     maybe_post_digest(st)
     check_shipped(st)
+    follow_main(st)
     return 0
 
 
