@@ -127,15 +127,12 @@ house, where a follow-up might turn on a TV; nothing here makes noise. Now:
   the merge is the gate) and re-wakes the agent on red, merges Andrew-tier
   green work, asks 👍 for the rest. A PR without a **Verified** section in
   its body (`.github/pull_request_template.md`) does not merge on its own.
-- **Memory is the brain, handed over by hand.** Auto memory is off in
-  `~/.claude/settings.json`, so no session — interactive or headless — loads
-  `~/.claude/projects/<key>/memory/` on its own; the brain
-  (`~/.claude/brain`) is the memory system. Each wake's brief carries
-  `memory_index` (the head of MEMORY.md) and `memory_dir`, and the env
-  carries `BRAIN_DIR`, so the brain CLI and the agent's reads and writes
-  land in the store of the checkout you develop in. The store is found via
-  git's common dir, never cwd: the daemon's deploy checkout and every wake
-  worktree would otherwise key an empty store.
+- **Memory is the platform's.** Claude Code's auto memory is keyed to the
+  git repository, not the working directory, so the deploy checkout and
+  every wake worktree load and write the store of the checkout you develop
+  in (verified 2026-09-02 with a headless probe from all three). The agent
+  does nothing about memory; a symlink and then a hand-over lived here for
+  a day each and were removed once that was established.
 - **The thread remembers.** Each run writes a wake note
   (`$RACE_AGENT_NOTE_PATH` → `threads/<thread_ts>.md`); the next wake on
   that thread gets it as `note` in the brief. The note's first line is a

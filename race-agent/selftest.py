@@ -11,7 +11,7 @@ workspace/channel) — PLUS the worktree-isolation regression suite ported from
 storybook-studio/fable-agent (2026-08-14 incident: see poller.py's
 make_worktree docstring), PLUS the follow-through suite ported from the same
 place on 2026-09-01 (conditions, two lanes, wake notes, the continue chain,
-the brain hand-over, the PR-watch verdict, the budget). The worktree scenarios run
+the PR-watch verdict, the budget). The worktree scenarios run
 against a REAL local git repo + bare "origin" (a few `git init`/`git init
 --bare`/`git push` calls in fixture setup) — not a mocked filesystem —
 because that's the exact seam a mock would paper over.
@@ -222,7 +222,7 @@ def check_worklist_contract(poller_src, wsrc):
     # ONE spawn path: the queue never runs an agent itself
     if "poller.wake_agent(" not in wsrc:
         fail("worklist.py no longer spawns through poller.wake_agent — the "
-             "worktree, memory hand-over, budget, ledger, continue chain and PR "
+             "worktree, budget, ledger, continue chain and PR "
              "watch all live there and must not be re-implemented")
     if "subprocess.run([poller.CLAUDE_BIN" in wsrc or "poller.make_worktree(" in wsrc:
         fail("worklist.py spawns claude (or cuts a worktree) itself again — "
@@ -268,17 +268,17 @@ def check_worklist_contract(poller_src, wsrc):
              "is the follow-through queue now, worked as soon as a condition clears")
     # poller: the spawn carries a budget and reports itself; memory is linked
     for frag in ('"--output-format", "json"', '"--max-budget-usd"',
-                 "def memory_dir", "def memory_index", '"BRAIN_DIR"', "def follow_main", "def append_ledger", "def take_continue",
+                 "def follow_main", "def append_ledger", "def take_continue",
                  "RACE_AGENT_NOTE_PATH", "RACE_AGENT_CONTINUE_PATH",
-                 "def start_pr_watch", "def defer_for_budget", "MAX_CONTINUES",
-                 "def project_key", "os.path.realpath(path)"):
+                 "def start_pr_watch", "def defer_for_budget", "MAX_CONTINUES"):
         if frag not in poller_src:
-            fail(f"poller.py lost {frag!r} — budget, ledger, memory, "
+            fail(f"poller.py lost {frag!r} — budget, ledger, "
                  f"continue chain or PR watch is gone")
-        if "link_memory" in poller_src:
-            fail("poller.py grew a memory symlink again — auto memory is off on "
-                 "this machine, so a linked store is read by nothing; the brief "
-                 "carries the index instead")
+        for frag in ("link_memory", "memory_index", "BRAIN_DIR", "CLAUDE_PROJECTS_DIR"):
+            if frag in poller_src:
+                fail(f"poller.py grew memory machinery again ({frag!r}) — auto "
+                     "memory is on and keyed to the git repo (verified 2026-09-02 "
+                     "with a headless probe), so every wake already shares the store")
     if "uuid.uuid4().hex[:8]" not in poller_src:
         fail("poller.py lost the random worktree-label suffix — two wakes in "
              "one thread would compute the same label and the second would "
@@ -419,7 +419,6 @@ if rec:
             "has_git": os.path.exists(".git"),
             "has_marker": os.path.exists("MARKER.txt"),
             "note_env": note_env, "cont_env": cont_env,
-            "brain": os.environ.get("BRAIN_DIR"),
         }) + "\\n")
 note = os.environ.get("RACE_AGENT_TEST_CLAUDE_NOTE")
 if note and note_env:
@@ -512,14 +511,13 @@ def setup_fixture():
     claude_stub = make_claude_stub(tmp)
     slack_state = _State()
     srv, api_base = start_stub_slack(slack_state)
-    projects_dir = os.path.join(tmp, "claude-projects")
+
 
     os.environ["RACE_AGENT_STATE_DIR"] = state_dir
     os.environ["RACE_AGENT_TOKEN_FILE"] = os.path.join(tmp, "token.txt")
     os.environ["RACE_AGENT_API"] = api_base
     os.environ["RACE_AGENT_CLAUDE_BIN"] = claude_stub
     os.environ["RACE_AGENT_REPO"] = fake_repo
-    os.environ["RACE_AGENT_CLAUDE_PROJECTS_DIR"] = projects_dir
     os.environ["RACE_AGENT_TEST_RECORDER"] = recorder
     # never reach GitHub or post a real digest from a selftest
     os.environ["RACE_AGENT_SHIPPED_WORKFLOW"] = ""
@@ -539,7 +537,7 @@ def setup_fixture():
     return {
         "tmp": tmp, "fake_repo": fake_repo, "state_dir": state_dir,
         "recorder": recorder, "slack_state": slack_state, "srv": srv,
-        "poller": poller, "worklist": worklist, "projects_dir": projects_dir,
+        "poller": poller, "worklist": worklist,
     }
 
 
@@ -1126,7 +1124,7 @@ def run_worklist(fx):
 def run_follow_through(fx, wl):
     poller = fx["poller"]
     slack_state, recorder, state_dir = fx["slack_state"], fx["recorder"], fx["state_dir"]
-    fake_repo, projects_dir = fx["fake_repo"], fx["projects_dir"]
+    fake_repo = fx["fake_repo"]
     ANDREW = poller.ANDREW
 
     def spawns():
@@ -1212,45 +1210,17 @@ def run_follow_through(fx, wl):
     ok("continue: one more wake in the same worktree with the note, "
        "file consumed, chain bounded at 6")
 
-    # 18 — memory: the brain's index rides in the brief and BRAIN_DIR names
-    # the store; both are the DEV checkout's store even when the poller runs
-    # from a deploy worktree of it (auto memory is off, so nothing else
-    # would hand a wake its memory)
-    key = lambda p: re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(p))
-    main_mem = os.path.join(projects_dir, key(fake_repo), "memory")
-    os.makedirs(main_mem, exist_ok=True)
-    open(os.path.join(main_mem, "MEMORY.md"), "w").write(
-        "# MEMORY.md\n- IRON: the fake repo's one rule\n")
-    slack_state.add_message(user=ANDREW, text="with memory please")
-    open(recorder, "w").close()
-    poller.main()
-    got = spawns()
-    if len(got) != 1:
-        fail(f"expected one wake for the memory scenario, got {len(got)}")
-    prompt = prompt_of(got[0])
-    if '"memory_index"' not in prompt or "the fake repo's one rule" not in prompt:
-        fail("the wake's brief does not carry the brain's MEMORY.md index")
-    if os.path.realpath(got[0].get("brain") or "/nonexistent") != os.path.realpath(main_mem):
-        fail(f"BRAIN_DIR in the wake's env is {got[0].get('brain')!r}, "
-             f"not the project's store {main_mem}")
-    if os.path.exists(os.path.join(projects_dir, key(got[0]["cwd"]), "memory")):
-        fail("a wake grew a memory store under its own worktree's key")
     deploy = os.path.join(fx["tmp"], "deploy")
     _git(["-C", fake_repo, "worktree", "add", "-q", "--track", "-b", "deploy",
           deploy, "origin/main"])
     saved_repo, saved_state = poller.REPO, poller.STATE_DIR
     poller.REPO = deploy
-    if os.path.realpath(poller.memory_dir()) != os.path.realpath(main_mem):
-        fail(f"from a deploy worktree the store resolved to "
-             f"{poller.memory_dir()}, not the dev checkout's {main_mem}")
-    ok("memory: the brain's index in the brief, BRAIN_DIR the dev checkout's "
-       "store — also from a deploy worktree")
     # follow_main saves state: give it its own dir so the fixture's
     # watermark is never clobbered by an in-process call
     poller.STATE_DIR = os.path.join(fx["tmp"], "state-inproc")
     marker = os.path.join(fake_repo, "MARKER.txt")
 
-    # 18b — the deploy checkout follows origin/main: fast-forward only, on
+    # 18 — the deploy checkout follows origin/main: fast-forward only, on
     # the `deploy` branch only, at most once per FOLLOW_EVERY_S
     def head(path):
         return subprocess.run(["git", "-C", path, "rev-parse", "HEAD"],

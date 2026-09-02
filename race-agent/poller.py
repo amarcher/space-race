@@ -95,15 +95,6 @@ CLAUDE_BIN = os.environ.get("RACE_AGENT_CLAUDE_BIN",
 # deliberate difference from house-agent, per Andrew's call when this was
 # built. Overridable for the offline selftest seam.
 CLAUDE_MODEL = os.environ.get("RACE_AGENT_CLAUDE_MODEL", "opus")
-# Project memory is the brain (~/.claude/brain): the store under
-# ~/.claude/projects/<key of the checkout Andrew develops in>/memory/. Auto
-# memory is OFF in ~/.claude/settings.json, so Claude Code loads none of it
-# on its own, in any session — a wake gets the index handed to it in its
-# brief (memory_index) and the store's path in BRAIN_DIR, which the brain
-# CLI honours. The seam is the selftest's (a temp dir stands in for
-# ~/.claude/projects); production never sets it.
-CLAUDE_PROJECTS_DIR = os.environ.get("RACE_AGENT_CLAUDE_PROJECTS_DIR",
-                                     os.path.expanduser("~/.claude/projects"))
 
 CHANNEL = "C0BQ3571U1Z"          # #space-race, The Archers workspace
 BOT_USER = "U0BPU7AD9GF"         # Space Race Claude's own user id, via auth.test
@@ -419,9 +410,6 @@ def spawn_env(tier, note_key=None):
     if note_key:
         env["RACE_AGENT_NOTE_PATH"] = note_path(note_key)
         env["RACE_AGENT_CONTINUE_PATH"] = continue_path(note_key)
-    md = memory_dir()
-    env["RACE_AGENT_MEMORY_DIR"] = md
-    env["BRAIN_DIR"] = md            # the brain CLI's own override
     return env
 
 
@@ -429,56 +417,6 @@ def gh_env():
     """gh/git from the poller itself (PR watch, issue pull): launchd's PATH
     has no /opt/homebrew/bin, so every such call borrows the spawn PATH."""
     return spawn_env("poller")
-
-
-# ------------------------------------------------------------ memory
-def project_key(path):
-    """How Claude Code names a working directory under ~/.claude/projects:
-    the absolute path with every non-alphanumeric character turned into a
-    hyphen (verified 2026-09-01 against this Mac's real entries —
-    `-Users-archer-Programs-space-race` and three stray
-    `-Users-archer--space-race-race-agent-worktrees-...` dirs, the
-    orphans a per-cwd store leaves behind). Resolved first: the binary sees
-    its cwd through os.getcwd(), so /var/... is /private/var/... to it."""
-    return re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path))
-
-
-def memory_dir():
-    """The project's memory store: the brain of the checkout Andrew develops
-    in, found through git's common dir (the main worktree's .git) rather
-    than through cwd or REPO. The daemon runs from a deploy checkout that is
-    itself a worktree of that checkout, and a wake's cwd is a throwaway
-    worktree — keyed by either, the store is empty (house-agent's first wake
-    from its deploy checkout, 2026-09-02, ran with none of the 239 memories
-    the project has). Falls back to REPO's own key when git can't say."""
-    main = REPO
-    try:
-        r = subprocess.run(["git", "rev-parse", "--path-format=absolute",
-                            "--git-common-dir"], cwd=REPO,
-                           capture_output=True, text=True, timeout=10)
-        if r.returncode == 0 and r.stdout.strip():
-            main = os.path.dirname(r.stdout.strip())
-    except Exception:
-        pass
-    return os.path.join(CLAUDE_PROJECTS_DIR, project_key(main), "memory")
-
-
-MEMORY_INDEX_LINES, MEMORY_INDEX_BYTES = 200, 25_000   # Claude Code's own cut
-
-
-def memory_index():
-    """What a session with auto memory ON would be handed at start: the
-    head of MEMORY.md — by the brain's convention, the iron rules and one
-    pointer per memory, with the detail read on demand. Nothing loads it
-    for a wake otherwise. Empty when the project has no store yet."""
-    path = os.path.join(memory_dir(), "MEMORY.md")
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = "".join(f.readlines()[:MEMORY_INDEX_LINES])
-        return text.encode("utf-8")[:MEMORY_INDEX_BYTES].decode("utf-8",
-                                                                "ignore")
-    except OSError:
-        return ""
 
 
 # ------------------------------------------------------------------ ledger
@@ -875,8 +813,7 @@ def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main")
     Shape of one wake:
       * budget check — over the day's cap the wake is queued for the
         morning, never dropped
-      * worktree off `ref` (origin/main, or a PR branch for ci-fix), its
-        brain's index and path in the brief (memory_index)
+      * worktree off `ref` (origin/main, or a PR branch for ci-fix)
       * run; if the agent left a continue file, run again in the same
         worktree with that note — up to MAX_CONTINUES
       * ledger line per run
@@ -910,8 +847,6 @@ def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main")
             "thread_ts": thread_ts,
             "tier": tier,
             "payload": pl,
-            "memory_dir": memory_dir(),
-            "memory_index": memory_index(),
             "note": read_note(note_key),
             "context": thread_context(thread_ts) if thread_ts else [],
         }
