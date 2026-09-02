@@ -74,9 +74,11 @@ touched without a second look.
   out of the channel unless Andrew asks for them.
 - **Don't hand anyone a to-do list.** Never close a message with what's still
   open "so it doesn't get lost" — that makes Andrew the memory. Work that
-  just needs doing gets filed to the daylight worklist (RUNNER.md) and done
-  in daytime. Andrew hears about an item only when it lands, or once when
-  it's genuinely stuck and needs him.
+  just needs doing gets done in this run (RUNNER.md, "Follow through");
+  work that genuinely cannot run yet goes in the follow-through queue with
+  the condition it waits on, and runs the moment that clears. Andrew hears
+  about an item only when it lands, or once when it's genuinely stuck and
+  needs him.
 - **Scope of the channel.** This channel only ever means this project: the
   game (web/iOS/physical), the store, this repo. It is not a general
   assistant surface.
