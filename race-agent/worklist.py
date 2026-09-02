@@ -1,43 +1,67 @@
 #!/usr/bin/env python3
 """
-The daylight worklist — Space Race Claude's own queue, worked in daylight.
+The follow-through queue — what Space Race Claude will do next, and what it
+is waiting on.
 
-Direct port of smart-home/house-agent's worklist.py. Why this exists (from
-house-agent, same reasoning applies here): ending a thread late with "still
-open, so it doesn't get lost" hands Andrew a to-do list and makes him the
-memory. The fix is a queue the agent itself works, in daytime, without being
-pointed at it.
+This used to be "the daylight worklist" (a direct port of
+smart-home/house-agent's): a run that found more to do filed it here and a
+launchd job worked the queue at 09:40 and 14:40. That is why a thread could
+go quiet for days and then get a report. The rule now is the other way round
+(RUNNER.md, "Follow through"): a run FINISHES its own follow-ups — when one
+cap isn't enough it writes its continue file and the poller wakes it again
+at once. This queue holds only the work that cannot run yet, and every item
+says why:
 
-So: anything the agent finds but shouldn't do right now goes in here (one
-JSON file per item, in STATE_DIR/worklist/, outside the repo like every other
-piece of race-agent state). A launchd calendar job runs `--run` twice in the
-daylight window; each pass claims the oldest open item and wakes headless
-Claude Code on it, in the Slack thread the item came from. The agent does the
-work, marks it done, and posts ONE line when it lands.
+    --wait approval          Andrew's 👍 on an ask further up the thread
+    --wait after:<ISO time>  not before this moment (a store's review
+                             window, tomorrow morning, "after the 3pm deploy")
+    --wait daytime           09–18 only — for anything that would be
+                             disruptive out of hours (kept from the house
+                             bot; nothing in this repo makes noise)
+    --wait cmd:<shell>       whatever this command exits 0 for: a booted
+                             simulator, a device on `xcrun devicectl`, an
+                             App Store Connect build finished processing
+    --wait ci:<pr>           the checks on that PR have all finished
 
-The escape hatch: an item that fails MAX_ATTEMPTS passes goes `stuck`, and
-that — a thing genuinely needing Andrew — is the only case that ever costs
-him a message. Not a list; one item, with the reason. Because it is the ONE
-unprompted message the whole design allows, it has to be the best-written
-line the bot sends: see `compose_stuck_notice` for why the item's own
-`title` is never allowed anywhere near it (whoever else ever joins
-#space-race shouldn't get a build log for a stuck item either).
+An item with no `--wait` is ready now: the poller's sweep picks it up on
+the follow-through lane within seconds of the run that filed it ending.
+
+The second source of items is GitHub: an open issue labelled
+`agent-ready` (ISSUE_LABEL) becomes an item on the next pass. That is how a
+roadmap turns into work the agent picks up unattended — Andrew writes the
+issue, the agent opens the PR, the PR says `Closes #N`, and the issue's
+timeline is the record of what happened.
+
+Every spawn goes through poller.wake_agent — the ONE spawn path: isolated
+worktree, linked memory, budget, ledger, continue chain, PR watch. This
+file only decides WHICH item is ready; it never runs an agent itself.
+(race-agent used to carry its own wake_agent here, with its own worktree —
+that was the right instinct and it is now the poller's job for every wake.)
+
+The escape hatch is the honest part: an item that fails MAX_ATTEMPTS passes
+goes `stuck`, and that — a thing genuinely needing Andrew — is the only
+case that ever costs him a message. Not a list; one item, with the reason.
+Because it is the ONE unprompted message the whole design allows, it has to
+be the best-written line the bot sends: see `compose_stuck_notice` for why
+the item's own `title` is never allowed anywhere near it (whoever else ever
+joins #space-race shouldn't get a build log for a stuck item either).
 
 Trust: `add` refuses unless the filing run is an Andrew-tier run (the poller
 stamps RACE_AGENT_TIER at the spawn boundary), so a queued item always
-traces back to a session Andrew's own messages authorized. That stamp is what
-justifies the daylight run's permission mode — same rule as poller.py's
-TIER_MODE, and the same reason: text in a public channel must never be able
-to conjure an ungated agent.
+traces back to a session Andrew's own messages authorized. An issue item is
+Andrew-tier because only the repo's owner labels issues on it. That stamp
+is what justifies the wake's permission mode — poller.py's TIER_MODE rule,
+carried across the queue: text in a public channel must never be able to
+conjure an ungated agent.
 
 Usage (the agent's side, from a woken session):
-    python3 race-agent/worklist.py add --title "..." --detail "..." \
-        [--public-title "..."] [--thread <ts>] [--priority 2]
+    python3 race-agent/worklist.py add --title "..." --detail "..." \\
+        [--public-title "..."] [--thread <ts>] [--priority 2] [--wait ...]
     python3 race-agent/worklist.py list [--json]
     python3 race-agent/worklist.py done <id> [--note "what landed"]
     python3 race-agent/worklist.py drop <id> [--note "why"]
 
-Usage (launchd's side, one daylight pass):
+Usage (the daemon's side, one pass on the follow-through lane):
     python3 race-agent/worklist.py --run
 
 The RACE_AGENT_* env overrides are the offline-selftest seam, exactly as in
@@ -51,28 +75,22 @@ import os
 import re
 import subprocess
 import sys
-import uuid
 
-import poller  # same directory; STATE_DIR, the singleton lock, the log helper
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import poller  # same directory; STATE_DIR, the lane locks, the log helper
 
 WORKLIST_DIR = os.path.join(poller.STATE_DIR, "worklist")
 DONE_DIR = os.path.join(WORKLIST_DIR, "done")
 
-# The daylight window, enforced in code and NOT only in the plist: launchd
-# runs a missed StartCalendarInterval job the moment the Mac wakes, so a lid
-# opened at 03:00 would otherwise start a build in the middle of the night.
+# The `daytime` condition's window. Not a schedule any more — a condition an
+# item may ask for. Kept in code (not a plist) so a lid opened at 03:00 can
+# never start something that asked to wait for the day.
 DAY_START_H, DAY_END_H = 9, 18
 
 MAX_ATTEMPTS = 3          # then the item goes `stuck` and Andrew hears once
-CLAUDE_TIMEOUT_S = 45 * 60  # same cap as a Slack wake (build + gate) — see
-                            # poller.py's CLAUDE_TIMEOUT_S comment
-
-# Only an item filed by an Andrew-tier run may wake an ungated agent. Anything
-# else runs permission-gated — the poller's rule, carried across the queue.
-TIER_MODE = {"andrew": "bypassPermissions"}
-DEFAULT_MODE = "acceptEdits"
-
-ID_SAFE = re.compile(r"[^a-z0-9]+")
+LANE = "work.lock"        # the follow-through lane (poller.acquire_lock)
+# Open issues carrying this label become items. Empty disables the source.
+ISSUE_LABEL = os.environ.get("RACE_AGENT_ISSUE_LABEL", "agent-ready")
 
 # ---------------------------------------------------------- the stuck notice
 # An item's `title` is written by Space Race Claude FOR Space Race Claude and reads like
@@ -179,7 +197,7 @@ def now():
     return datetime.datetime.now()
 
 
-def in_daylight(t=None):
+def in_daytime(t=None):
     t = t or now()
     return DAY_START_H <= t.hour < DAY_END_H
 
@@ -201,7 +219,7 @@ def load_items():
             items.append(json.load(open(os.path.join(d, fn))))
         except Exception as e:
             poller.log(f"worklist {fn}: unreadable ({e}); leaving it")
-    items.sort(key=lambda i: (i.get("priority", 2), i.get("filed", "")))
+    items.sort(key=lambda i: (i.get("priority", 2), i.get("filed", ""), i.get("id", "")))
     return items
 
 
@@ -238,6 +256,124 @@ def find(item_id):
     return None
 
 
+def known_ids():
+    """Every id the queue has ever held — open or retired."""
+    d, done = _paths()
+    ids = set()
+    for folder in (d, done):
+        for fn in os.listdir(folder):
+            if fn.endswith(".json"):
+                ids.add(fn[:-5])
+    return ids
+
+
+# ------------------------------------------------------------- conditions
+def parse_wait(spec):
+    """Validate a --wait spec. Returns the normalised string or raises."""
+    if spec is None:
+        return None
+    spec = spec.strip()
+    if spec in ("approval", "daytime"):
+        return spec
+    kind, _, arg = spec.partition(":")
+    if kind == "after" and arg:
+        datetime.datetime.fromisoformat(arg)          # raises if malformed
+        return f"after:{arg}"
+    if kind == "cmd" and arg.strip():
+        return f"cmd:{arg.strip()}"
+    if kind == "ci" and arg.strip().isdigit():
+        return f"ci:{arg.strip()}"
+    raise ValueError(f"unknown --wait {spec!r}; see worklist.py --help")
+
+
+def is_ready(item):
+    """Can this item run now? Returns (ready, reason-if-not)."""
+    spec = item.get("wait_for")
+    if not spec:
+        return True, None
+    kind, _, arg = spec.partition(":")
+    if kind == "approval":
+        return (not waiting_on_andrew(item)), "waiting on Andrew's 👍"
+    if kind == "daytime":
+        return in_daytime(), f"outside {DAY_START_H}:00–{DAY_END_H}:00"
+    if kind == "after":
+        try:
+            t = datetime.datetime.fromisoformat(arg)
+        except ValueError:
+            return True, None              # malformed: don't wedge the item
+        return now() >= t, f"not before {arg}"
+    if kind == "cmd":
+        try:
+            r = subprocess.run(arg, shell=True, capture_output=True,
+                               timeout=30, env=poller.gh_env())
+            return r.returncode == 0, f"`{arg}` exits {r.returncode}"
+        except Exception as e:
+            return False, f"`{arg}` failed: {e}"
+    if kind == "ci":
+        try:
+            r = subprocess.run(["gh", "pr", "view", arg, "--json",
+                                "statusCheckRollup,state"],
+                               cwd=poller.REPO, capture_output=True, text=True,
+                               timeout=30, env=poller.gh_env())
+            pr = json.loads(r.stdout or "{}")
+        except Exception as e:
+            return False, f"checks on #{arg} unreadable: {e}"
+        if pr.get("state") in ("MERGED", "CLOSED"):
+            return True, None
+        pending = [c for c in pr.get("statusCheckRollup") or []
+                   if c.get("status") not in (None, "COMPLETED")
+                   or str(c.get("state") or "").upper() in ("PENDING", "EXPECTED")]
+        return (not pending), f"{len(pending)} check(s) still running on #{arg}"
+    return True, None
+
+
+# ------------------------------------------------------------ the issues
+def pull_issues():
+    """Open issues labelled ISSUE_LABEL become items (id `issue-<n>`), once.
+    Silent when gh is missing or the repo has no such label."""
+    if not ISSUE_LABEL:
+        return []
+    try:
+        r = subprocess.run(["gh", "issue", "list", "--label", ISSUE_LABEL,
+                            "--state", "open", "--limit", "30", "--json",
+                            "number,title,body,url,labels"],
+                           cwd=poller.REPO, capture_output=True, text=True,
+                           timeout=30, env=poller.gh_env())
+        issues = json.loads(r.stdout or "[]") if r.returncode == 0 else []
+    except Exception as e:
+        poller.log(f"worklist: issue pull failed ({e})")
+        return []
+    have = known_ids()
+    new = []
+    for iss in issues:
+        iid = f"issue-{iss['number']}"
+        if iid in have:
+            continue
+        item = poller.queue_item(
+            id=iid, title=iss["title"],
+            public_title=iss["title"],
+            detail=(f"GitHub issue #{iss['number']}: {iss['url']}\n\n"
+                    f"{iss.get('body') or ''}\n\nDo it end to end under the "
+                    f"normal rules. The PR body must say `Closes "
+                    f"#{iss['number']}` so the issue closes on merge."),
+            tier="andrew", thread_ts=None, priority=2, source="issue",
+            issue=iss["number"], url=iss["url"])
+        new.append(item)
+        poller.log(f"worklist: filed {iid} from the {ISSUE_LABEL} label")
+    return new
+
+
+def comment_issue(item, text):
+    if item.get("source") != "issue" or not item.get("issue"):
+        return
+    try:
+        subprocess.run(["gh", "issue", "comment", str(item["issue"]),
+                        "--body", text], cwd=poller.REPO, capture_output=True,
+                       timeout=30, env=poller.gh_env())
+    except Exception as e:
+        poller.log(f"worklist: issue comment failed ({e})")
+
+
 # ---------------------------------------------------------------- commands
 def cmd_add(a):
     tier = os.environ.get("RACE_AGENT_TIER", "")
@@ -246,21 +382,14 @@ def cmd_add(a):
               "work (RACE_AGENT_TIER is %r). Say it in-thread instead."
               % tier, file=sys.stderr)
         return 2
-    t = now()
-    slug = ID_SAFE.sub("-", a.title.lower()).strip("-")[:40]
-    item = {
-        "id": f"{t:%Y%m%d-%H%M}-{slug}",
-        "title": a.title,
-        "public_title": a.public_title,
-        "detail": a.detail,
-        "thread_ts": a.thread,
-        "priority": a.priority,
-        "filed": t.isoformat(timespec="seconds"),
-        "tier": tier,
-        "state": "open",
-        "attempts": 0,
-    }
-    save_item(item)
+    try:
+        wait = parse_wait(a.wait)
+    except ValueError as e:
+        print(f"worklist: {e}", file=sys.stderr)
+        return 2
+    item = poller.queue_item(title=a.title, detail=a.detail, tier=tier,
+                             thread_ts=a.thread, public_title=a.public_title,
+                             wait_for=wait, priority=a.priority)
     print(item["id"])
     return 0
 
@@ -274,8 +403,10 @@ def cmd_list(a):
         print("worklist: empty")
         return 0
     for i in items:
+        ready, why = is_ready(i) if i.get("state") == "open" else (None, None)
+        wait = "" if ready in (True, None) else f"  ⏳ {why}"
         print(f"{i['id']}  [{i['state']}/p{i.get('priority', 2)}/"
-              f"{i.get('attempts', 0)}try]  {i['title']}")
+              f"{i.get('attempts', 0)}try]  {i['title']}{wait}")
     return 0
 
 
@@ -285,6 +416,10 @@ def cmd_close(a, outcome):
         print(f"worklist: no open item {a.id!r}", file=sys.stderr)
         return 1
     retire(item, outcome, a.note)
+    if outcome == "done":
+        comment_issue(item, a.note or "Landed.")
+    else:
+        comment_issue(item, f"Not doing this one: {a.note or 'dropped'}")
     print(f"{a.id} → {outcome}")
     return 0
 
@@ -304,107 +439,69 @@ def reconcile(items):
     return items
 
 
-def wake_agent(item):
-    """Wake headless Claude Code (Opus) on one item, in the thread it came
-    from. Deliberately the same shape as poller.wake_agent — including its
-    own isolated git worktree, never the shared repo checkout: a worklist
-    wake and a Slack-triggered wake share the same singleton lock
-    (poller.acquire_lock), so they can never run concurrently, but they DO
-    run sequentially in the same directory unless each gets its own
-    checkout — exactly the seam that let one wake's leftover branch
-    contaminate another's PR (see poller.make_worktree). The woken agent
-    reads RUNNER.md + policy.md and treats `kind: worklist` as its
-    instruction."""
-    mode = TIER_MODE.get(item.get("tier"), DEFAULT_MODE)
-    brief = {
-        "kind": "worklist",
-        "channel": poller.CHANNEL,
-        "thread_ts": item.get("thread_ts"),
-        "tier": item.get("tier", "unknown"),
-        "payload": {"item": item},
-        "context": (poller.thread_context(item["thread_ts"])
-                    if item.get("thread_ts") else []),
-    }
-    prompt = (
-        "You are Space Race Claude, woken by race-agent/worklist.py for a daylight "
-        "work pass — not by a Slack message. FIRST read race-agent/RUNNER.md "
-        "and race-agent/policy.md and follow them exactly; the 'Daylight "
-        "worklist' section of RUNNER.md governs this wake. Do the item below, "
-        "end to end, and close it with worklist.py. Then handle this:\n\n"
-        + json.dumps(brief, indent=2)
-    )
-    runs = os.path.join(poller.STATE_DIR, "runs")
-    os.makedirs(runs, exist_ok=True)
-    run_log = os.path.join(runs, f"worklist-{item['id']}-{os.getpid()}.log")
-    env = poller.spawn_env(item.get("tier", "unknown"))
-    # A random suffix, not just the item id + pid: reconcile() reopens a
-    # timed-out item under the SAME id for the next daylight pass, so a
-    # stable label would let that retry's make_worktree silently destroy a
-    # still-pending resume worktree from the failed attempt.
-    label = f"worklist-{item['id']}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
-    wt = None
-    cleaned_up = False
-    try:
-        wt = poller.make_worktree(label)
-        with open(run_log, "w") as out:
-            subprocess.run(
-                [poller.CLAUDE_BIN, "-p", prompt, "--model", poller.CLAUDE_MODEL,
-                 "--permission-mode", mode],
-                cwd=wt, stdout=out, stderr=subprocess.STDOUT,
-                timeout=CLAUDE_TIMEOUT_S, check=True, env=env,
-            )
-        poller.log(f"worklist run ok ({item['id']}, {mode}) → {run_log}")
-        return True
-    except Exception as e:
-        poller.log(f"worklist run FAILED ({item['id']}): {e} — see {run_log}")
-        if wt is not None:
-            preserved = poller.remove_worktree(wt)
-            cleaned_up = True
-            if preserved:
-                poller.register_resume(item.get("thread_ts"), wt, "worklist")
-        return False
-    finally:
-        if wt is not None and not cleaned_up:
-            poller.remove_worktree(wt)
+def wake_on(item):
+    """Wake headless Claude Code on one item, through the one spawn path
+    (poller.wake_agent: worktree, memory, budget, ledger, continue chain,
+    PR watch). A budget-deferred wake carries its original brief."""
+    if item.get("source") == "budget" and item.get("deferred_kind"):
+        return poller.wake_agent(item["deferred_kind"], item.get("thread_ts"),
+                                 item.get("deferred_payload") or {},
+                                 item.get("tier", "unknown"),
+                                 note_key=item.get("thread_ts") or item["id"])
+    return poller.wake_agent("worklist", item.get("thread_ts"),
+                             {"item": item}, item.get("tier", "unknown"),
+                             note_key=item.get("thread_ts") or item["id"])
 
 
 def run_pass():
-    """One daylight pass: claim the oldest open item and work it. Silent when
-    there's nothing to do — an empty queue must never cost anyone a message."""
-    if not in_daylight():
-        poller.log(f"worklist: {now():%H:%M} is outside the daylight window "
-                   f"({DAY_START_H}:00–{DAY_END_H}:00); nothing started")
-        return 0
-    lock = poller.acquire_lock()
+    """One pass on the follow-through lane: pull labelled issues, report the
+    stuck, then claim the first READY item and work it. Silent when there's
+    nothing to do — an empty queue must never cost anyone a message."""
+    lock = poller.acquire_lock(LANE)
     if lock is None:
-        poller.log("worklist: a Slack wake holds the lock; next pass")
+        poller.log("worklist: the follow-through lane is busy; next pass")
         return 0
+    pull_issues()
     items = reconcile(load_items())
     stuck = [i for i in items if i.get("state") == "stuck"
              and not i.get("reported")]
     for i in stuck:
         # The ONE case worth Andrew's attention — and it costs him one item
-        # with a reason, not a list at bedtime.
-        if i.get("thread_ts"):
-            try:
-                poller.post_message(
-                    compose_stuck_notice(i, waiting_on_andrew(i)),
-                    thread_ts=i["thread_ts"])
-            except Exception as e:
-                poller.log(f"worklist: stuck notice failed ({e})")
+        # with a reason, not a list at bedtime. In the item's thread when it
+        # has one; top-level for an issue item (it came from GitHub, so the
+        # channel is the only place Andrew would otherwise never hear).
+        try:
+            poller.post_message(
+                compose_stuck_notice(i, waiting_on_andrew(i)),
+                thread_ts=i.get("thread_ts"))
+        except Exception as e:
+            poller.log(f"worklist: stuck notice failed ({e})")
         i["reported"] = True
         save_item(i)
     todo = [i for i in items if i.get("state") == "open"]
     if not todo:
         poller.log("worklist: nothing open")
         return 0
-    item = todo[0]
+    item = None
+    for cand in todo:
+        ready, why = is_ready(cand)
+        if ready:
+            item = cand
+            break
+        poller.log(f"worklist: {cand['id']} waits ({why})")
+    if item is None:
+        return 0
     item["state"] = "working"
     item["attempts"] = item.get("attempts", 0) + 1
     item["last_attempt"] = now().isoformat(timespec="seconds")
     save_item(item)
     poller.log(f"worklist: working {item['id']} (attempt {item['attempts']})")
-    wake_agent(item)
+    ok = wake_on(item)
+    if ok and item.get("source") == "budget":
+        # A deferred wake is done the moment it ran; nothing to close.
+        cur = find(item["id"])
+        if cur:
+            retire(cur, "done", "ran the deferred wake")
     return 0
 
 
@@ -412,10 +509,11 @@ def run_pass():
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     p.add_argument("--run", action="store_true",
-                   help="one daylight pass (launchd's entry point)")
+                   help="one pass on the follow-through lane (the daemon's "
+                        "entry point; safe to run by hand)")
     sub = p.add_subparsers(dest="cmd")
 
-    a = sub.add_parser("add", help="file an item instead of telling Andrew")
+    a = sub.add_parser("add", help="file an item that cannot run yet")
     a.add_argument("--title", required=True)
     a.add_argument("--public-title", default=None,
                    help="the same thing in plain, non-ops language, for the "
@@ -426,8 +524,12 @@ def main(argv=None):
                    help="enough for a fresh session to execute it cold")
     a.add_argument("--thread", default=None, help="Slack thread_ts it came from")
     a.add_argument("--priority", type=int, default=2, help="1 = first")
+    a.add_argument("--wait", default=None,
+                   help="why it can't run now: approval | daytime | "
+                        "after:<ISO> | cmd:<shell exits 0> | ci:<pr>. "
+                        "Omit it and the item runs on the next sweep.")
 
-    sub.add_parser("list", help="what's queued").add_argument(
+    sub.add_parser("list", help="what's queued and what each waits on").add_argument(
         "--json", action="store_true")
 
     for name, help_ in (("done", "it landed"), ("drop", "it's not worth doing")):

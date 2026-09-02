@@ -18,7 +18,10 @@ sweep — the event push only decides WHEN sweeps happen, never WHAT they do.)
 This is a direct port of smart-home/house-agent's poller.py — same shape,
 same safety spine — adapted for a different Slack workspace (The Archers, not
 the family workspace), a single trust tier (Andrew; no second "alicia"-style
-tier — see policy.md), and Opus instead of the CLI's default model.
+tier — see policy.md), and Opus instead of the CLI's default model. The
+follow-through changes of 2026-09-01 (wake notes, the continue chain, the
+ledger and budget, linked memory, the PR watch, two lanes) were ported from
+storybook-studio/fable-agent, where they landed first.
 
 Approval loop: when the agent needs Andrew's 👍 it writes a pending file into
 STATE_DIR/pending/<message_ts>.json (see RUNNER.md). Each cycle the poller
@@ -26,8 +29,10 @@ checks reactions on those messages; Andrew's 👍/👎 wakes the agent again wit
 the verdict. Nobody else's reactions count.
 
 Safety spine:
-  * singleton lock (dead-pid reclaimed) — one agent run at a time; a slow
-    build just delays the next poll's pickup, never overlaps it
+  * two lanes, one lock each (dead-pid reclaimed): the Slack lane (this
+    sweep and its wakes) and the follow-through lane (queued items, CI-fix
+    wakes, run by worklist.py/prwatch.py). A slow build on one lane never
+    makes the other wait, and nothing ever runs twice in one lane
   * at-most-once: state advances BEFORE the spawn, so a crashing agent can't
     poison-loop on one message; the failure posts a fallback line
   * at-most-once ACROSS the two spawn paths too: an approval run that already
@@ -48,6 +53,10 @@ Safety spine:
     (never deleted) if a run leaves uncommitted/unpushed work behind, with
     a 👍-gated resume ask so that work is never silently lost or silently
     resumed either.
+  * ONE spawn path: `wake_agent` is the only thing that ever runs `claude`.
+    worklist.py (queued items) and prwatch.py (CI fixes) call it; they never
+    spawn on their own, so the worktree, the memory link, the budget, the
+    ledger, the continue chain and the PR watch apply to every wake alike.
 
 The RACE_AGENT_* env overrides are the offline-selftest seam (selftest.py):
 they redirect the Slack API base, token file, state dir, claude binary, and
@@ -58,6 +67,7 @@ import datetime
 import fcntl
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -85,6 +95,14 @@ CLAUDE_BIN = os.environ.get("RACE_AGENT_CLAUDE_BIN",
 # deliberate difference from house-agent, per Andrew's call when this was
 # built. Overridable for the offline selftest seam.
 CLAUDE_MODEL = os.environ.get("RACE_AGENT_CLAUDE_MODEL", "opus")
+# Claude Code keys project memory (and sessions) to the working directory:
+# ~/.claude/projects/<cwd with every non-alphanumeric turned into "-">/. A
+# wake in a fresh worktree therefore starts with an EMPTY memory unless its
+# project dir's memory/ is linked back to the main checkout's — see
+# link_memory. The seam is the selftest's (a temp dir stands in for
+# ~/.claude/projects); production never sets it.
+CLAUDE_PROJECTS_DIR = os.environ.get("RACE_AGENT_CLAUDE_PROJECTS_DIR",
+                                     os.path.expanduser("~/.claude/projects"))
 
 CHANNEL = "C0BQ3571U1Z"          # #space-race, The Archers workspace
 BOT_USER = "U0BPU7AD9GF"         # Space Race Claude's own user id, via auth.test
@@ -126,6 +144,29 @@ CLAUDE_TIMEOUT_S = 45 * 60       # a single agent run may build + gate; cap it.
                                  # leftover state contaminate another's PR
                                  # (see make_worktree below).
 CONTEXT_LIMIT = 25               # most recent messages handed to the agent
+# Follow-through. A run that has more to do than one cap allows does not
+# file it for later — it pushes, writes what comes next to its continue
+# file, and exits; the poller wakes it again AT ONCE in the same worktree.
+# Bounded, so a run that keeps saying "more" can't hold a lane all day.
+MAX_CONTINUES = 6
+# Money. Every spawn carries a hard per-run budget, and the day has a cap
+# summed from the ledger. Over the cap the wake is not dropped — it is
+# queued with an `after:` condition for the next morning and the thread
+# hears one plain line. (Defaults copied from fable-agent, flagged in the
+# PR: tune via the plist's environment.)
+WAKE_BUDGET_USD = float(os.environ.get("RACE_AGENT_WAKE_BUDGET_USD", "25"))
+DAILY_BUDGET_USD = float(os.environ.get("RACE_AGENT_DAILY_BUDGET_USD", "120"))
+# The one scheduled message: a plain-voiced digest of what landed today,
+# posted top-level once the hour passes — only on days something did.
+DIGEST_HOUR = (int(os.environ["RACE_AGENT_DIGEST_HOUR"])
+               if os.environ.get("RACE_AGENT_DIGEST_HOUR") else
+               None if "RACE_AGENT_DIGEST_HOUR" in os.environ else 18)
+# Post-merge: fable-agent's repo has a "verify shipped" workflow that asks
+# the domain what it serves after every push to main. This repo has no
+# GitHub Actions at all — Vercel deploys main on push and that is the whole
+# story — so the check is OFF by default (empty = disabled). Set
+# RACE_AGENT_SHIPPED_WORKFLOW to a workflow name if one ever exists.
+SHIPPED_WORKFLOW = os.environ.get("RACE_AGENT_SHIPPED_WORKFLOW", "") or None
 # The only copy the POLLER itself can put in the channel (the agent voices
 # everything else). It must NOT promise "nothing changed": a timed-out run
 # may have already branched and committed, so the line points to progress
@@ -193,12 +234,15 @@ def save_state(st):
     os.replace(tmp, state_path())
 
 
-def acquire_lock():
-    """Singleton: one poller/agent run at a time. Returns the held lock file
-    object, or None when another live run owns it (dead-pid locks are
-    reclaimed by flock itself — the lock dies with the process)."""
+def acquire_lock(name="poller.lock"):
+    """One run per LANE. `poller.lock` is the Slack lane (the sweep and the
+    wakes it spawns); `work.lock` is the follow-through lane (queued items,
+    CI-fix wakes) — so a long build on one never makes a question on the
+    other wait. Returns the held lock file object, or None when another
+    live run owns it (dead-pid locks are reclaimed by flock itself — the
+    lock dies with the process)."""
     os.makedirs(STATE_DIR, exist_ok=True)
-    f = open(os.path.join(STATE_DIR, "poller.lock"), "a+")
+    f = open(os.path.join(STATE_DIR, name), "a+")
     try:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -359,38 +403,311 @@ def check_approvals():
 
 
 # ------------------------------------------------------------------ the agent
-def spawn_env(tier):
+def spawn_env(tier, note_key=None):
     """The environment a woken agent runs in: the tier stamp (worklist.py's
-    filing gate reads it — set here so a prompt can't rewrite it) plus a
-    PATH that carries Homebrew's bin, without which the repo gate and gh/npm
-    are structurally unreachable from a launchd-spawned run."""
+    filing gate reads it — set here so a prompt can't rewrite it), a PATH
+    that carries Homebrew's bin (without which the repo gate and gh/npm are
+    structurally unreachable from a launchd-spawned run), and — when the
+    wake has a note key — the two files RUNNER.md tells the agent to write:
+    its wake note (what it did, for the next wake on this thread) and its
+    continue file (what comes next, when one cap wasn't enough)."""
     env = {**os.environ, "RACE_AGENT_TIER": tier}
     path = env.get("PATH", "")
     if BREW_BIN not in path.split(":"):
         env["PATH"] = f"{BREW_BIN}:{path}" if path else BREW_BIN
+    if note_key:
+        env["RACE_AGENT_NOTE_PATH"] = note_path(note_key)
+        env["RACE_AGENT_CONTINUE_PATH"] = continue_path(note_key)
     return env
 
 
-def make_worktree(label):
-    """A fresh git worktree off up-to-date origin/main, isolated to this one
-    wake. (Incident this closes — hit in storybook-studio/fable-agent,
+def gh_env():
+    """gh/git from the poller itself (PR watch, issue pull): launchd's PATH
+    has no /opt/homebrew/bin, so every such call borrows the spawn PATH."""
+    return spawn_env("poller")
+
+
+# ------------------------------------------------------------- memory link
+def project_key(path):
+    """How Claude Code names a working directory under ~/.claude/projects:
+    the absolute path with every non-alphanumeric character turned into a
+    hyphen (verified 2026-09-01 against this Mac's real entries —
+    `-Users-archer-Programs-space-race` and three stray
+    `-Users-archer--space-race-race-agent-worktrees-...` dirs, exactly the
+    orphans link_memory exists to prevent). Resolved first: the binary sees
+    its cwd through os.getcwd(), so /var/... is /private/var/... to it."""
+    return re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path))
+
+
+def link_memory(wt):
+    """Give a worktree wake the SAME project memory the main checkout has.
+
+    Claude Code keys auto-memory to the cwd, so each worktree would
+    otherwise start with an empty memory/ and could never add to the shared
+    one — three such orphan directories existed for this repo before this
+    fix. The link is a symlink from the worktree's project dir to the main
+    checkout's memory/: reads see the gotchas, writes land where the next
+    session (interactive or headless) reads. Sessions themselves stay
+    per-directory; only memory is shared. Never fatal — a wake without
+    memory is worse than one with, but far better than none."""
+    try:
+        main_mem = os.path.join(CLAUDE_PROJECTS_DIR, project_key(REPO), "memory")
+        os.makedirs(main_mem, exist_ok=True)
+        proj = os.path.join(CLAUDE_PROJECTS_DIR, project_key(wt))
+        os.makedirs(proj, exist_ok=True)
+        link = os.path.join(proj, "memory")
+        if os.path.islink(link):
+            if os.path.realpath(link) == os.path.realpath(main_mem):
+                return link
+            os.remove(link)
+        elif os.path.isdir(link):
+            # An earlier wake (before this fix) wrote memory here. Fold it
+            # into the shared store rather than lose it, then link.
+            for fn in os.listdir(link):
+                dst = os.path.join(main_mem, fn)
+                if not os.path.exists(dst):
+                    shutil.move(os.path.join(link, fn), dst)
+            shutil.rmtree(link, ignore_errors=True)
+        os.symlink(main_mem, link)
+        return link
+    except OSError as e:
+        log(f"memory link failed for {wt} ({e}) — this wake runs without "
+            f"the shared memory")
+        return None
+
+
+# ------------------------------------------------------------------ ledger
+def ledger_path():
+    return os.path.join(STATE_DIR, "ledger.jsonl")
+
+
+def append_ledger(**entry):
+    """One line per thing that happened: a run, a refusal, a merge, a
+    fix wake. The answer to "what did the agent do on Tuesday" — and the
+    daily budget's source of truth."""
+    entry = {"at": datetime.datetime.now().isoformat(timespec="seconds"),
+             **entry}
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        with open(ledger_path(), "a") as f:
+            f.write(json.dumps(entry, sort_keys=True) + "\n")
+    except OSError as e:
+        log(f"ledger unwritable ({e}): {entry}")
+    return entry
+
+
+def ledger_entries(day=None):
+    """Entries, optionally only those stamped on `day` (YYYY-MM-DD)."""
+    out = []
+    try:
+        with open(ledger_path()) as f:
+            for ln in f:
+                try:
+                    e = json.loads(ln)
+                except ValueError:
+                    continue
+                if day is None or str(e.get("at", "")).startswith(day):
+                    out.append(e)
+    except FileNotFoundError:
+        pass
+    return out
+
+
+def today():
+    return datetime.datetime.now().date().isoformat()
+
+
+def spent_today():
+    return sum(float(e.get("cost") or 0) for e in ledger_entries(today()))
+
+
+# ------------------------------------------------------ notes + continues
+def note_path(key):
+    """The wake note for a thread (or a queued item): what the last run on
+    it did, verified, and left open. Written by the agent at the end of a
+    run, handed back at the start of the next — the thread's memory, as
+    opposed to the channel's 25 messages."""
+    return os.path.join(STATE_DIR, "threads", f"{key}.md")
+
+
+def continue_path(key):
+    return os.path.join(STATE_DIR, "threads", f"{key}.continue")
+
+
+def read_note(key):
+    try:
+        return open(note_path(key)).read().strip() or None
+    except OSError:
+        return None
+
+
+def take_continue(key):
+    """The agent's 'more to do' signal, consumed on read so a chain can't
+    replay itself."""
+    p = continue_path(key)
+    try:
+        text = open(p).read().strip()
+    except OSError:
+        return None
+    try:
+        os.remove(p)
+    except OSError:
+        pass
+    return text or "continue where you left off"
+
+
+def headline(key):
+    """First line of the wake note, for the ledger and the digest — the
+    agent writes it in plain voice (RUNNER.md), so it may be said aloud."""
+    note = read_note(key)
+    if not note:
+        return None
+    first = note.splitlines()[0].strip().lstrip("#-* ").strip()
+    return first[:200] or None
+
+
+# ------------------------------------------------------------- the queue
+def queue_item(title, detail, tier, thread_ts=None, public_title=None,
+               wait_for=None, priority=2, source="agent", **extra):
+    """File one item into the follow-through queue (STATE_DIR/worklist/,
+    one JSON per item — worklist.py reads them). Shared by worklist.py's
+    `add` and by the poller itself (a wake refused for budget is queued for
+    the morning rather than dropped). `public_title` is this repo's name
+    for the plain-voiced line (fable-agent calls it family_title)."""
+    t = datetime.datetime.now()
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:40]
+    item = {
+        # the id carries a random tail: two items filed in the same second
+        # (two budget refusals in one sweep) must never overwrite each other
+        "id": extra.pop("id", None) or f"{t:%Y%m%d-%H%M%S}-{os.urandom(2).hex()}-{slug}",
+        "title": title,
+        "public_title": public_title,
+        "detail": detail,
+        "thread_ts": thread_ts,
+        "priority": priority,
+        "filed": t.isoformat(timespec="seconds"),
+        "tier": tier,
+        "state": "open",
+        "attempts": 0,
+        "wait_for": wait_for,
+        "source": source,
+        **extra,
+    }
+    d = os.path.join(STATE_DIR, "worklist")
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, f"{item['id']}.json")
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(item, f, indent=2)
+    os.replace(tmp, path)
+    return item
+
+
+# ----------------------------------------------------------- one process
+def parse_result(stdout):
+    """The `--output-format json` result object: the last JSON line on
+    stdout. Anything else (an older binary, a stub, a crash before the
+    result) parses to {} and the caller falls back to the exit code."""
+    for ln in reversed((stdout or "").splitlines()):
+        ln = ln.strip()
+        if ln.startswith("{") and ln.endswith("}"):
+            try:
+                obj = json.loads(ln)
+            except ValueError:
+                continue
+            if obj.get("type") == "result" or "total_cost_usd" in obj:
+                return obj
+    return {}
+
+
+def run_claude(prompt, mode, cwd, env, run_log, timeout=None):
+    """One `claude -p` process, and everything it reports about itself.
+
+    Returns a dict: ok, error, session_id, cost, duration_ms, num_turns,
+    is_error, text. `ok` is False on a non-zero exit, on a result that says
+    is_error, on the per-run budget stopping it, or on the cap — the caller
+    decides what a not-ok run means (fallback line, resume ask)."""
+    cmd = [CLAUDE_BIN, "-p", prompt, "--model", CLAUDE_MODEL,
+           "--permission-mode", mode, "--output-format", "json",
+           "--max-budget-usd", f"{WAKE_BUDGET_USD:g}"]
+    res = {"ok": False, "error": None, "session_id": None, "cost": 0.0,
+           "duration_ms": None, "num_turns": None, "is_error": None,
+           "text": ""}
+    try:
+        with open(run_log, "a") as err:
+            r = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE,
+                               stderr=err, timeout=timeout or CLAUDE_TIMEOUT_S,
+                               env=env, text=True)
+        with open(run_log, "a") as out:
+            out.write(r.stdout or "")
+        obj = parse_result(r.stdout)
+        res.update(session_id=obj.get("session_id"),
+                   cost=float(obj.get("total_cost_usd") or 0),
+                   duration_ms=obj.get("duration_ms"),
+                   num_turns=obj.get("num_turns"),
+                   is_error=obj.get("is_error"),
+                   text=(obj.get("result") or "") if obj else (r.stdout or ""))
+        if r.returncode != 0:
+            res["error"] = f"exit {r.returncode}"
+        elif obj.get("is_error"):
+            res["error"] = f"result error ({obj.get('subtype')})"
+        else:
+            res["ok"] = True
+    except subprocess.TimeoutExpired:
+        res["error"] = f"timeout after {timeout or CLAUDE_TIMEOUT_S}s"
+    except Exception as e:
+        res["error"] = str(e)
+    return res
+
+
+# ------------------------------------------------------------- worktrees
+def make_worktree(label, ref="origin/main"):
+    """A fresh git worktree off up-to-date `ref` (origin/main by default —
+    a CI-fix wake asks for the PR's own branch), isolated to this one wake.
+    (Incident this closes — hit in storybook-studio/fable-agent,
     2026-08-14, identical architecture: wakes shared the one main checkout;
     wake N left it on its own feature branch, wake N+1 branched from THAT
     instead of main, so its "one-line fix" PR squash-merged wake N's entire
     unreviewed diff along as a stowaway.) A worktree is the actual fix: no
     wake can ever see another wake's branch, uncommitted state, or an
-    in-progress build, because each gets its own directory and checkout."""
-    subprocess.run(["git", "fetch", "origin", "main"],
-                   cwd=REPO, capture_output=True, timeout=30, check=True)
+    in-progress build, because each gets its own directory and checkout.
+
+    Deliberately NOT linked in: `web/.env.local`. fable-agent links its
+    repo's local env into every worktree so a wake can boot the app; here
+    that file holds the live Stripe/Shippo/Resend keys, the gate
+    (`tsc -b && vite build`) does not need it, and policy.md's live-money
+    class says nothing touches that surface without a 👍 — so it stays in
+    the main checkout only."""
+    remote_branch = ref.split("/", 1)[1] if ref.startswith("origin/") else None
+    subprocess.run(["git", "fetch", "origin"] +
+                   ([remote_branch] if remote_branch else []),
+                   cwd=REPO, capture_output=True, timeout=60, check=True)
     subprocess.run(["git", "worktree", "prune"],
                    cwd=REPO, capture_output=True, timeout=30)
     path = os.path.join(WORKTREE_DIR, label)
     if os.path.exists(path):
         shutil.rmtree(path, ignore_errors=True)
     os.makedirs(WORKTREE_DIR, exist_ok=True)
-    subprocess.run(["git", "worktree", "add", "--detach", path, "origin/main"],
+    subprocess.run(["git", "worktree", "add", "--detach", path, ref],
                    cwd=REPO, capture_output=True, timeout=60, check=True)
+    if remote_branch and remote_branch != "main":
+        # Put the PR's branch under the agent's feet so `git push` just
+        # works. Best-effort: if the branch is checked out somewhere else
+        # the wake stays detached and RUNNER.md's brief names the branch.
+        subprocess.run(["git", "switch", "-C", remote_branch,
+                        "--track", ref], cwd=path, capture_output=True,
+                       timeout=30)
     return path
+
+
+def current_branch(wt):
+    try:
+        b = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                           cwd=wt, capture_output=True, text=True,
+                           timeout=10).stdout.strip()
+        return b if b and b != "HEAD" else None
+    except Exception:
+        return None
 
 
 def remove_worktree(path):
@@ -431,12 +748,7 @@ def register_resume(thread_ts, wt, kind):
     itself can't be posted, the worktree still survives on disk
     (remove_worktree already decided that) — it's just unregistered, same as
     any other still-there-but-not-yet-noticed state."""
-    try:
-        branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                                cwd=wt, capture_output=True, text=True,
-                                timeout=10).stdout.strip() or "(unknown branch)"
-    except Exception:
-        branch = "(unknown branch)"
+    branch = current_branch(wt) or "(unknown branch)"
     ask_text = (
         f"This one ran long and I had to stop before finishing — the "
         f"in-progress work is still there, on `{branch}`. React 👍 here if "
@@ -463,73 +775,204 @@ def register_resume(thread_ts, wt, kind):
     json.dump(p, open(os.path.join(pending_dir(), f"{ask_ts}.json"), "w"))
 
 
-def wake_agent(kind, thread_ts, payload, tier):
+# ------------------------------------------------------------ PR watch
+def start_pr_watch(branch, thread_ts, tier, note_key):
+    """Hand a finished run's branch to prwatch.py, detached: it watches the
+    PR's checks, re-wakes the agent on red, merges green Andrew-tier work,
+    and asks for 👍 on everything else. Never blocks the sweep."""
+    if not branch or branch == "main":
+        return None
+    try:
+        os.makedirs(os.path.join(STATE_DIR, "runs"), exist_ok=True)
+        out = open(os.path.join(STATE_DIR, "runs", f"prwatch-{branch.replace('/', '-')}.log"), "a")
+        p = subprocess.Popen(
+            [sys.executable, os.path.join(BASE, "prwatch.py"),
+             "--branch", branch, "--thread", thread_ts or "-",
+             "--tier", tier, "--note-key", note_key],
+            cwd=REPO, stdout=out, stderr=subprocess.STDOUT,
+            env=gh_env(), start_new_session=True)
+        log(f"pr watch started for {branch} (pid {p.pid})")
+        return p.pid
+    except Exception as e:
+        log(f"pr watch failed to start for {branch}: {e}")
+        return None
+
+
+# ---------------------------------------------------------------- budget
+def over_budget():
+    return spent_today() >= DAILY_BUDGET_USD
+
+
+def defer_for_budget(kind, thread_ts, payload, tier):
+    """The day's cap is spent: queue this wake for the morning instead of
+    dropping it, and tell the thread once, plainly."""
+    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).replace(
+        hour=8, minute=0, second=0, microsecond=0)
+    title = f"deferred {kind} wake" + (f" in thread {thread_ts}" if thread_ts else "")
+    queue_item(title=title,
+               detail=("This wake was refused because the day's budget was "
+                       "spent. Re-run it exactly as a fresh wake of the "
+                       "same kind. Payload: " + json.dumps(payload)),
+               tier=tier, thread_ts=thread_ts,
+               public_title="something you asked for yesterday",
+               wait_for=f"after:{tomorrow.isoformat(timespec='minutes')}",
+               priority=1, source="budget", deferred_kind=kind,
+               deferred_payload=payload)
+    append_ledger(kind=kind, thread=thread_ts, tier=tier, ok=False,
+                  outcome="deferred-budget", spent=round(spent_today(), 2))
+    st = load_state()
+    if st.get("budget_notice_date") != today():
+        try:
+            post_message("I've used up what I'm allowed to spend today — "
+                         "I'll pick this up first thing tomorrow.",
+                         thread_ts=thread_ts)
+        except Exception as e:
+            log(f"budget notice failed: {e}")
+        st["budget_notice_date"] = today()
+        save_state(st)
+
+
+# ------------------------------------------------------------- the wake
+INTRO = {
+    "message": ("woken by race-agent/poller.py for the #space-race Slack "
+                "channel."),
+    "approval": ("woken by race-agent/poller.py because Andrew reacted to "
+                 "an ask you registered."),
+    "worklist": ("woken by race-agent/worklist.py on a queued item — not "
+                 "by a Slack message. The 'Follow through' section of "
+                 "RUNNER.md governs this wake: do the item end to end and "
+                 "close it with worklist.py."),
+    "continue": ("woken again by race-agent/poller.py to CONTINUE your own "
+                 "previous run in this same worktree — you asked for this "
+                 "by writing your continue file. Run `git status` and "
+                 "`git log` first; your continue note is in the brief."),
+    "ci-fix": ("woken by race-agent/prwatch.py because the checks on your "
+               "pull request are red (or it conflicts with main). The "
+               "worktree is on the PR's branch. Fix it, push, and the "
+               "watch resumes on its own."),
+    "incident": ("woken by race-agent/poller.py because the repo's "
+                 "post-merge workflow failed: a merge reached main and the "
+                 "site is not serving it. Diagnose first; promoting a "
+                 "deployment needs Andrew's 👍."),
+}
+
+
+def wake_agent(kind, thread_ts, payload, tier, note_key=None, ref="origin/main"):
     """Spawn headless Claude Code (Opus) in an isolated worktree with the
-    thread as context. The prompt stays thin on purpose: RUNNER.md and
-    policy.md (read fresh each run) are the real instructions, so behavior
-    changes ship as doc edits, not poller deploys. `tier` picks the
-    permission mode (see TIER_MODE) — the hard enforcement of the trust
-    tier.
+    thread — and the thread's wake note — as context, and keep it going for
+    as long as it says it has more to do.
+
+    The prompt stays thin on purpose: RUNNER.md and policy.md (read fresh
+    each run) are the real instructions, so behavior changes ship as doc
+    edits, not poller deploys. `tier` picks the permission mode (see
+    TIER_MODE) — the hard enforcement of the trust tier.
+
+    Shape of one wake:
+      * budget check — over the day's cap the wake is queued for the
+        morning, never dropped
+      * worktree off `ref` (origin/main, or a PR branch for ci-fix), its
+        project memory linked to the main checkout's
+      * run; if the agent left a continue file, run again in the same
+        worktree with that note — up to MAX_CONTINUES
+      * ledger line per run
+      * on success, hand the branch to prwatch.py; on failure, the
+        fail-closed fallback (and the 👍-gated resume when real work is
+        left behind)
 
     An approval whose pending file carries `resume_worktree` (see
     register_resume) is Andrew resuming a run that ran long and left real
     work behind — it runs IN that already-checked-out worktree, on its
     current branch, instead of a fresh one off origin/main."""
     mode = TIER_MODE.get(tier, DEFAULT_MODE)
+    note_key = note_key or thread_ts or f"{kind}-{os.getpid()}"
+    if over_budget():
+        log(f"daily budget spent ({spent_today():.2f} ≥ {DAILY_BUDGET_USD}); "
+            f"deferring {kind} wake for thread {thread_ts}")
+        defer_for_budget(kind, thread_ts, payload, tier)
+        return False
+
     resume_wt = (payload.get("pending") or {}).get("resume_worktree") \
         if kind == "approval" else None
     resuming = bool(resume_wt and os.path.isdir(resume_wt))
     if resume_wt and not resuming:
         log(f"resume worktree {resume_wt!r} no longer exists — starting "
             f"fresh instead")
-    brief = {
-        "kind": kind,                       # "message" | "approval"
-        "channel": CHANNEL,
-        "thread_ts": thread_ts,
-        "tier": tier,
-        "payload": payload,
-        "context": thread_context(thread_ts),
-    }
+
+    def brief_for(k, pl):
+        return {
+            "kind": k,
+            "channel": CHANNEL,
+            "thread_ts": thread_ts,
+            "tier": tier,
+            "payload": pl,
+            "note": read_note(note_key),
+            "context": thread_context(thread_ts) if thread_ts else [],
+        }
+
+    def prompt_for(k, pl, extra=""):
+        return (
+            "You are Space Race Claude, " + INTRO.get(k, INTRO["message"])
+            + " FIRST read race-agent/RUNNER.md and race-agent/policy.md "
+            "and follow them exactly — they are the contract for scope, "
+            "trust tiers, approvals, how to reply, and how to follow "
+            "through. " + extra + "Then handle this:\n\n"
+            + json.dumps(brief_for(k, pl), indent=2)
+        )
+
     resume_note = (
         "You are RESUMING your own prior run in this exact worktree — it "
         "already has real, uncommitted-or-unpushed work on its current "
         "branch. Run `git status` and `git log` first to see exactly where "
         "you left off before doing anything else. "
     ) if resuming else ""
-    prompt = (
-        "You are Space Race Claude, woken by race-agent/poller.py for the "
-        "#space-race Slack channel. FIRST read race-agent/RUNNER.md and "
-        "race-agent/policy.md and follow them exactly — they are the "
-        "contract for scope, trust tiers, approvals, and how to reply "
-        "in-thread. " + resume_note +
-        "Then handle this:\n\n" + json.dumps(brief, indent=2)
-    )
+
     os.makedirs(os.path.join(STATE_DIR, "runs"), exist_ok=True)
-    run_log = os.path.join(STATE_DIR, "runs",
-                           f"{thread_ts}-{kind}-{os.getpid()}.log")
-    env = spawn_env(tier)
-    # A random suffix, not just thread/kind/pid: the daemon's pid is stable
-    # for days, so two wakes in the SAME thread (e.g. a reply after an
-    # earlier resume is still pending) would otherwise compute the identical
-    # label — and make_worktree's own "rm any existing dir at this path"
-    # step would silently destroy an earlier wake's PRESERVED, resume-ask
-    # worktree the moment a same-thread wake landed after it.
-    label = f"{thread_ts}-{kind}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    # A random suffix, not just key/kind/pid: the daemon's pid is stable for
+    # days, so two wakes in the SAME thread (e.g. a reply after an earlier
+    # resume is still pending) would otherwise compute the identical label —
+    # and make_worktree's own "rm any existing dir at this path" step would
+    # silently destroy an earlier wake's PRESERVED, resume-ask worktree the
+    # moment a same-thread wake landed after it. (race-agent's own catch,
+    # 2026-08-14; kept over fable-agent's pid-only label.)
+    label = (f"{note_key}-{kind}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+             .replace("/", "-"))
+    run_log = os.path.join(STATE_DIR, "runs", f"{label}.log")
+    env = spawn_env(tier, note_key)
     wake_started = datetime.datetime.now().timestamp()
     wt = None
     cleaned_up = False
+    res = {"ok": False, "error": "not started"}
     try:
-        wt = resume_wt if resuming else make_worktree(label)
+        wt = resume_wt if resuming else make_worktree(label, ref=ref)
         if resuming:
             log(f"resuming preserved worktree: {wt}")
-        with open(run_log, "w") as out:
-            subprocess.run(
-                [CLAUDE_BIN, "-p", prompt, "--model", CLAUDE_MODEL,
-                 "--permission-mode", mode],
-                cwd=wt, stdout=out, stderr=subprocess.STDOUT,
-                timeout=CLAUDE_TIMEOUT_S, check=True, env=env,
-            )
+        link_memory(wt)
+        k, pl, extra = kind, payload, resume_note
+        for chain in range(MAX_CONTINUES + 1):
+            res = run_claude(prompt_for(k, pl, extra), mode, wt, env, run_log)
+            append_ledger(kind=k, thread=thread_ts, key=note_key, tier=tier,
+                          mode=mode, chain=chain, ok=res["ok"],
+                          error=res["error"], cost=round(res["cost"], 4),
+                          duration_ms=res["duration_ms"],
+                          turns=res["num_turns"], session=res["session_id"],
+                          branch=current_branch(wt), headline=headline(note_key))
+            if not res["ok"]:
+                raise RuntimeError(res["error"])
+            more = take_continue(note_key)
+            if more is None:
+                break
+            if chain >= MAX_CONTINUES:
+                log(f"continue chain hit MAX_CONTINUES ({MAX_CONTINUES}) on "
+                    f"{note_key}; stopping here")
+                break
+            log(f"agent asked to continue ({chain + 1}/{MAX_CONTINUES}) on "
+                f"{note_key}")
+            k, pl, extra = "continue", {"continue_note": more,
+                                        "chain": chain + 1,
+                                        "original_kind": kind,
+                                        "original_payload": payload}, ""
         log(f"agent run ok ({kind}, thread {thread_ts}, {tier}/{mode}) → {run_log}")
+        start_pr_watch(current_branch(wt), thread_ts, tier, note_key)
         return True
     except Exception as e:
         log(f"agent run FAILED ({kind}, thread {thread_ts}): {e} — see {run_log}")
@@ -537,11 +980,12 @@ def wake_agent(kind, thread_ts, payload, tier):
         # for itself — a second, scarier fallback line on top of a finished
         # job is noise at best, actively misleading at worst.
         already_spoke = False
-        try:
-            newest = newest_house_reply(thread_ts)
-            already_spoke = newest is not None and newest > wake_started
-        except Exception as e2:
-            log(f"already-spoke check failed ({e2}) — falling back to posting")
+        if thread_ts:
+            try:
+                newest = newest_house_reply(thread_ts)
+                already_spoke = newest is not None and newest > wake_started
+            except Exception as e2:
+                log(f"already-spoke check failed ({e2}) — falling back to posting")
 
         preserved = False
         if wt is not None:
@@ -565,6 +1009,72 @@ def wake_agent(kind, thread_ts, payload, tier):
     finally:
         if wt is not None and not cleaned_up:
             remove_worktree(wt)
+
+
+# ------------------------------------------------------------- the digest
+def maybe_post_digest(st):
+    """Once a day, after DIGEST_HOUR, one top-level message saying what
+    landed today in plain voice — the headlines the agent wrote in its
+    wake notes, never PR numbers or branch names. Silent on a day nothing
+    landed, and never twice."""
+    if DIGEST_HOUR is None or st.get("digest_date") == today():
+        return
+    if datetime.datetime.now().hour < DIGEST_HOUR:
+        return
+    st["digest_date"] = today()
+    save_state(st)
+    lines, seen = [], set()
+    for e in ledger_entries(today()):
+        h = e.get("headline")
+        if e.get("ok") and h and h not in seen:
+            seen.add(h)
+            lines.append(f"• {h}")
+    if not lines:
+        return
+    try:
+        post_message("What got done today:\n" + "\n".join(lines[:12]))
+    except Exception as e:
+        log(f"digest post failed: {e}")
+
+
+# ------------------------------------------------------------ shipped?
+def check_shipped(st):
+    """Did the last merge actually reach users? Where a repo has a
+    post-merge workflow that asks the domain (fable-agent's 'verify
+    shipped'), a failed run wakes an incident brief in its own top-level
+    thread. This repo has none today (SHIPPED_WORKFLOW is None), so this is
+    a no-op until one exists."""
+    if not SHIPPED_WORKFLOW:
+        return
+    try:
+        r = subprocess.run(["gh", "run", "list", "--workflow", SHIPPED_WORKFLOW,
+                            "--limit", "1", "--json",
+                            "databaseId,conclusion,headSha,url,status"],
+                           cwd=REPO, capture_output=True, text=True,
+                           timeout=30, env=gh_env())
+        runs = json.loads(r.stdout or "[]") if r.returncode == 0 else []
+    except Exception as e:
+        log(f"verify-shipped check failed ({e})")
+        return
+    if not runs:
+        return
+    run = runs[0]
+    if run.get("conclusion") != "failure":
+        return
+    if str(run.get("databaseId")) == str(st.get("shipped_failed_seen")):
+        return
+    st["shipped_failed_seen"] = str(run.get("databaseId"))
+    save_state(st)
+    try:
+        r = post_message("Something that just merged isn't reaching the "
+                         "live site. Looking into it.")
+        thread_ts = r.get("ts")
+    except Exception as e:
+        log(f"incident post failed: {e}")
+        thread_ts = None
+    wake_agent("incident", thread_ts,
+               {"workflow": SHIPPED_WORKFLOW, "run": run}, tier="andrew",
+               note_key=f"incident-{run.get('databaseId')}")
 
 
 # ------------------------------------------------------------------ main
@@ -623,6 +1133,10 @@ def main():
                    tier=tier)
     if not new:
         log("no new messages")
+    # The two things a sweep does besides messages: say what landed today
+    # (once, after DIGEST_HOUR) and notice a merge that never reached users.
+    maybe_post_digest(st)
+    check_shipped(st)
     return 0
 
 
