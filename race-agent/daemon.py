@@ -17,7 +17,9 @@ Slack workspace and repo. See poller.py's module docstring for what's
 different (workspace, single trust tier, Opus).
 
 Reliability: events only mark a flag; the main loop runs sweeps serially
-(the singleton lock in poller.py guards cross-process too). A fallback
+(the Slack-lane lock in poller.py guards cross-process too), and after each
+sweep kicks one pass of the follow-through lane (worklist.py --run) as a
+child process on its own lock. A fallback
 sweep every FALLBACK_SWEEP_S catches anything a dropped event missed, and
 one catch-up sweep runs at every (re)connect — a Mac wake or Slack flap
 never loses messages, because the watermark is the source of truth.
@@ -37,6 +39,7 @@ import datetime
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -55,6 +58,8 @@ STATUS_FILE = os.environ.get("RACE_AGENT_STATUS_FILE",
                              os.path.join(poller.STATE_DIR,
                                           "daemon.status.json"))
 FALLBACK_SWEEP_S = 900     # missed-event safety net
+WORKLIST = os.path.join(BASE, "worklist.py")
+WORK_LOG = os.path.join(poller.STATE_DIR, "work.out.log")
 IDLE_TICK_S = 5            # how quickly a flagged sweep starts
 BEAT_EVERY_S = 60          # heartbeat cadence while idle
 
@@ -147,6 +152,27 @@ def reexec():
              [sys.executable, os.path.abspath(__file__)] + sys.argv[1:])
 
 
+def start_work_lane(current):
+    """After every sweep, one pass of the follow-through lane in its own
+    process: worklist.py --run claims the first READY queued item (or a
+    labelled issue) and wakes the agent on it. Its own lock keeps it to one
+    at a time; running it as a child rather than inline is what lets a
+    long queued build never delay the next Slack sweep. Returns the live
+    Popen (the previous one if still running). This replaced the
+    com.archer.race-daylight calendar job on 2026-09-01."""
+    if current is not None and current.poll() is None:
+        return current
+    try:
+        out = open(WORK_LOG, "a")
+        p = subprocess.Popen([sys.executable, WORKLIST, "--run"],
+                             cwd=poller.REPO, stdout=out,
+                             stderr=subprocess.STDOUT, env=poller.gh_env())
+        return p
+    except Exception as e:
+        log(f"work lane failed to start ({e}); next sweep retries")
+        return None
+
+
 def relevant(event):
     """Does this Events API payload warrant a sweep? Messages in #space-race
     from anyone but the bot (and not join/leave noise, and not any bot
@@ -196,6 +222,7 @@ def main():
 
     last_sweep = 0.0
     connected = True
+    work = None
     while True:
         # Stale-code guard: checked BEFORE the sweep, so a landed fix is
         # what runs the next one.
@@ -230,6 +257,7 @@ def main():
                 poller.main()
             except Exception as e:
                 log(f"sweep raised ({e}); next tick retries")
+            work = start_work_lane(work)
         time.sleep(IDLE_TICK_S)
 
 

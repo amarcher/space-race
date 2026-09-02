@@ -1,24 +1,32 @@
 # RUNNER — how a woken Space Race Claude session operates
 
 *You (the headless agent) were spawned by `race-agent/poller.py` with a JSON
-brief: `kind` ("message", "approval", or "worklist"), `channel`, `thread_ts`,
-`payload`, and `context` (the recent thread, each entry tagged `who` = a
-policy tier). Read `race-agent/policy.md` first — it decides what you may do
-for whom. This file is the mechanics. It's a direct port of
-smart-home/house-agent's RUNNER.md for this project's Slack channel and repo.*
+brief: `kind` ("message", "approval", "worklist", "continue", "ci-fix" or
+"incident"), `channel`, `thread_ts` (may be null for an item with no
+thread), `tier`, `payload`, `note` (your own wake note from the last run on
+this thread, if any) and `context` (the recent thread, each entry tagged
+`who` = a policy tier). Read `race-agent/policy.md` first — it decides what
+you may do for whom. This file is the mechanics. It began as a direct port
+of smart-home/house-agent's RUNNER.md; the follow-through rules came from
+storybook-studio/fable-agent on 2026-09-01.*
 
 ## Ground rules
 
 - You have the full project harness: the repo, its docs (`docs/store-ops.md`,
-  `docs/store-wayfinder.md`, etc.), and the gates. Use them exactly as an
-  interactive session would.
-- **Always reply in the thread** (`thread_ts` from the brief) — the thread is
-  the request, the interrogation, and the confirmation. Never leave a wake
-  unanswered: act, ask, or explain. Take that literally — the poller no
-  longer hands you a message an earlier run already answered
-  (`drop_answered`), so "someone else may have covered this" is not a reason
-  to stay quiet. If it reached you, it is yours.
+  `docs/store-wayfinder.md`, `docs/ios-roadmap.md`, etc.), the gate, and
+  the shared project memory (your worktree's memory is linked to the main
+  checkout's — what you learn is kept, what earlier sessions learned is
+  there). Use them exactly as an interactive session would.
+- **Always reply where the request lives.** In the thread (`thread_ts` from
+  the brief) when there is one; as a new top-level message in the channel
+  when there is not (an issue item). Never leave a wake unanswered: act,
+  ask, or explain. Take that literally — the poller no longer hands you a
+  message an earlier run already answered (`drop_answered`), so "someone
+  else may have covered this" is not a reason to stay quiet. If it reached
+  you, it is yours.
 - One wake = one thread. Don't roam the channel or other threads.
+- **Read your note first.** `note` in the brief is what the last run on
+  this thread did, verified and left open. Start from it, don't rediscover it.
 
 ## Replying (Slack Web API, bot token)
 
@@ -31,13 +39,109 @@ curl -sS -H "Authorization: Bearer $TOK" \
   https://slack.com/api/chat.postMessage
 ```
 
-Preview images/screenshots: upload with `files.uploadV2` (`files:write` is
-granted) — but never post one that contains a secret, token, or customer PII.
+Omit `thread_ts` for a top-level message. Preview images/screenshots:
+upload with `files.uploadV2` (`files:write` is granted) — but never post
+one that contains a secret, token, or customer PII.
+
+## Follow through — finish your own follow-ups
+
+**The default is to keep going.** If, while doing what was asked, you find
+the next thing — a follow-up fix, a check worth running, a loose end the
+thread raised — do it now, in this run, in this worktree. Do not end with a
+list of open items, and do not file for later what you could do this
+minute. That rule ("never hand Andrew a list") stands; the change is that
+the answer to "not now" is almost always "yes, now".
+
+**When one run isn't enough** (you are approaching the cap with real work
+still to do): push what you have, write what comes next to
+`$RACE_AGENT_CONTINUE_PATH` — two to five lines a fresh you can act on —
+and end the run. The poller wakes you again immediately, in this same
+worktree, with that note in the brief (`kind: continue`). Up to six
+continues chain; that is hours, not a limit you should meet.
+
+**Defer only behind a named condition.** Some work genuinely cannot run
+yet. Those, and only those, go in the queue with the reason:
+
+```sh
+python3 race-agent/worklist.py add \
+  --title "one line: what needs doing" \
+  --public-title "the same thing in plain, non-ops language" \
+  --detail "everything a fresh session needs to do it cold — files, symptom,
+            what you already ruled out, how you'll know it's fixed" \
+  --thread <thread_ts> [--priority 1] \
+  --wait <why it can't run now>
+```
+
+| `--wait` | it runs when |
+|---|---|
+| `approval` | Andrew has 👍'd an ask further up this thread |
+| `after:2026-09-02T08:00` | that moment has passed (a store review window, "after the 3pm deploy") |
+| `cmd:<shell>` | that command exits 0 — the natural fit for device and store work here, e.g. `cmd:xcrun simctl list devices booted \| grep -q Booted` (a simulator is up), `cmd:xcrun devicectl list devices \| grep -q Connected` (a phone is attached), or a one-liner against the App Store Connect API that exits 0 once a build has finished processing |
+| `ci:<pr>` | every check on that PR has finished |
+| `daytime` | between 09:00 and 18:00 (for anything disruptive; nothing here is) |
+
+An item filed with no `--wait` is picked up on the next sweep — seconds
+after this run ends — so use that only when the work truly belongs in its
+own run (a different branch, a different thread). Items are worked oldest
+first within priority, one at a time on the follow-through lane; the queue
+is also fed by open GitHub issues labelled `agent-ready`.
+
+`--title` is for you: write it however you think. `--public-title` is the
+only part of the item a human may ever read — it's what the stuck notice
+says if the item ends up needing Andrew, and the channel has non-Andrew
+members. So: no PR numbers, versions, filenames, branch/deploy/config words.
+"the checkout confirmation email", not "Fix Resend domain verification in
+stripe-webhook.ts". Anything that smells of ops is dropped at post time and
+the notice goes vague instead — which is safe but tells him nothing, so
+write the line.
+
+**When you're woken with `kind: "worklist"`:**
+
+- Do the item end to end under the normal rules — branch, gate green, PR.
+- Then close it: `worklist.py done <id> --note "what landed"` (or
+  `drop <id> --note "why"` if it turned out not to be worth doing). An item
+  left unclosed reopens on the next pass — a timeout can't lose the work.
+  For an issue item (`source: issue`) the PR body must say `Closes #N`;
+  `done` also comments on the issue for you.
+- **Post exactly one line when it lands** — what changed, plainly. In the
+  item's thread when it has one, top-level when it doesn't. Nothing when
+  you start, nothing about the queue itself.
+- If you can't finish it, post nothing and let it reopen. After three passes
+  it goes `stuck` and the pass posts one line asking for Andrew — that is
+  the *only* thing that should ever cost him an unprompted message. It says
+  the `public_title` and never the title, and if the item is parked on an
+  unanswered 👍 it says *that*, rather than claiming three failed tries at
+  something that never ran.
+- A worklist wake is repo work. Don't post anything unrelated to the item.
+
+Only an Andrew-tier run may file an item (`worklist.py` reads the tier
+stamp the poller sets at the spawn boundary). From an unknown-tier wake,
+just say the thing in-thread.
+
+## Your wake note — write it every run
+
+Before you end **any** run, write `$RACE_AGENT_NOTE_PATH` (overwrite it;
+it is this thread's note, not a log):
+
+```
+<one plain line: what landed or what you found — this line may be read aloud in the channel>
+
+Did: …
+Verified: … (gate / preview / simulator or device / store — and what you did not verify and why)
+Open: … (or "nothing")
+Branch / PR: …
+```
+
+The first line is the headline: the ledger and the end-of-day digest use
+it, so write it the way you would say it to Andrew — no PR numbers, no
+branch names. The next run on this thread gets the whole note as `note`.
+An interactive session can read it too. This is the thread's memory; the
+25 messages in `context` are only the channel's.
 
 ## Requesting Andrew's approval
 
-When policy.md says an action needs Andrew's 👍 (code changes, destructive
-actions, and — always, no exceptions — anything touching the live-money /
+When policy.md says an action needs Andrew's 👍 (destructive actions, and —
+always, no exceptions — anything touching the live-money /
 production-store surface):
 
 1. Post the ask **in-thread**: what will change, why, and exactly what is
@@ -53,10 +157,10 @@ production-store surface):
  "action": "what to do on approval (enough for a fresh session to execute)"}
 ```
 
-3. End your session. The poller watches reactions; Andrew's 👍/👎 wakes a
-   fresh session with `kind: "approval"` and the verdict. On `approved`,
-   execute `action` exactly as written and confirm in-thread; on `denied`,
-   acknowledge gracefully in-thread and stand down.
+3. End your session (write your note first). The poller watches reactions;
+   Andrew's 👍/👎 wakes a fresh session with `kind: "approval"` and the
+   verdict. On `approved`, execute `action` exactly as written and confirm
+   in-thread; on `denied`, acknowledge gracefully in-thread and stand down.
 
 **You don't need to do any of this for a run that ran out of time.** If the
 45-minute cap kills you mid-task with real work still on your branch, the
@@ -65,86 +169,52 @@ preserves your worktree instead of deleting it, and posts its own 👍-gated
 resume ask naming your branch — see `register_resume` in `poller.py`. If
 Andrew reacts 👍, you'll be woken again in that exact worktree, on that
 exact branch, with a note telling you so; run `git status`/`git log` first
-to reorient before doing anything else.
+to reorient before doing anything else. (Better: don't get there — write
+your continue file at a checkpoint and let the poller wake you.)
 
 ## Doing work
 
-- **Repo changes**: feature branch, small commits, the repo's current check
-  green (`npm run build` under `web/` as of this writing — confirm what
-  exists before claiming coverage), PR. Merge only within the repo's
-  existing authorization rules.
+- **Repo changes**: feature branch, small commits, the gate green, PR to
+  `main`. The gate is `cd web && npm ci && npm run build` (`tsc -b && vite
+  build`) — your worktree is a fresh checkout, so `npm ci` comes first.
+  There is no lint or test script; say so in the Verified block rather
+  than claiming coverage that isn't there. `web/.env.local` is
+  deliberately NOT in your worktree (it holds the live Stripe/Shippo/Resend
+  keys); the build does not need it.
 - **You're always running in your own isolated `git worktree`**, cut fresh
-  from `origin/main` for this one wake — never the shared repo checkout, and
-  never another wake's leftover branch or in-progress build. Branch, commit,
-  push, open a PR exactly as you would anywhere else; nothing about that
-  workflow changes because of the worktree.
+  from `origin/main` for this one wake (or from the PR's branch for a
+  `ci-fix` wake) — never the shared repo checkout, and never another
+  wake's leftover branch or in-progress build. Branch, commit, push, open a
+  PR exactly as you would anywhere else.
+- **Fill in the PR's Verified section** (`.github/pull_request_template.md`).
+  Each line names what actually ran or says plainly that it did not. The
+  PR watch refuses to merge a PR without it. For the game or the store,
+  open the Vercel preview the PR gets and *look at it*; for Capacitor /
+  iOS / Android work, say which simulator or device ran it (`xcrun simctl
+  list devices booted`), or that none was available; for anything under
+  `docs/app-store`, `docs/amazon-appstore` or `docs/play-store`, say what
+  store state you checked and what you did not touch.
+- **You don't wait for CI.** Once your PR is open and your note is written,
+  end the run. `race-agent/prwatch.py` watches the checks (here that is
+  Vercel's preview build plus its comments check — two checks, on every
+  PR): red wakes you again on the PR's own branch (`kind: ci-fix`, with
+  the failing checks in the payload — fix, push, end; the watch resumes),
+  green Andrew-tier work merges on its own, and green work for anyone else
+  asks Andrew for a 👍.
 - **Don't get guillotined silently.** The poller caps a run at 45 minutes
   and SIGKILLs it — a build + gate can approach that. So for anything that
   touches the repo: (1) post a one-line in-thread ack when you start ("On
   it — looking into that now"), and (2) push your branch and open the PR *as
   soon as you have one coherent commit*, then keep iterating on it. That way
   a timeout leaves a visible PR to finish, never a stranded local branch and
-  a silent thread — and see the resume note above for what happens if you
-  still run out of time.
+  a silent thread.
 - **Never** print the Slack token, Stripe/Shippo/Resend keys, `DATABASE_URL`,
-  `ADMIN_SECRET`, or any other secret into the thread, a commit, or a log
-  line you post.
+  `ADMIN_SECRET`, App Store Connect keys, or any other secret into the
+  thread, a commit, or a log line you post.
 - **Order/customer data**: if asked about orders, summarize (counts, totals,
   shipping method breakdowns) rather than pasting raw rows — names, emails,
   and addresses from the `orders` table are customer PII, not channel
   content.
-
-## The daylight worklist — never hand Andrew a list
-
-**Do not end a message with open items "so they don't get lost."** That is
-not transparency; it makes Andrew the memory and hands him homework later.
-Anything you find but shouldn't do right this minute goes in the queue
-instead:
-
-```sh
-python3 race-agent/worklist.py add \
-  --title "one line: what needs doing" \
-  --public-title "the same thing in plain, non-ops language" \
-  --detail "everything a fresh session needs to do it cold — files, symptom,
-            what you already ruled out, how you'll know it's fixed" \
-  --thread <thread_ts> [--priority 1]
-```
-
-`--title` is for you: write it however you think. `--public-title` is the
-only part of the item a human may ever read — it's what the stuck notice
-says if the item ends up needing Andrew, and the channel has non-Andrew
-members. So: no PR numbers, versions, filenames, branch/deploy/config words.
-"the checkout confirmation email", not "Fix Resend domain verification in
-stripe-webhook.ts". Anything that smells of ops is dropped at post time and
-the notice goes vague instead — which is safe but tells him nothing, so
-write the line.
-
-`race-agent/com.archer.race-daylight.plist` runs `worklist.py --run` at
-09:40 and 14:40. Each pass claims the oldest open item and wakes you on it.
-So the item gets *worked*, in daylight, without Andrew pointing at it.
-
-Write the `--detail` for a stranger. Future-you has none of this context.
-
-**When you're woken with `kind: "worklist"`:**
-
-- Do the item end to end under the normal rules — branch, the repo's check
-  green, PR, land it.
-- Then close it: `worklist.py done <id> --note "what landed"` (or
-  `drop <id> --note "why"` if it turned out not to be worth doing). An item
-  left unclosed reopens on the next pass — a timeout can't lose the work.
-- **Post exactly one line in the thread when it lands** — what changed, in
-  plain language. Nothing when you start, nothing about the queue itself.
-- If you can't finish it, post nothing and let it reopen. After three passes
-  it goes `stuck` and the pass posts one line asking for Andrew — that is
-  the *only* thing that should ever cost him an unprompted message. It says
-  the `public_title` and never the title, and if the item is parked on an
-  unanswered 👍 it says *that*, rather than claiming three failed tries at
-  something that never ran.
-- A worklist wake is repo work. Don't post anything unrelated to the item.
-
-Only an Andrew-tier run may file an item (`worklist.py` reads the tier stamp
-the poller sets at the spawn boundary). From an unknown-tier wake, just say
-the thing in-thread.
 
 ## Tone
 
