@@ -17,7 +17,7 @@ against a REAL local git repo + bare "origin" (a few `git init`/`git init
 because that's the exact seam a mock would paper over.
 
 Contract pins first:
-  * the daemon plist points at daemon.py, with WorkingDirectory == REPO and
+  * the daemon plist points at daemon.py in the DEPLOY checkout, with
     logs under STATE_DIR (outside the repo); the daylight plist is GONE
   * poller.py's CHANNEL/ANDREW/TIER_MODE/CLAUDE_MODEL/CLAUDE_TIMEOUT_S pins:
     bypassPermissions is reachable ONLY from the andrew tier; every spawn
@@ -177,8 +177,11 @@ def check_contract():
     text = open(path).read()
     if "race-agent/daemon.py" not in text:
         fail("com.archer.race-agent.plist doesn't reference race-agent/daemon.py")
-    if "/Users/archer/Programs/space-race</string>" not in text:
-        fail("com.archer.race-agent.plist WorkingDirectory doesn't point at the repo")
+    # The daemon runs from its own deploy checkout (a worktree on a `deploy`
+    # branch tracking origin/main), never the checkout being developed in.
+    if "/Users/archer/.space-race/race-agent/checkout</string>" not in text:
+        fail("com.archer.race-agent.plist WorkingDirectory doesn't point at the "
+             "deploy checkout (~/.space-race/race-agent/checkout)")
     if "/Users/archer/.space-race/race-agent/" not in text:
         fail("com.archer.race-agent.plist logs aren't under the outside-repo state dir")
 

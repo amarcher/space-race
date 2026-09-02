@@ -259,7 +259,21 @@ chmod 600 ~/.space-race/race-agent/slack_token.txt ~/.space-race/race-agent/slac
 
 ### 4. Install / operate
 
+**The daemon runs from its own deploy checkout**, not from the checkout you
+develop in. `~/.space-race/race-agent/checkout` is a git worktree of this
+repo on a `deploy` branch that tracks `origin/main`; the plist points at it.
+The reason (2026-09-01): the daemon hot-reloads whatever is on disk in its
+source directory, so running it from `~/Programs/space-race` meant running
+whichever branch happened to be checked out there. Deploying is now one
+command in a directory nobody edits:
+
 ```sh
+git -C ~/.space-race/race-agent/checkout pull --ff-only   # the daemon re-execs on its own
+```
+
+```sh
+git worktree add -B deploy ~/.space-race/race-agent/checkout origin/main
+git -C ~/.space-race/race-agent/checkout branch --set-upstream-to=origin/main deploy
 cp race-agent/com.archer.race-agent.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.archer.race-agent.plist
 # if the old daylight job is still installed, retire it:

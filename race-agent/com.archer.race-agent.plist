@@ -11,11 +11,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Users/archer/.pyenv/versions/3.13.13/bin/python</string>
-        <string>/Users/archer/Programs/space-race/race-agent/daemon.py</string>
+        <string>/Users/archer/.space-race/race-agent/checkout/race-agent/daemon.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/archer/Programs/space-race</string>
+    <string>/Users/archer/.space-race/race-agent/checkout</string>
 
     <!-- A persistent Socket Mode daemon: launchd restarts it if it dies
          (network flap, Slack disconnect, bug). Every (re)start begins with
