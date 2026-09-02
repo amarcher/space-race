@@ -22,3 +22,6 @@ __pycache__/
 
 # firecrawl scratch
 .firecrawl/
+
+# agent worktrees (git worktree checkouts of this repo — never commit them)
+.claude/worktrees/
