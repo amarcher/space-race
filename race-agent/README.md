@@ -127,12 +127,15 @@ house, where a follow-up might turn on a TV; nothing here makes noise. Now:
   the merge is the gate) and re-wakes the agent on red, merges Andrew-tier
   green work, asks 👍 for the rest. A PR without a **Verified** section in
   its body (`.github/pull_request_template.md`) does not merge on its own.
-- **Memory is shared.** Claude Code keys project memory to the cwd, so every
-  worktree used to start with an empty memory — three orphan
-  `~/.claude/projects/-Users-archer--space-race-race-agent-worktrees-…`
-  dirs existed before this. `link_memory` links the worktree's project
-  memory to the main checkout's — reads and writes both land there.
-  Pre-existing stray memory is folded in, not lost.
+- **Memory is the brain, handed over by hand.** Auto memory is off in
+  `~/.claude/settings.json`, so no session — interactive or headless — loads
+  `~/.claude/projects/<key>/memory/` on its own; the brain
+  (`~/.claude/brain`) is the memory system. Each wake's brief carries
+  `memory_index` (the head of MEMORY.md) and `memory_dir`, and the env
+  carries `BRAIN_DIR`, so the brain CLI and the agent's reads and writes
+  land in the store of the checkout you develop in. The store is found via
+  git's common dir, never cwd: the daemon's deploy checkout and every wake
+  worktree would otherwise key an empty store.
 - **The thread remembers.** Each run writes a wake note
   (`$RACE_AGENT_NOTE_PATH` → `threads/<thread_ts>.md`); the next wake on
   that thread gets it as `note` in the brief. The note's first line is a
@@ -264,8 +267,12 @@ develop in. `~/.space-race/race-agent/checkout` is a git worktree of this
 repo on a `deploy` branch that tracks `origin/main`; the plist points at it.
 The reason (2026-09-01): the daemon hot-reloads whatever is on disk in its
 source directory, so running it from `~/Programs/space-race` meant running
-whichever branch happened to be checked out there. Deploying is now one
-command in a directory nobody edits:
+whichever branch happened to be checked out there. The checkout
+**follows `origin/main` on its own**: each sweep, at most every ten minutes,
+the poller fast-forwards it (`follow_main`, only on the `deploy` branch,
+never anything but a fast-forward), and the daemon re-execs when its
+sources change — so a merge to main is live within ten minutes. To hurry
+one along, or after a divergence it refused:
 
 ```sh
 git -C ~/.space-race/race-agent/checkout pull --ff-only   # the daemon re-execs on its own
@@ -339,6 +346,7 @@ replacement for it.
 
 - `slack_token.txt` / `slack_app_token.txt` — the secrets (see step 2).
 - `state.json` — the watermark (`last_ts`) + tracked-thread watermarks, the
+  last deploy-follow time (`followed_at`), the
   digest and budget-notice dates. The **first ever sweep only arms the
   watermark** (no backlog replay).
 - `pending/<ask_ts>.json` — approvals awaiting Andrew's reaction (written by
