@@ -109,28 +109,34 @@ posture as the iOS 4+/9+ questionnaire.
 
 ## Data safety (App content → Data safety)
 
-Play's privacy declaration — must match `PrivacyInfo.xcprivacy` and the iOS
-nutrition label.
+**The Play build collects NOTHING.** Superseded 2026-09-03: this section used to
+declare GA4 analytics, because the Play build carried gtag.js. It no longer does
+— the target audience now includes under-13s, which puts the app under Google
+Play's Families policy, and plain gtag.js is not approved for child-directed
+treatment. `index.html` loads no GA4 on either Android ship. So:
 
-- **Does your app collect or share user data?** → **Yes** (collects, does not share).
-- **Data type collected:** **App activity → App interactions** (GA4 analytics events).
-- **Purpose:** **Analytics**.
-- **Is it shared with third parties?** → **No**.
-- **Is it used to track users / linked to identity?** → **No** (first-party GA4,
-  anonymous, no advertising ID).
-- **Is collection optional?** → No (but no personal data is collected).
-- **Data encrypted in transit?** → Yes (HTTPS).
-- **Can users request deletion?** → No account exists; nothing tied to a person.
+- **Does your app collect or share user data?** → **No**.
+- No data types, no purposes, no third-party sharing, no advertising ID.
+- **Data encrypted in transit?** → n/a (nothing is transmitted).
+- **Can users request deletion?** → No account exists and nothing is collected.
 
-This is the only data collected. No ads, no advertising ID, no cross-app tracking.
+Diverges deliberately from `PrivacyInfo.xcprivacy` and the iOS nutrition label,
+which still describe the iOS build's GA4 — that build is 13+ and keeps analytics.
+Do not "align" them; they describe different binaries.
 
 ---
 
 ## Target audience & content
 
-- **Target age group:** **13+** (keeps out of *Designed for Families*; preserves
-  analytics — mirrors the iOS decision to avoid the Kids category).
-- **Appeals to children?** No specific child appeal claimed.
+- **Target age group:** **includes under-13** (Andrew's call, 2026-09-03) — the
+  widest family reach. This is a deliberate reversal of the earlier 13+ plan and
+  of the iOS posture, and it has a price: it puts the app under Google Play's
+  **Families policy**, which is why the Play build now ships with **no analytics
+  at all** (see Data safety above). Expect a neutral age screen requirement and
+  SDK-compliance obligations.
+- **Content rating:** **ESRB Everyone / PEGI 3 / IARC 3+** — submitted and
+  returned 2026-09-03, lowest tier from every authority.
+- **Appeals to children?** Yes, by declaration.
 - **Ads:** **No ads** (declare "No, my app does not contain ads").
 
 ---

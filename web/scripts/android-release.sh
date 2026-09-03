@@ -3,16 +3,21 @@
 #
 #   ./scripts/android-release.sh                  # Play release AAB (unsigned if no upload key configured)
 #   ./scripts/android-release.sh --apk            # also emit a release APK for sideload/device testing
-#   ./scripts/android-release.sh --amazon         # Amazon Appstore build (AAB + APK, NO analytics)
+#   ./scripts/android-release.sh --amazon         # Amazon Appstore build (AAB + APK)
 #   ./scripts/android-release.sh --init-keystore  # one-time: generate the Play upload key + keystore.properties
 #
 # TWO ANDROID SHIPS, ONE ARTIFACT. `--amazon` sets SPACE_RACE_STORE=amazon for
-# the `cap sync`, which flips android.appendUserAgent to 'SpaceRaceAmazon'; the
-# <head> snippet in index.html reads that marker and loads NO GA4 at all, because
-# the Appstore build is declared child-directed and Amazon's COPPA policy permits
-# only "child-suitable" SDKs. Everything else — dist/, the media overlay, the
-# Gradle build — is identical. The flag matters at SYNC time, so never hand an
-# Amazon binary to Play or vice versa without re-running this script.
+# the `cap sync`, which flips android.appendUserAgent to 'SpaceRaceAmazon' rather
+# than 'SpaceRaceAndroid'. Everything else — dist/, the media overlay, the Gradle
+# build — is identical. The flag matters at SYNC time, so never hand an Amazon
+# binary to Play or vice versa without re-running this script.
+#
+# NEITHER ANDROID SHIP CARRIES ANALYTICS. index.html loads no GA4 for either
+# marker, because both are declared child-directed: Amazon under its COPPA
+# policy, and Play because the listing's target audience includes under-13s,
+# which puts it under Google Play's Families policy (2026-09-03). Do not
+# "restore" analytics to the Play build without first changing that declaration
+# — see docs/play-store/account.md.
 #
 # Signing is AUTOMATIC once android/keystore.properties exists (written by
 # --init-keystore). Google Play App Signing holds the real app-signing key; you

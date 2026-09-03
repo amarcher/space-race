@@ -60,14 +60,19 @@
     <meta name="apple-itunes-app" content="app-id=6788064058" />
 
     <!-- Google Analytics 4 — feeds the app-traffic observability dashboard.
-         Injected rather than loaded from a static src, because ONE surface must
-         not load it at all: the Amazon Appstore build. That build ships to Fire
-         tablets, where kids reach the game through an Amazon Kids child profile,
-         so it is declared child-directed — and Amazon's Child-Directed App
-         (COPPA) policy permits only "child-suitable" SDKs. A static
-         `<script async src>` would fetch googletagmanager before any check could
-         run, so the tag is appended only after the platform is known.
-         See docs/amazon-appstore/listing.md. -->
+         Injected rather than loaded from a static src, because the NATIVE ANDROID
+         SHIPS must not load it at all. Both are declared child-directed:
+           - Amazon: Fire tablets reach kids through an Amazon Kids child profile,
+             and Amazon's Child-Directed App (COPPA) policy permits only
+             "child-suitable" SDKs.
+           - Play: the Play listing declares a target audience that INCLUDES
+             under-13s (Andrew's call, 2026-09-03), which puts it under Google
+             Play's Families policy. Plain gtag.js is not approved for
+             child-directed treatment — no consent mode, no anonymised IP, a
+             client id — so the Play build ships analytics-free too.
+         A static `<script async src>` would fetch googletagmanager before any
+         check could run, so the tag is appended only after the platform is known.
+         See docs/play-store/account.md and docs/amazon-appstore/listing.md. -->
     <script>
       // Split web vs iOS vs Android vs Amazon traffic in the app-tracker dashboard.
       // This runs in <head> BEFORE the bundle, so Capacitor.isNativePlatform() isn't
@@ -77,11 +82,15 @@
       // from https://localhost with no distinct protocol. The marker is the ONLY
       // difference between the two Android ships — 'SpaceRaceAmazon' for the Appstore
       // build, 'SpaceRaceAndroid' for Play — so one dist/ still serves all four.
+      // The markers still distinguish the ships (amazon-submit.sh guards on them,
+      // and web/iOS attribution is unaffected); they just no longer gate analytics
+      // differently from each other, because BOTH Android ships are child-directed.
       var platform = location.protocol === 'capacitor:' ? 'ios'
         : /SpaceRaceAmazon/.test(navigator.userAgent) ? 'amazon'
         : /SpaceRaceAndroid/.test(navigator.userAgent) ? 'android'
         : 'web'
-      if (platform !== 'amazon') {
+      // Web and iOS only. Never load GA4 on a native Android ship — see above.
+      if (platform !== 'amazon' && platform !== 'android') {
         window.dataLayer = window.dataLayer || []
         window.gtag = function () { window.dataLayer.push(arguments) }
         gtag('js', new Date())

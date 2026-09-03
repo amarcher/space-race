@@ -88,6 +88,32 @@ decode on low-end devices as the single biggest Android-only risk — 96 MB of
 MP4 across a far wider device range than iOS — and an emulator on an M5 Max is
 the worst possible instrument for measuring it.
 
+## The Play build is child-directed, and therefore analytics-free (2026-09-03)
+
+Andrew chose a **target audience that includes under-13s** for the widest family
+reach, after the IARC questionnaire returned **Everyone / PEGI 3 / 3+** from every
+rating authority. That choice, not the rating, is what carries weight: any
+under-13 age group puts the app under Google Play's **Families policy**.
+
+**So the Play build ships with no analytics.** `web/index.html` previously loaded
+GA4 (`G-GS8HYJ69C3`) via plain `gtag.js` with no consent mode, no anonymised IP
+and no ads-signal suppression — which is not approved for child-directed
+treatment. The gate that already excluded the Amazon build now excludes the Play
+build too, so **neither Android ship carries GA4**. Web and iOS are unaffected
+and keep their analytics.
+
+The mechanism was already proven: the Amazon build has shipped analytics-free
+since 1.2.1 under Amazon's own COPPA policy. This reuses that path rather than
+inventing one.
+
+**Two consequences to hold on to.** Android install and engagement data will not
+appear in GA4 at all — that is the accepted cost, not a bug to fix later. And
+this cuts against the LLC's *adults-are-the-customer* framing recorded in
+`storybook-studio`'s `counsel-pass-agenda-2026-08-07.md`, which named COPPA
+"directed to children" exposure as the stake. The concern was raised on
+2026-09-03 and Andrew chose the wider audience anyway; **worth a counsel pass
+before the next child-directed declaration under this entity.**
+
 ## Runbook
 
 **Andrew's, in order:**
