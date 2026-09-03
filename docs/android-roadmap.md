@@ -257,6 +257,14 @@ of the on-device pass.)*
 Everything below is drafted/automatable **except** the steps needing the paid
 Play Console account and interactive Console web forms — flagged **👤 HUMAN**.
 
+> **The account question is settled (2026-09-03) — see `docs/play-store/account.md`.**
+> Space Race publishes from a Play **organization** account registered to FABLE
+> DESIGNER LLC (D-U-N-S 148571084), public developer name "Fable Designer".
+> Organization accounts are **exempt from the 12-testers/14-days rule**, so the
+> internal-testing step below is now optional convenience rather than a gate —
+> this goes straight to production. Read `account.md` before starting; it also
+> records three dead-end Google accounts not to walk back into.
+
 - [x] **Versioning** — `versionCode` is a monotonically increasing **integer**
       (bump every upload, even for the same `versionName`); `versionName` is the
       display string. Set in `android/app/build.gradle`. **Brought to parity with
@@ -274,7 +282,10 @@ Play Console account and interactive Console web forms — flagged **👤 HUMAN*
       and correctly uses WebAudio.
 - [ ] **Target API level** — Play requires **new apps target API 35+** (as of
       Aug 2025). We target 36 → compliant.
-- [ ] **Upload key + Play App Signing** — one-time:
+- [x] **Upload key + Play App Signing** — **done 2026-07-08**; the key exists
+      and is backed up to `~/SpaceRace-PlayUpload-Key-BACKUP/`. Do not re-run
+      `--init-keystore` (it refuses to overwrite, and this key is the only thing
+      that can ever ship an update). One-time, for the record:
       `./web/scripts/android-release.sh --init-keystore` generates
       `upload-keystore.jks` + a gitignored `keystore.properties`. Enroll in
       **Play App Signing** (default for new apps): Google holds the real

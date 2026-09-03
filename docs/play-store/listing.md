@@ -175,27 +175,38 @@ the last second. No ads, no accounts.
 
 ## Submission checklist (human steps)
 
-1. [ ] **Register a Google Play Console account** ($25 one-time) — the one hard
-   prerequisite.
-2. [ ] **Set up the upload key:** `./web/scripts/android-release.sh
-   --init-keystore` (writes `upload-keystore.jks` + gitignored
-   `keystore.properties`). **Back up the keystore off-machine.** Enroll in Play
-   App Signing (default).
-3. [ ] **Create the app** in Play Console: package `tech.spaceexplorer.spacerace`,
-   name "Space Race" (or fallback), Free, Game.
-4. [ ] **Build the AAB:** `./web/scripts/android-release.sh` →
-   `app/build/outputs/bundle/release/app-release.aab`.
-5. [ ] **Internal testing:** upload the AAB, add testers (family), install via the
-   Play opt-in link on a real device (the "on Milo's tablet" goal, no review wait).
-6. [ ] **Complete the Console forms** — this listing (name, descriptions,
+> **Account, entity and brand are decided — see `account.md`.** Space Race
+> publishes from a Google Play **organization** account registered to FABLE
+> DESIGNER LLC (D-U-N-S 148571084), public developer name **"Fable Designer"**.
+> The org exemption means **no closed test and no 12 testers** — this goes
+> straight to production.
+
+1. [ ] **Register the organization account** ($25) and clear verification —
+   the full sequence, the dead-end accounts to avoid, and the entity reasoning
+   are in **`account.md`**. This is the only remaining prerequisite, and it is
+   2–4 weeks of Google's time, not ours.
+2. [x] ~~Set up the upload key~~ **Done 2026-07-08.** `upload-keystore.jks` +
+   `keystore.properties` exist and are backed up off-machine to
+   `~/SpaceRace-PlayUpload-Key-BACKUP/`. **Do not run `--init-keystore` again**
+   — the script refuses to overwrite an existing key, but the instinct to
+   re-run it is the wrong one: this key is the only thing that can ever ship an
+   update to the published app. Enroll in Play App Signing (default) at upload.
+3. [ ] **Create the app** in Play Console: package `tech.spaceexplorer.spacerace`
+   (locks permanently on first upload), name "Space Race" (or fallback), Free,
+   Game. The button stays greyed until org verification clears.
+4. [ ] **Build a fresh AAB:** `./web/scripts/android-release.sh` →
+   `app/build/outputs/bundle/release/app-release.aab`. **Rebuild rather than
+   reusing whatever is on disk** — the artifact is a build output, not a
+   tracked file, and it silently goes stale behind `main`. Never hand Play a
+   binary built with `--amazon`: that flag strips GA4 entirely.
+5. [ ] **Complete the Console forms** — this listing (name, descriptions,
    graphics incl. the 1024×500 feature graphic, screenshots), **Data safety**,
    **Content rating (IARC)**, **Target audience**, **Ads = none**, Contact +
    Privacy policy, Pricing (free, all countries).
-7. [ ] **Promote Internal → Production** (or a closed/open test first) and submit
-   for review.
+6. [ ] **Submit to production** and await review.
 
-Everything above the checklist is drafted. The checklist items need the paid
-Console account and the Play Console web forms.
+Everything above the checklist is drafted. The checklist items need the
+verified Console account and the Play Console web forms.
 
 ---
 
