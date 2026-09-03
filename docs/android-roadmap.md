@@ -252,6 +252,14 @@ orientation matches iOS; no permission prompts in normal play. *(Code complete;
 the `platform=android` split wants the same on-device GA4 confirmation as the rest
 of the on-device pass.)*
 
+> **Analytics note (2026-09-03): neither Android ship carries GA4 any more.**
+> The Play listing declares a target audience including under-13s, which puts it
+> under Google Play's Families policy, so `index.html` now suppresses GA4 for the
+> `SpaceRaceAndroid` marker exactly as it always did for `SpaceRaceAmazon`. The
+> platform split described in Phase 3 still resolves correctly; it just no longer
+> gates analytics differently between the two Android ships. Web and iOS keep
+> GA4. See `docs/play-store/account.md`.
+
 ## Phase 4 — Ship to Google Play
 
 Everything below is drafted/automatable **except** the steps needing the paid
