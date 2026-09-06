@@ -34,7 +34,8 @@
       body {
         margin: 0 auto;
         max-width: 32rem;
-        padding: 3.5rem 1.25rem 4rem;
+        padding: 3.5rem calc(1.25rem + env(safe-area-inset-right)) calc(4rem + env(safe-area-inset-bottom))
+          calc(1.25rem + env(safe-area-inset-left));
         background: #07071a;
         color: #e8e8f2;
         font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -91,6 +92,23 @@
         color: #6a6a90;
         flex-shrink: 0;
       }
+      .link--match {
+        border-color: #ffd93d99;
+        box-shadow: 0 0 0 1px #ffd93d33;
+      }
+      .badge {
+        display: inline-block;
+        margin-left: 0.5rem;
+        padding: 0.1rem 0.45rem;
+        border-radius: 999px;
+        background: #ffd93d;
+        color: #2a2200;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        vertical-align: 0.1em;
+      }
       .link--shop {
         background: linear-gradient(135deg, #1a1a3d, #24244f);
         border-color: #ffd93d55;
@@ -103,24 +121,74 @@
     <p class="tagline">A cosmic race to 1,000 light-years. Play free, anywhere.</p>
 
     <div class="links">
-      <a class="link" href="https://game.spaceexplorer.tech">
+      <a class="link" data-platform="web" href="https://game.spaceexplorer.tech">
         <span>Play free on the web<span class="sub">Works in any browser, installs as an app</span></span>
-        <span class="chevron">→</span>
+        <span class="chevron">&rarr;</span>
       </a>
-      <a class="link" href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058">
+      <a
+        class="link"
+        data-platform="ios"
+        href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058"
+      >
         <span>App Store<span class="sub">iPhone &amp; iPad</span></span>
-        <span class="chevron">→</span>
+        <span class="chevron">&rarr;</span>
       </a>
-      <span class="link link--soon">
-        <span>Google Play<span class="sub">Coming soon</span></span>
+      <!-- Play is submitted but not published. Swap this <span> for the <a> in
+           the comment below only once the listing actually resolves:
+             curl -s -o /dev/null -w '%{http_code}\n' \
+               'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace'
+           A QR code printed on a physical card cannot be reprinted, so a dead
+           store link here is unrecoverable. -->
+      <span class="link link--soon" data-platform="android">
+        <span>Google Play<span class="sub">Coming soon &mdash; in review</span></span>
       </span>
-      <span class="link link--soon">
-        <span>Amazon Appstore<span class="sub">Coming soon — Fire tablets</span></span>
-      </span>
-      <a class="link link--shop" href="/shop">
-        <span>Buy the physical game<span class="sub">First Edition card deck — pre-order now</span></span>
-        <span class="chevron">→</span>
+      <!-- <a class="link" data-platform="android"
+             href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace">
+             <span>Google Play<span class="sub">Android phones &amp; tablets</span></span>
+             <span class="chevron">&rarr;</span></a> -->
+      <!-- NOT amazon.com/gp/mas/dl/android?p=<pkg> — that 404s for this app.
+           The /dp/ listing is the only URL that resolves. -->
+      <a class="link" data-platform="amazon" href="https://www.amazon.com/dp/B0GXHBHD78">
+        <span>Amazon Appstore<span class="sub">Fire tablets</span></span>
+        <span class="chevron">&rarr;</span>
+      </a>
+      <a class="link link--shop" data-platform="shop" href="/shop">
+        <span>Buy the physical game<span class="sub">First Edition card deck</span></span>
+        <span class="chevron">&rarr;</span>
       </a>
     </div>
+
+    <script>
+      /* Progressive enhancement only. With JS off the list above is already in
+         a sensible order, every link works, and nothing here is required. All
+         this does is float the row matching the current device to the top and
+         tag it, so a QR scan lands on the right store without reading a menu. */
+      (function () {
+        var ua = navigator.userAgent;
+        var platform = null;
+        /* Fire OS first: a Fire tablet is an Android device and says so in its
+           UA, so testing Android first would send every Fire user to Play. */
+        if (/\bSilk\//.test(ua) || /\bKF[A-Z]{2,}\b/.test(ua)) platform = 'amazon';
+        else if (/Android/.test(ua)) platform = 'android';
+        else if (/iPad|iPhone|iPod/.test(ua)) platform = 'ios';
+        else if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) platform = 'ios';
+        if (!platform) return;
+
+        var row = document.querySelector('[data-platform="' + platform + '"]');
+        /* A "coming soon" row is not a destination — leave the default order. */
+        if (!row || row.classList.contains('link--soon')) return;
+
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = 'Your device';
+        /* .sub is display:block, so the badge has to go BEFORE it to stay on
+           the title line rather than dropping to a line of its own. */
+        var sub = row.querySelector('.sub');
+        if (sub) sub.parentNode.insertBefore(badge, sub);
+        else row.querySelector('span').appendChild(badge);
+        row.classList.add('link--match');
+        row.parentNode.insertBefore(row, row.parentNode.firstChild);
+      })();
+    </script>
   </body>
 </html>

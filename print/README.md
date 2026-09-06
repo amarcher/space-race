@@ -39,10 +39,47 @@ git history / regenerate by fitting 660×990 art centered on 825×1125 cream).
 - `celestial-frame.png` — deck back + marketing back frame (ChatGPT image gen)
 - `marketing-front-art.png` — cards-zooming-up art (ChatGPT; also rulebook back page)
 - `qr-play-online.png` — QR → https://game.spaceexplorer.tech (verify with
-  cv2.QRCodeDetector after any re-render!)
+  cv2.QRCodeDetector after any re-render!). **Deliberately the site root, not a
+  store link** — see "Where the printed QR goes" below.
 - `app-store-badge.svg` — official Apple badge, use as-is
 - `../artbin/s3-01-tuck-box-bg_v1.jpg` — box hero art (racing ships)
 - `tgc-templates/` — TGC dieline templates + proofing overlay for the box
+
+## Where the printed QR goes
+
+The QR on the booklet back page and the marketing card resolves to
+**`https://game.spaceexplorer.tech`** — the playable web game, on a domain we
+own. It is *not* an App Store link, and that is the whole point: the printed
+copy next to it promises "Play Online" / "Scan to play free in your browser",
+and the destination is ours to re-point forever without reprinting a card.
+
+**Do not user-agent-redirect the root to a store.** It breaks the printed
+promise, breaks desktop and shared links, and trades an instant game for a
+store queue. Platform routing is layered *on top* of the game instead:
+
+| Surface | Who sees it | Where it lives |
+|---|---|---|
+| Apple Smart App Banner | iOS **Safari** | `apple-itunes-app` meta in `web/index.html` |
+| Custom store bar | iOS non-Safari + in-app webviews, Android, Fire | `web/src/components/StoreBanner.tsx` |
+| `/get` wayfinder | anyone who opens it; promotes the row matching the device | `web/public/get.html` |
+
+`StoreBanner.tsx` and `get.html` each carry a `live` flag / commented-out link
+per store. **A store that has not published must stay dark** — a dead store
+link from a card that cannot be reprinted is unrecoverable. Google Play is
+gated off until its listing resolves; flip both files together, and verify
+first:
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace'
+```
+
+Amazon's link must be the **`/dp/B0GXHBHD78`** listing — the conventional
+`amazon.com/gp/mas/dl/android?p=<pkg>` deep link 404s for this app.
+
+**For a future print run**, point the QR at `https://game.spaceexplorer.tech/get`
+instead of the root if the card's copy is about *getting the app*; keep the root
+where the copy says *play online*.
 
 ## Design decisions locked in this edition
 
