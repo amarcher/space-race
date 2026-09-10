@@ -43,3 +43,21 @@ Prepared on `codex/fix-shop-checkout` in an isolated worktree. Not pushed,
 merged, or deployed. Production remains unchanged and in Stripe TEST mode.
 Publishing the fix does not activate live payments. Hosted preview and live
 shop verification remain release steps after approval.
+
+## Returning-visitor cache issue found during publication
+
+PR #202 deployed as `8e60ad0` (`dpl_8Fmv6adXBkrjrk8TjzGvmxMceiJj`).
+The hosted preview worked, but the existing production browser still loaded
+`shop-nb-_7odD.js` after a normal reload while the network served the new
+`shop-B7ZZI575.js`. The old Embedded Checkout client could not open the new
+Form session, despite the API returning 200.
+
+The generated worker precached `shop.html`, and `injectRegister: false`
+prevented vite-plugin-pwa from setting its usual automatic-activation flags.
+The follow-up explicitly enables `skipWaiting` and `clientsClaim`, excludes
+shop/admin documents from precache and the game navigation fallback, and
+asks an existing worker registration to update when the shop loads. It does
+not install a worker for shop-only visitors or add a checkout auto-reload.
+A regression test executes the generated worker to verify activation,
+network-only commerce routes (including the payment return URL), and retained
+offline caching of the game.
