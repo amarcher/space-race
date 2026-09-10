@@ -11,7 +11,7 @@ import {
   UNIT_PRICE_CENTS,
 } from '../src/shop/constants.js'
 
-// Creates a Stripe Embedded Checkout session. Price and inventory are decided
+// Creates a Stripe Checkout Form session. Price and inventory are decided
 // server-side only — never trust a client-supplied amount.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -25,63 +25,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const [{ sold, earlySold }] = await sql`
-    select
-      coalesce(sum(quantity), 0)::int as sold,
-      coalesce(sum(quantity) filter (where ship_window = 'early'), 0)::int as "earlySold"
-    from orders
-    where status != 'cancelled'
-  `
-  if (sold + quantity > SELLABLE_INVENTORY) {
-    res.status(409).json({ error: "Sorry — we don't have enough copies left in this pre-order pool." })
-    return
+  try {
+    const [{ sold, earlySold }] = await sql`
+      select
+        coalesce(sum(quantity), 0)::int as sold,
+        coalesce(sum(quantity) filter (where ship_window = 'early'), 0)::int as "earlySold"
+      from orders
+      where status != 'cancelled'
+    `
+    if (sold + quantity > SELLABLE_INVENTORY) {
+      res.status(409).json({ error: "Sorry — we don't have enough copies left in this pre-order pool." })
+      return
+    }
+
+    // Whole order ships in the same window — never split a single order across
+    // the September and January batches. See docs/store-wayfinder.md.
+    const shipWindow = earlySold + quantity <= EARLY_BATCH_SELLABLE ? 'early' : 'january'
+
+    const origin = (req.headers.origin as string | undefined) ?? `https://${req.headers.host}`
+
+    // shipping_options here is a required $0 placeholder — /api/shipping-rates
+    // replaces it server-side once the customer enters a real address (see
+    // Checkout Form change event and docs/store-wayfinder.md).
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: 'form',
+      mode: 'payment',
+      metadata: { ship_window: shipWindow },
+      // Zero tax anywhere without an active Stripe Tax registration — safe to
+      // leave on ahead of actually registering. See docs/store-wayfinder.md
+      // "Sales tax" for the MA-registration follow-up this depends on.
+      automatic_tax: { enabled: true },
+      shipping_address_collection: { allowed_countries: ALLOWED_SHIP_COUNTRIES },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            display_name: 'Calculating shipping…',
+            fixed_amount: { amount: 0, currency: CURRENCY },
+            tax_code: 'txcd_92010001',
+            tax_behavior: 'exclusive',
+          },
+        },
+      ],
+      line_items: [
+        {
+          quantity,
+          price_data: {
+            currency: CURRENCY,
+            unit_amount: UNIT_PRICE_CENTS,
+            // General tangible goods — the card game itself is ordinary taxable
+            // merchandise in every US state, no special-case tax code needed.
+            product_data: { name: PRODUCT_NAME, tax_code: 'txcd_99999999' },
+            tax_behavior: 'exclusive',
+          },
+        },
+      ],
+      return_url: `${origin}/shop.html?session_id={CHECKOUT_SESSION_ID}`,
+    })
+
+    res.status(200).json({ clientSecret: session.client_secret })
+  } catch (error) {
+    console.error('Checkout session creation failed', error)
+    res.status(503).json({ error: 'Checkout could not start right now. Please try again.' })
   }
-
-  // Whole order ships in the same window — never split a single order across
-  // the September and January batches. See docs/store-wayfinder.md.
-  const shipWindow = earlySold + quantity <= EARLY_BATCH_SELLABLE ? 'early' : 'january'
-
-  const origin = (req.headers.origin as string | undefined) ?? `https://${req.headers.host}`
-
-  // shipping_options here is a required $0 placeholder — /api/shipping-rates
-  // replaces it server-side once the customer enters a real address (see
-  // permissions.update_shipping_details below and docs/store-wayfinder.md).
-  const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded_page',
-    mode: 'payment',
-    metadata: { ship_window: shipWindow },
-    // Zero tax anywhere without an active Stripe Tax registration — safe to
-    // leave on ahead of actually registering. See docs/store-wayfinder.md
-    // "Sales tax" for the MA-registration follow-up this depends on.
-    automatic_tax: { enabled: true },
-    permissions: { update_shipping_details: 'server_only' },
-    shipping_address_collection: { allowed_countries: ALLOWED_SHIP_COUNTRIES },
-    shipping_options: [
-      {
-        shipping_rate_data: {
-          type: 'fixed_amount',
-          display_name: 'Calculating shipping…',
-          fixed_amount: { amount: 0, currency: CURRENCY },
-          tax_code: 'txcd_92010001',
-          tax_behavior: 'exclusive',
-        },
-      },
-    ],
-    line_items: [
-      {
-        quantity,
-        price_data: {
-          currency: CURRENCY,
-          unit_amount: UNIT_PRICE_CENTS,
-          // General tangible goods — the card game itself is ordinary taxable
-          // merchandise in every US state, no special-case tax code needed.
-          product_data: { name: PRODUCT_NAME, tax_code: 'txcd_99999999' },
-          tax_behavior: 'exclusive',
-        },
-      },
-    ],
-    return_url: `${origin}/shop.html?session_id={CHECKOUT_SESSION_ID}`,
-  })
-
-  res.status(200).json({ clientSecret: session.client_secret })
 }

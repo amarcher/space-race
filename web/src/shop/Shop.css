@@ -269,6 +269,16 @@ body {
   max-width: 640px;
 }
 
+.shop__checkout-form {
+  padding: 24px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+@media (max-width: 480px) {
+  .shop__checkout-form { padding: 16px; }
+}
+
 .shop__back {
   background: none;
   border: none;
