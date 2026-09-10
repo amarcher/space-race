@@ -31,34 +31,21 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // injectRegister:false disables the plugin's autoUpdate defaults, so
+        // set these explicitly. Otherwise an old cached shop can outlive its
+        // server API until every tab for the game has been closed.
+        skipWaiting: true,
+        clientsClaim: true,
         // PRECACHE only the app shell + icons + manifest. Deliberately NOT the
         // heavy media (cards/video ~19MB, card art, sfx, ui rasters) so install
         // stays small/fast — those are runtime-cached on first use below.
         globPatterns: ['**/*.{js,css,html,woff2}', 'favicon.svg', 'icon-*.png'],
-        globIgnores: ['**/cards/**', '**/sfx/**', '**/ui/**', '**/print-sheet.html'],
+        globIgnores: ['**/cards/**', '**/sfx/**', '**/ui/**', '**/print-sheet.html', 'shop.html', 'shop-admin.html'],
         navigateFallback: '/index.html',
-        // /shop/admin is a NESTED path rewritten (by vercel.json) to a flat
-        // shop-admin.html file. Workbox's precache-route URL matching only
-        // bridges clean URLs by adding/removing ".html" on the SAME path
-        // (so /shop -> shop.html and /get -> get.html resolve fine) — it can't
-        // bridge a path segment to a hyphenated filename. Without this denylist
-        // entry, once the service worker is controlling the page (any repeat
-        // visit), a /shop/admin navigation misses the precache route, falls
-        // through to the catch-all navigateFallback, and silently serves the
-        // GAME instead of the admin login. Denylisting it here means the
-        // request isn't intercepted at all — it goes to the network, where
-        // Vercel's own rewrite handles it correctly.
-        navigateFallbackDenylist: [/\/shop\/admin\/?$/],
-        // Stripe returns from checkout to /shop.html?session_id=cs_... — that's
-        // where the confirmation page lives. Precache route matching does NOT
-        // ignore unknown query params (the default only strips utm_*/fbclid),
-        // so without session_id here the URL matches no precached entry, falls
-        // through to navigateFallback, and drops the buyer onto the GAME right
-        // after they paid. Verified against workbox-precaching's own
-        // generateURLVariations(): with the default options the only variations
-        // are the query-bearing URL and "shop.html.html"; adding session_id
-        // yields a bare "shop.html", which is in the manifest.
-        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^session_id$/],
+        // Commerce pages must come from the network so their client and API
+        // stay on the same release. Excluding them from precache alone would
+        // instead send them to the game's navigation fallback.
+        navigateFallbackDenylist: [/\/shop(?:\.html|\/admin)?\/?$/, /\/shop-admin\.html$/],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
