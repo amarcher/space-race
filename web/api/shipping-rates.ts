@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type Stripe from 'stripe'
 import { stripe } from './_lib/stripe.js'
-import { CURRENCY, parcelForQuantity } from '../src/shop/constants.js'
+import { ALLOWED_SHIP_COUNTRIES, CURRENCY, parcelForQuantity } from '../src/shop/constants.js'
 
 const SHIPPO_API_TOKEN = process.env.SHIPPO_API_TOKEN
 const SHIPPO_API_BASE = 'https://api.goshippo.com'
@@ -24,10 +24,8 @@ type ShippoAddress = {
   country?: string | null
 }
 
-// Stripe's dynamic-shipping callback: the client posts here when the customer
-// finishes the shipping address step, we fetch live Shippo rates and push
-// them onto the Checkout Session server-side (permissions.update_shipping_details
-// = 'server_only' means only this endpoint, with the secret key, can do that).
+// Checkout Form collects the address. Its change event calls this endpoint
+// through runServerUpdate to refresh the carrier quotes shown in the form.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
@@ -35,36 +33,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const checkoutSessionId = req.body?.checkout_session_id as string | undefined
-  // Pass-through from Stripe's own client — cast to their type rather than a
-  // narrower local one, so it round-trips cleanly into sessions.update() below.
+  // The Checkout Form change event supplies the recipient and postal address.
   const shippingDetails = req.body?.shipping_details as
     | Stripe.Checkout.SessionUpdateParams.CollectedInformation.ShippingDetails
     | undefined
   const address = shippingDetails?.address as ShippoAddress | undefined
 
-  if (!checkoutSessionId || !address?.postal_code || !address.country) {
+  if (!checkoutSessionId || !address?.postal_code || !address.country ||
+      !ALLOWED_SHIP_COUNTRIES.includes(address.country as typeof ALLOWED_SHIP_COUNTRIES[number])) {
     res.status(200).json({ type: 'error', message: "We can't ship to that address — please check it and try again." })
     return
   }
 
-  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId, { expand: ['line_items'] })
-  const quantity = session.line_items?.data.reduce((sum, item) => sum + (item.quantity ?? 0), 0) ?? 1
-
-  let shippingOptions
   try {
-    shippingOptions = await liveShippingOptions(address, quantity)
-  } catch (err) {
-    console.error('Shippo rate lookup failed', err)
-    res.status(200).json({ type: 'error', message: 'Could not calculate shipping for that address right now. Please try again.' })
-    return
+    const session = await stripe.checkout.sessions.retrieve(checkoutSessionId, { expand: ['line_items'] }, {
+      timeout: 3000, maxNetworkRetries: 0,
+    })
+    if (session.status !== 'open' || session.ui_mode !== 'form') {
+      res.status(409).json({ type: 'error', message: 'This checkout is no longer available. Go back and start again.' })
+      return
+    }
+    const quantity = session.line_items?.data.reduce((sum, item) => sum + (item.quantity ?? 0), 0) ?? 1
+
+    let shippingOptions
+    try {
+      shippingOptions = await liveShippingOptions(address, quantity)
+    } catch (err) {
+      console.error('Shippo rate lookup failed', err)
+      res.status(200).json({ type: 'error', message: 'Could not calculate shipping for that address right now. Please try again.' })
+      return
+    }
+
+    await stripe.checkout.sessions.update(checkoutSessionId, {
+      // The new form owns shipping details; only quote options are server-owned.
+      shipping_options: shippingOptions,
+    }, { timeout: 3000, maxNetworkRetries: 0 })
+
+    res.status(200).json({ type: 'object', value: { succeeded: true } })
+  } catch (error) {
+    console.error('Checkout shipping update failed', error)
+    res.status(503).json({ type: 'error', message: 'Could not update shipping right now. Please try again.' })
   }
-
-  await stripe.checkout.sessions.update(checkoutSessionId, {
-    collected_information: { shipping_details: shippingDetails },
-    shipping_options: shippingOptions,
-  })
-
-  res.status(200).json({ type: 'object', value: { succeeded: true } })
 }
 
 // Stripe rejects a 6th element outright ("Array shipping_options exceeded
@@ -115,6 +124,8 @@ async function liveShippingOptions(address: ShippoAddress, quantity: number) {
   const parcel = parcelForQuantity(quantity)
   const response = await fetch(`${SHIPPO_API_BASE}/shipments/`, {
     method: 'POST',
+    // Finish before Stripe's 20-second runServerUpdate deadline.
+    signal: AbortSignal.timeout(8000),
     headers: {
       Authorization: `ShippoToken ${SHIPPO_API_TOKEN}`,
       'Content-Type': 'application/json',

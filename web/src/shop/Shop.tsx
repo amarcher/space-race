@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
+import { CheckoutFormProvider } from '@stripe/react-stripe-js/checkout'
+import { ShopCheckout } from './ShopCheckout'
 import {
   EARLY_SHIP_DATE_LABEL,
   MAIN_SHIP_DATE_LABEL,
@@ -51,6 +52,9 @@ function Confirmation() {
 function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const checkoutRequest = useRef(0)
   const [inventory, setInventory] = useState<InventoryStatus | null>(null)
   const [activeImage, setActiveImage] = useState(0)
 
@@ -82,13 +86,39 @@ function ProductPage() {
   // Pushing a history entry on entry fixes (1); bailing out of checkout on a
   // bfcache restore fixes (2). Both land the buyer back on the product page,
   // which is the only sensible destination once a session is spent.
-  const startCheckout = useCallback(() => {
+  const startCheckout = useCallback(async () => {
+    const request = ++checkoutRequest.current
     setCheckingOut(true)
-    window.history.pushState({ shopCheckout: true }, '')
-  }, [])
+    setClientSecret(null)
+    setCheckoutError(null)
+    if (!checkingOut) window.history.pushState({ shopCheckout: true }, '')
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity }),
+        signal: AbortSignal.timeout(20000),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || typeof body.clientSecret !== 'string' || !body.clientSecret) {
+        throw new Error(typeof body.error === 'string' ? body.error : 'Checkout could not start right now. Please try again.')
+      }
+      if (request === checkoutRequest.current) setClientSecret(body.clientSecret)
+    } catch (error) {
+      if (request === checkoutRequest.current) {
+        setCheckoutError(error instanceof Error && error.name === 'Error'
+          ? error.message : 'Checkout could not start right now. Please try again.')
+      }
+    }
+  }, [checkingOut, quantity])
 
   useEffect(() => {
-    const leaveCheckout = () => setCheckingOut(false)
+    const leaveCheckout = () => {
+      ++checkoutRequest.current
+      setCheckingOut(false)
+      setClientSecret(null)
+      setCheckoutError(null)
+    }
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) leaveCheckout()
     }
@@ -98,36 +128,6 @@ function ProductPage() {
       window.removeEventListener('popstate', leaveCheckout)
       window.removeEventListener('pageshow', onPageShow)
     }
-  }, [])
-
-  const fetchClientSecret = useCallback(async () => {
-    const res = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quantity }),
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      throw new Error(body.error ?? 'Could not start checkout')
-    }
-    const { clientSecret } = (await res.json()) as { clientSecret: string }
-    return clientSecret
-  }, [quantity])
-
-  const onShippingDetailsChange = useCallback(async (event: { checkoutSessionId: string; shippingDetails: unknown }) => {
-    const res = await fetch('/api/shipping-rates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        checkout_session_id: event.checkoutSessionId,
-        shipping_details: event.shippingDetails,
-      }),
-    })
-    const body = await res.json().catch(() => ({ type: 'error', message: 'Something went wrong.' }))
-    if (body.type === 'error') {
-      return { type: 'reject' as const, errorMessage: body.message as string }
-    }
-    return { type: 'accept' as const }
   }, [])
 
   if (checkingOut) {
@@ -142,9 +142,18 @@ function ProductPage() {
         <button className="shop__back" onClick={() => window.history.back()}>
           &larr; Back
         </button>
-        <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret, onShippingDetailsChange }}>
-          <EmbeddedCheckout />
-        </EmbeddedCheckoutProvider>
+        {checkoutError ? (
+          <div role="alert">
+            <p className="shop__error">{checkoutError}</p>
+            <button className="shop__buy" onClick={startCheckout}>Try again</button>
+          </div>
+        ) : clientSecret ? (
+          <CheckoutFormProvider stripe={stripePromise} options={{ clientSecret }}>
+            <ShopCheckout onRetry={startCheckout} />
+          </CheckoutFormProvider>
+        ) : (
+          <p role="status">Opening secure checkout…</p>
+        )}
       </div>
     )
   }
