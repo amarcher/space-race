@@ -30,9 +30,21 @@ test('built worker activates updates and never serves a cached commerce page', (
   assert.equal(claimsClients, true)
   assert.ok(manifest.some(({ url }) => url === 'index.html'), 'game stays available offline')
   assert.ok(!manifest.some(({ url }) => ['shop.html', 'shop-admin.html'].includes(url)))
-  for (const path of ['/shop', '/shop/', '/shop.html', '/shop.html?session_id=cs_test_example', '/shop/admin', '/shop/admin/', '/shop-admin.html']) {
-    const pathname = new URL(path, 'https://example.com').pathname
-    assert.ok(denylist.some((pattern) => pattern.test(pathname)), `${path} must use the network`)
+  const commercePaths = [
+    '/shop', '/shop/', '/shop.html',
+    '/shop.html?session_id=cs_test_example',
+    '/shop?session_id=cs_test_example',
+    '/shop/?utm_source=mail',
+    '/shop.html?utm_source=mail&session_id=cs_test_example#receipt',
+    '/shop/admin', '/shop/admin/', '/shop-admin.html',
+    '/shop/admin?status=open', '/shop-admin.html?status=open',
+  ]
+  for (const path of commercePaths) {
+    const url = new URL(path, 'https://example.com')
+    // NavigationRoute matches pathname + search, not just pathname.
+    assert.ok(denylist.some((pattern) => pattern.test(url.pathname + url.search)), `${path} must use the network`)
   }
-  assert.ok(!denylist.some((pattern) => pattern.test('/')), 'game navigation keeps its offline fallback')
+  for (const path of ['/', '/?utm_source=mail', '/index.html', '/index.html?mode=solo']) {
+    assert.ok(!denylist.some((pattern) => pattern.test(path)), `${path} keeps the game offline fallback`)
+  }
 })
