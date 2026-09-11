@@ -301,7 +301,7 @@ export function GameMoment() {
           <h2 id="moment-heading">Your move, pilot.</h2>
         </div>
         <p>
-          The race can turn on a single card.
+          The race can turn on a single card.{' '}
           <br />
           Here's how a Slingshot works.
         </p>
