@@ -301,7 +301,6 @@ function ProductPage() {
       <main className="store">
         <StoreHero onWatch={() => setWatching(true)} />
         <FilmSection onWatch={() => setWatching(true)} />
-        <GameMoment />
         <section
           ref={productSection}
           className="store-product store-section"
@@ -394,6 +393,7 @@ function ProductPage() {
             <ShippingPolicy />
           </div>
         </section>
+        <GameMoment />
         <section
           className="store-questions store-section"
           aria-labelledby="questions-heading"
