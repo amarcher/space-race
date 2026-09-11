@@ -934,19 +934,6 @@ img {
   font-size: 12px;
   color: var(--text-dim);
 }
-.checkout-summary__subtotal {
-  clear: both;
-  display: flex;
-  justify-content: space-between;
-  padding: 20px 0;
-  border-top: 1px solid #ffffff25;
-  gap: 20px;
-  font-size: 14px;
-}
-.checkout-summary__subtotal strong {
-  color: var(--gold);
-  font-family: var(--font-display);
-}
 .checkout-summary__promise {
   border-top: 1px solid #ffffff25;
   padding-top: 20px;
@@ -968,6 +955,41 @@ img {
   font-size: 13px;
   color: #555b70;
   margin-bottom: 30px;
+}
+.checkout-prices {
+  padding: 18px;
+  margin: 24px 0;
+  border: 1px solid #dce0e9;
+  border-radius: 8px;
+  background: #f7f8fb;
+}
+.checkout-prices__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.checkout-prices__row > span {
+  min-width: 0;
+}
+.checkout-prices__row small {
+  display: block;
+  color: #555b70;
+  margin-top: 5px;
+}
+.checkout-prices__row strong {
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-prices__total {
+  border-top: 1px solid #dce0e9;
+  margin-top: 10px;
+  padding-top: 14px;
+  font-size: 16px;
+  font-weight: 600;
 }
 .shop__checkout-form {
   margin-top: 20px;
@@ -1401,9 +1423,6 @@ img {
   .checkout-summary h2 {
     font-size: 16px;
     margin-top: 26px;
-  }
-  .checkout-summary__subtotal {
-    padding-top: 16px;
   }
   .checkout-summary__promise {
     display: none;

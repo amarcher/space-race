@@ -87,7 +87,26 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   }
   if (checkoutState.type === 'loading') return <p role="status">Loading secure payment form…</p>
 
+  const { checkout } = checkoutState
+  const shippingReady = quotes.ready() && !updating
+
   return <>
+    <section className="checkout-prices" aria-label="Order summary">
+      {checkout.lineItems.map((item) => (
+        <div className="checkout-prices__row" key={item.id}>
+          <span>{item.name}<small>{item.quantity} {item.quantity === 1 ? 'copy' : 'copies'}</small></span>
+          <strong>{item.total.amount}</strong>
+        </div>
+      ))}
+      <div className="checkout-prices__row">
+        <span>Shipping</span>
+        <strong>{shippingReady ? checkout.total.shippingRate.amount : 'Calculated below'}</strong>
+      </div>
+      <div className="checkout-prices__row checkout-prices__total">
+        <span>{shippingReady && checkout.tax.status === 'ready' ? 'Total' : 'Total so far'}</span>
+        <strong>{checkout.total.total.amount}</strong>
+      </div>
+    </section>
     {updating && <p role="status">Calculating shipping…</p>}
     {shippingError && <div role="alert">
       <p className="shop__error">{shippingError}</p>

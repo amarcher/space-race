@@ -254,12 +254,6 @@ function ProductPage() {
             <p>
               First Edition · {quantity} {quantity === 1 ? 'copy' : 'copies'}
             </p>
-            <div className="checkout-summary__subtotal">
-              <span>Game subtotal</span>
-              <strong>
-                ${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(2)}
-              </strong>
-            </div>
             <p>
               We'll email your order confirmation and send tracking when your
               game ships.
