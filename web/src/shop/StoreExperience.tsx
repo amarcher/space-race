@@ -247,9 +247,9 @@ export function FilmSection({ onWatch }: { onWatch: () => void }) {
         </span>
       </button>
       <div className="store-film__copy">
-        <h2 id="film-heading">One good card.</h2>
-        <a className="store-text-link" href="#your-move">
-          Try it <span aria-hidden="true">↗</span>
+        <h2 id="film-heading">Space Race in 30 seconds.</h2>
+        <a className="store-text-link" href="#get-the-game">
+          Get the game <span aria-hidden="true">↗</span>
         </a>
       </div>
     </section>
@@ -266,7 +266,7 @@ export function GameMoment() {
       aria-labelledby="moment-heading"
     >
       <div className="store-moment__heading">
-        <h2 id="moment-heading">Try a Slingshot.</h2>
+        <h2 id="moment-heading">Try a turn.</h2>
       </div>
       <div className={`moment-table${escaped ? ' moment-table--escaped' : ''}`}>
         <div className="moment-table__scene">
@@ -357,11 +357,9 @@ export function GameMoment() {
                 </button>
                 <a
                   className="store-text-link"
-                  href="/"
-                  target="_blank"
-                  rel="noreferrer"
+                  href="#get-the-game"
                 >
-                  Play the full game ↗
+                  Get the game ↗
                 </a>
               </div>
             </>
