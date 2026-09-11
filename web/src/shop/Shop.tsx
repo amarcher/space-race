@@ -67,26 +67,18 @@ function Confirmation() {
 
 function ShippingPolicy() {
   return (
-    <section className="shop__policy" aria-labelledby="policy-heading">
-      <h3 id="policy-heading">Shipping &amp; returns</h3>
+    <details className="shop__policy">
+      <summary>Shipping &amp; returns</summary>
       <ul>
+        <li>US shipping. Shipping and tax calculated at checkout.</li>
+        <li>Return within 30 days of delivery for a refund.</li>
         <li>
-          <strong>30-day returns.</strong> Changed your mind after it arrives?
-          Send it back within 30 days for a refund.
+          Damaged or lost in transit? Choose a free replacement or full refund.
+          No return needed.
         </li>
-        <li>
-          <strong>Damaged or lost in transit?</strong> Free replacement or a
-          full refund — your choice, nothing to send back.
-        </li>
-        <li>
-          <strong>Cancel anytime before it ships</strong> for a full refund.
-        </li>
-        <li>
-          Shipping and any sales tax are calculated at checkout. US addresses
-          only.
-        </li>
+        <li>Cancel before shipping for a full refund.</li>
       </ul>
-    </section>
+    </details>
   )
 }
 
@@ -241,9 +233,7 @@ function ProductPage() {
               ← Back to the game
             </button>
             <h1 ref={checkoutHeading} tabIndex={-1}>
-              Your next{' '}
-              <br />
-              game night.
+              Your order.
             </h1>
             <img
               className="checkout-summary__photo"
@@ -254,13 +244,6 @@ function ProductPage() {
             <p>
               First Edition · {quantity} {quantity === 1 ? 'copy' : 'copies'}
             </p>
-            <p>
-              We'll email your order confirmation and send tracking when your
-              game ships.
-            </p>
-            <p>
-              Shipping and any sales tax are calculated in the payment form.
-            </p>
             <p className="checkout-summary__promise">
               Cancel anytime before it ships. 30-day returns after it arrives.
             </p>
@@ -269,8 +252,7 @@ function ProductPage() {
             className="checkout-payment"
             aria-label="Shipping and payment"
           >
-            <h2>Make it yours.</h2>
-            <p>Choose your shipping service and complete your order below.</p>
+            <h2>Checkout</h2>
             {checkoutError ? (
               <div className="checkout-status" role="alert">
                 <p className="shop__error">{checkoutError}</p>
@@ -353,26 +335,14 @@ function ProductPage() {
                 </button>
               ))}
             </div>
-            <p className="shop__photo-caption">
-              Real cards. Real photos of the First Edition.
-            </p>
           </div>
           <div className="shop__info">
-            <p className="shop__badge">The physical game · First Edition</p>
-            <h2 id="product-heading">
-              Deal a little
-              <br />
-              adventure.
-            </h2>
-            <p className="shop__desc">
-              Bring the race off the screen and onto your table. Everything you
-              need to launch, dodge, and Slingshot your way to 1,000
-              light-years.
-            </p>
+            <p className="shop__badge">First Edition</p>
+            <h2 id="product-heading">Space Race</h2>
             <ul className="shop__contents">
-              <li>107 illustrated, UV-coated poker-size cards</li>
-              <li>Illustrated tuck box, ready to take along</li>
-              <li>Rulebook with the base game and advanced modes</li>
+              <li>107 UV-coated cards</li>
+              <li>Illustrated tuck box</li>
+              <li>Rulebook with advanced modes</li>
             </ul>
             <div className="shop__price-row">
               <p className="shop__price">${PRICE_LABEL}</p>
@@ -429,12 +399,7 @@ function ProductPage() {
           aria-labelledby="questions-heading"
         >
           <div>
-            <h2 id="questions-heading">
-              Before you{' '}
-              <br />
-              launch.
-            </h2>
-            <p>Want to get a feel for the cards first?</p>
+            <h2 id="questions-heading">Questions?</h2>
             <a
               className="store-text-link"
               href="/"
@@ -448,35 +413,19 @@ function ProductPage() {
             <details>
               <summary>How do you play?</summary>
               <p>
-                Play Ignition to launch, then distance cards to move toward
-                1,000 light-years. Slow your rivals with hazards, repair your
-                ship with remedies, and save a safety for a perfectly timed
-                Slingshot. The rulebook is included.
+                Race to 1,000 light-years. Play hazards to slow your rivals,
+                and repairs and safeties to keep moving.
               </p>
             </details>
             <details>
               <summary>Do we need a phone or an app?</summary>
-              <p>
-                No. The physical game is a complete tabletop card game for 2–4
-                players. The free digital game is another way to play, and a way
-                to try the race before your deck arrives.
-              </p>
-            </details>
-            <details>
-              <summary>What's in the box?</summary>
-              <p>
-                A 107-card poker-size deck with UV coating, an illustrated tuck
-                box, and a rulebook. The deck includes the distance, hazard,
-                remedy, and safety cards plus a card linking to the digital
-                game.
-              </p>
+              <p>No. Just the deck and 2–4 players.</p>
             </details>
             <details>
               <summary>When will my order ship?</summary>
               <p>
-                {availability}. Choose a shipping service at checkout. We'll
-                email tracking when your order ships. You can cancel for a full
-                refund anytime before it ships.
+                {availability}. Choose shipping at checkout. We'll email
+                tracking when it ships.
               </p>
             </details>
           </div>

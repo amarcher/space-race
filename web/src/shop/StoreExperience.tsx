@@ -110,7 +110,7 @@ export function Trailer({
         )}
         <p id={descriptionId}>
           {variant === 'campaign'
-            ? 'A Black Hole. A hidden Rescue Shuttle. A comeback worth celebrating.'
+            ? 'The Space Race film.'
             : 'Rescue Shuttle escaping a black hole, from the digital game.'}
         </p>
         {variant === 'campaign' && (
@@ -154,23 +154,15 @@ export function StoreHero({ onWatch }: { onWatch: () => void }) {
       <section className="store-hero" aria-labelledby="store-title">
         <div className="store-hero__light" aria-hidden="true" />
         <div className="store-hero__copy">
-          <p className="store-intro">
-            The card game for your next great game night
-          </p>
           <h1 id="store-title">
-            A thousand
+            Race to{' '}
             <br />
-            light-years.
-            <br />
-            One more game.
+            1,000 light-years.
           </h1>
-          <p>
-            Outrace your family. Outsmart a black hole. Turn one little card
-            into a very big comeback.
-          </p>
+          <p>A card game of hazards, narrow escapes, and family rivalry.</p>
           <div className="store-actions">
             <a className="shop__buy" href="#get-the-game">
-              Bring home the game
+              Get the game
             </a>
             <button className="store-watch" onClick={onWatch}>
               <span>
@@ -179,9 +171,6 @@ export function StoreHero({ onWatch }: { onWatch: () => void }) {
               Watch the film <small>0:30</small>
             </button>
           </div>
-          <p className="store-hero__note">
-            A real deck. A shared table. A whole universe between you.
-          </p>
         </div>
         <div
           className="store-hero__art"
@@ -210,23 +199,20 @@ export function StoreHero({ onWatch }: { onWatch: () => void }) {
             width="600"
             height="818"
           />
-          <span className="store-hero__art-note">
-            Small cards. Cosmic comebacks.
-          </span>
         </div>
       </section>
       <div className="store-facts" aria-label="Game details">
         <p>
           <strong>2–4</strong>
-          <span>players at the table</span>
+          <span>players</span>
         </p>
         <p>
           <strong>15–30</strong>
-          <span>minutes per race</span>
+          <span>minutes</span>
         </p>
         <p>
           <strong>107</strong>
-          <span>cards in the box</span>
+          <span>cards</span>
         </p>
         <p>
           <strong>1,000</strong>
@@ -261,25 +247,9 @@ export function FilmSection({ onWatch }: { onWatch: () => void }) {
         </span>
       </button>
       <div className="store-film__copy">
-        <p className="store-intro">For the look on their face.</p>
-        <h2 id="film-heading">
-          They thought
-          <br />
-          they had you.
-        </h2>
-        <p>Then you play the card you've been saving.</p>
-        <p>
-          Space Race is a race to 1,000 light-years, full of narrow escapes,
-          sneaky hazards, and last-second reversals. The best part happens right
-          across the table.
-        </p>
-        <div className="store-film__beats">
-          <span>Launch your ship.</span>
-          <span>Stall your rivals.</span>
-          <span>Turn the tables.</span>
-        </div>
+        <h2 id="film-heading">One good card.</h2>
         <a className="store-text-link" href="#your-move">
-          Try a comeback yourself <span aria-hidden="true">↗</span>
+          Try it <span aria-hidden="true">↗</span>
         </a>
       </div>
     </section>
@@ -296,15 +266,7 @@ export function GameMoment() {
       aria-labelledby="moment-heading"
     >
       <div className="store-moment__heading">
-        <div>
-          <p className="store-intro">A little taste of the game</p>
-          <h2 id="moment-heading">Your move, pilot.</h2>
-        </div>
-        <p>
-          The race can turn on a single card.{' '}
-          <br />
-          Here's how a Slingshot works.
-        </p>
+        <h2 id="moment-heading">Try a Slingshot.</h2>
       </div>
       <div className={`moment-table${escaped ? ' moment-table--escaped' : ''}`}>
         <div className="moment-table__scene">
@@ -364,20 +326,13 @@ export function GameMoment() {
         </div>
         <div className="moment-table__choice">
           <div aria-live="polite" aria-atomic="true">
-            <p className="store-intro">
-              {escaped
-                ? 'From 400 to 600 light-years'
-                : 'You have a secret weapon.'}
-            </p>
             <h3>
-              {escaped
-                ? 'Now who’s ahead?'
-                : 'A black hole stops your ship. Unless…'}
+              {escaped ? 'You’re ahead.' : 'Your ship is stuck.'}
             </h3>
             <p>
               {escaped
-                ? 'Reveal the matching safety immediately: the hazard is discarded, you draw an extra card, and your Rescue Shuttle earns 200 light-years. That’s a Slingshot.'
-                : 'You’re holding Rescue Shuttle, the safety that beats Black Hole. Play it the instant the hazard lands to turn trouble into a 200 light-year jump.'}
+                ? 'Hazard discarded. Draw an extra card and jump 200 light-years.'
+                : 'Play Rescue Shuttle immediately to escape and earn 200 light-years.'}
             </p>
           </div>
           {escaped ? (
@@ -416,9 +371,7 @@ export function GameMoment() {
               onClick={() => setEscaped(true)}
             >
               <img src="/shop/rescue-shuttle.jpg" alt="" loading="lazy" />
-              <span>
-                Play Rescue Shuttle<small>Reveal your safety</small>
-              </span>
+              <span>Play Rescue Shuttle</span>
               <span aria-hidden="true">↗</span>
             </button>
           )}
@@ -437,7 +390,6 @@ export function StoreFooter() {
   return (
     <footer className="store-footer">
       <Brand />
-      <p>The next adventure starts at your table.</p>
       <div>
         <a href="/get">Ways to play</a>
         <a href="/privacy.html">Privacy</a>
