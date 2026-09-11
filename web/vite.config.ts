@@ -45,7 +45,12 @@ export default defineConfig({
         // Commerce pages must come from the network so their client and API
         // stay on the same release. Excluding them from precache alone would
         // instead send them to the game's navigation fallback.
-        navigateFallbackDenylist: [/\/shop(?:\.html|\/admin)?\/?$/, /\/shop-admin\.html$/],
+        // Workbox matches pathname + search. Stripe returns with ?session_id=,
+        // and shop/admin links may also carry query parameters.
+        navigateFallbackDenylist: [
+          /^\/shop(?:\.html|\/admin)?\/?(?:\?.*)?$/,
+          /^\/shop-admin\.html(?:\?.*)?$/,
+        ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
           {
