@@ -739,9 +739,12 @@ img {
   padding-top: 24px;
   margin-top: 27px;
 }
-.shop__policy h3 {
+.shop__policy summary {
   font: 600 13px Inter, sans-serif;
   letter-spacing: 0;
+  cursor: pointer;
+}
+.shop__policy[open] summary {
   margin-bottom: 12px;
 }
 .shop__policy ul {
