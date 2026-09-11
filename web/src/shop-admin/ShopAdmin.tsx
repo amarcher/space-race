@@ -28,7 +28,7 @@ type Order = {
   tracking_number: string | null
   fulfilled_at: string | null
   notes: string | null
-  ship_window: 'early' | 'january'
+  ship_window: 'in_stock' | 'early' | 'january'
 }
 
 function formatAddress(a: ShippingAddress) {
@@ -108,7 +108,7 @@ function OrderRow({ order, secret, onChanged }: { order: Order; secret: string; 
       </td>
       <td>{formatAddress(order.shipping_address)}</td>
       <td>{order.quantity}</td>
-      <td>{order.ship_window}</td>
+      <td>{order.ship_window === 'in_stock' ? 'In stock' : order.ship_window}</td>
       <td>
         {order.shipping_service ?? '—'}
         <br />

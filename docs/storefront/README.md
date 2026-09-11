@@ -7,14 +7,14 @@ Local review URL: http://localhost:5192/shop.html
 ## What changed
 
 - Authentic printed-card hero using existing Unbounded and Inter typography.
-- On-demand portrait player for the latest v11 Rainbows campaign film.
+- On-demand portrait player for the available-now edition of the v11 Rainbows campaign film.
 - An interactive Black Hole / Rescue Shuttle Slingshot: 400 → 600 light-years,
   with optional escape footage from the digital game and a link to play.
-- Physical-product photography, contents, quantity, price, pre-order timing,
+- Physical-product photography, contents, quantity, price, current availability,
   returns, and FAQ. A mobile purchase bar hides while the offer is visible.
 - A branded checkout summary around the existing repaired Stripe Checkout Form.
   Stripe loads on checkout entry; film and escape videos load on request.
-- Sold-out handling, remaining-stock quantity cap, quantity-aware ship estimate,
+- Sold-out handling, remaining-stock quantity cap, on-hand stock limit,
   and honest unknown-inventory copy. Price and availability remain server-owned.
 - Browser Back and returning from payment retain the existing spent-session
   protection. Returning from checkout restores quantity, scroll, and focus.
@@ -48,7 +48,8 @@ new image/video generation was performed.
 
 The campaign source is `marketing/campaigns/2026-09-child-slingshot/latest-review.json`
 in the primary workspace, which currently selects `space-race-release-v11-rainbows.mp4`.
-The original remains unchanged and is streamed from its existing hosted URL.
+The original remains unchanged. The storefront streams an available-now derivative;
+see `available-now-release.md` for provenance and validation.
 The player includes the campaign’s Scott Buckley / CC BY 4.0 music credit,
 source and license links, and the excerpt-edit disclosure.
 The copied poster is `release-cover-v11.jpg` from that same campaign.
@@ -56,10 +57,10 @@ The three storefront JPEGs are resized format conversions of the real printed
 exports (`exports/cards/{black-hole,rescue-shuttle,warp-100}.png`), not new art.
 The game escape clip is the existing `rescue-shuttle.vs-black-hole.slingshot.mp4`.
 
-The campaign receipt still calls for final music-mix review and records launch
-holds. Using the video here for local review does not clear those release gates.
-The configured September 10 ship estimate is retained from the existing store;
-confirm fulfillment timing before a production release.
+The user approved shipping the storefront on September 11 and confirmed the
+product is available now. Social drafts and app-store releases are separate.
+The original September 10 review observations above are historical; see the
+available-now release receipt for the current checkout and inventory changes.
 
 ## Reopen the local preview
 
@@ -77,6 +78,6 @@ local QA fixture file and must not be committed or left in place for review.
 ```sh
 npm --prefix web run build
 cd web
-node --test tests/shop-shipping.test.ts tests/shop-service-worker.test.mjs
+node --test tests/shop-shipping.test.ts tests/shop-service-worker.test.mjs tests/shop-availability.test.ts
 ./node_modules/.bin/tsc -p api/tsconfig.json --noEmit
 ```

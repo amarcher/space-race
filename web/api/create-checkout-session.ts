@@ -4,10 +4,10 @@ import { sql } from './_lib/db.js'
 import {
   ALLOWED_SHIP_COUNTRIES,
   CURRENCY,
-  EARLY_BATCH_SELLABLE,
+  CURRENT_SHIP_WINDOW,
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
-  SELLABLE_INVENTORY,
+  availableInventory,
   UNIT_PRICE_CENTS,
 } from '../src/shop/constants.js'
 
@@ -26,21 +26,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [{ sold, earlySold }] = await sql`
+    const [{ sold, inStockSold }] = await sql`
       select
         coalesce(sum(quantity), 0)::int as sold,
-        coalesce(sum(quantity) filter (where ship_window = 'early'), 0)::int as "earlySold"
+        coalesce(sum(quantity) filter (where ship_window in ('early', 'in_stock')), 0)::int as "inStockSold"
       from orders
       where status != 'cancelled'
     `
-    if (sold + quantity > SELLABLE_INVENTORY) {
-      res.status(409).json({ error: "Sorry — we don't have enough copies left in this pre-order pool." })
+    if (quantity > availableInventory(sold, inStockSold)) {
+      res.status(409).json({ error: "Sorry — we don't have enough copies left in stock." })
       return
     }
-
-    // Whole order ships in the same window — never split a single order across
-    // the September and January batches. See docs/store-wayfinder.md.
-    const shipWindow = earlySold + quantity <= EARLY_BATCH_SELLABLE ? 'early' : 'january'
 
     const origin = (req.headers.origin as string | undefined) ?? `https://${req.headers.host}`
 
@@ -50,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'form',
       mode: 'payment',
-      metadata: { ship_window: shipWindow },
+      metadata: { ship_window: CURRENT_SHIP_WINDOW },
       // Zero tax anywhere without an active Stripe Tax registration — safe to
       // leave on ahead of actually registering. See docs/store-wayfinder.md
       // "Sales tax" for the MA-registration follow-up this depends on.

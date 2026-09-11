@@ -5,11 +5,10 @@ import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
 import { renderOrderConfirmation } from './_lib/orderEmail.js'
 import {
-  EARLY_SHIP_DATE_LABEL,
-  MAIN_SHIP_DATE_LABEL,
+  resolveShipWindow,
+  shippingConfirmationLine,
   PRODUCT_NAME,
   UNIT_PRICE_CENTS,
-  type ShipWindow,
 } from '../src/shop/constants.js'
 
 // Vercel parses the body as JSON by default, which breaks Stripe's signature
@@ -77,7 +76,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   // Decided at checkout-session creation (see create-checkout-session.ts) so the
   // window can't drift between then and now as other orders come in — 'january'
   // is the safe fallback for a session created before this metadata existed.
-  const shipWindow: ShipWindow = fullSession.metadata?.ship_window === 'early' ? 'early' : 'january'
+  const shipWindow = resolveShipWindow(fullSession.metadata?.ship_window)
 
   const inserted = await sql`
     insert into orders (
@@ -119,10 +118,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   }
 
   if (inserted.length > 0 && resend && customerEmail) {
-    const shipDateLine =
-      shipWindow === 'early'
-        ? `We'll email tracking info once your copy ships — expected around ${EARLY_SHIP_DATE_LABEL}.`
-        : `We'll email tracking info once your copy ships — expected ${MAIN_SHIP_DATE_LABEL}.`
+    const shipDateLine = shippingConfirmationLine(shipWindow)
     // Itemized, because shipping is a live carrier rate that can rival the item
     // price (a real order came in at $28.79 + $31.59 Express) — a lone "Total"
     // makes that look like an overcharge. Subtotal and tax come from Stripe

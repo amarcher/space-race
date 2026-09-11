@@ -10,7 +10,7 @@ Inter 400/600 for reading and controls, using the existing self-hosted fonts.
 Layout: left-aligned invitation beside a large fan of actual printed cards,
 then a portrait campaign film alongside the family-game story, an interactive
 Black Hole / Rescue Shuttle example, and real product photography alongside
-an explicit pre-order offer. A compact mobile order bar links to that offer.
+an explicit available-now offer. A compact mobile order bar links to that offer.
 
     brand                       film / how to play / get the game
     A thousand light-years.     real card fan against shuttle artwork
@@ -28,6 +28,6 @@ The short interactive example must explain the real Slingshot rule and link to
 the actual game. Keep checkout in the same visual world with a product summary,
 while preserving the repaired Stripe shipping and confirmation logic.
 
-Media: use latest v11 Rainbows cut from the campaign receipt. No generation
-jobs, music changes, or edits to the original campaign. This remains a local
-review build; campaign final-mix review and release conditions still apply.
+Media: use the available-now derivative of the v11 Rainbows cut. Preserve the
+original campaign and soundtrack. See available-now-release.md for the editing
+receipt and release validation.

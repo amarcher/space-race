@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Selected by the campaign's latest-review.json. Preserve the original cut.
+// Available-now derivative of the approved v11 campaign; original preserved.
 export const TRAILER_URL =
-  'https://d2ol7oe51mr4n9.cloudfront.net/user_3DJZHPWadiWvqmgkNAUYZ9knRyh/9d1a4ea8-2aa6-4e1f-a67f-d50107e76cc0.mp4'
+  'https://d2ol7oe51mr4n9.cloudfront.net/user_3DJZHPWadiWvqmgkNAUYZ9knRyh/048ff9f8-750e-4c3f-bc47-a11d4f674927.mp4'
 
 export function Brand() {
   return (

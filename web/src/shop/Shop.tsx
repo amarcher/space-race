@@ -7,13 +7,7 @@ import {
   StoreHero,
   Trailer,
 } from './StoreExperience'
-import {
-  EARLY_SHIP_DATE_LABEL,
-  MAIN_SHIP_DATE_LABEL,
-  MAX_QTY_PER_ORDER,
-  PRODUCT_NAME,
-  UNIT_PRICE_CENTS,
-} from './constants'
+import { MAX_QTY_PER_ORDER, PRODUCT_NAME, UNIT_PRICE_CENTS } from './constants'
 
 const CheckoutPanel = lazy(() => import('./CheckoutPanel'))
 type InventoryStatus = {
@@ -58,9 +52,9 @@ function Confirmation() {
         />
         <h1>You're in!</h1>
         <p>
-          Thanks for pre-ordering <strong>{PRODUCT_NAME}</strong>. A
-          confirmation email is on its way now with your exact ship window, and
-          we'll send tracking info once your copy actually ships.
+          Thanks for ordering <strong>{PRODUCT_NAME}</strong>. A confirmation
+          email is on its way with your order details, and we'll send tracking
+          info once your copy actually ships.
         </p>
         <a className="shop__buy" href="/">
           Play while you wait
@@ -145,12 +139,12 @@ function ProductPage() {
     ? Math.max(0, Math.min(MAX_QTY_PER_ORDER, inventory.sellableRemaining))
     : MAX_QTY_PER_ORDER
   const soldOut = maxQuantity === 0
-  const shipWindow =
+  const availability =
     inventory == null
-      ? 'Ship window confirmed at checkout'
-      : inventory.earlyRemaining >= quantity
-      ? `Estimated to ship ${EARLY_SHIP_DATE_LABEL}`
-      : `Estimated to ship ${MAIN_SHIP_DATE_LABEL}`
+      ? 'Availability confirmed at checkout'
+      : soldOut
+      ? 'Currently sold out'
+      : 'In stock · Available now'
   useEffect(() => {
     if (maxQuantity > 0)
       setQuantity((current) => Math.min(current, maxQuantity))
@@ -267,8 +261,8 @@ function ProductPage() {
               </strong>
             </div>
             <p>
-              {shipWindow}. Your confirmation email includes the assigned ship
-              window.
+              We'll email your order confirmation and send tracking when your
+              game ships.
             </p>
             <p>
               Shipping and any sales tax are calculated in the payment form.
@@ -282,9 +276,7 @@ function ProductPage() {
             aria-label="Shipping and payment"
           >
             <h2>Make it yours.</h2>
-            <p>
-              Choose your shipping service and complete your pre-order below.
-            </p>
+            <p>Choose your shipping service and complete your order below.</p>
             {checkoutError ? (
               <div className="checkout-status" role="alert">
                 <p className="shop__error">{checkoutError}</p>
@@ -396,7 +388,7 @@ function ProductPage() {
               </span>
             </div>
             <p className="shop__ship-window">
-              {soldOut ? 'This edition is currently sold out.' : shipWindow}
+              {soldOut ? 'This edition is currently sold out.' : availability}
             </p>
             <div className="shop__order-row">
               <label className="shop__qty">
@@ -424,10 +416,9 @@ function ProductPage() {
               >
                 {soldOut
                   ? 'Sold out'
-                  : `Pre-order · $${(
-                      (quantity * UNIT_PRICE_CENTS) /
-                      100
-                    ).toFixed(2)}`}
+                  : `Buy now · $${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(
+                      2
+                    )}`}
               </button>
             </div>
             {!CHECKOUT_CONFIGURED && (
@@ -435,9 +426,7 @@ function ProductPage() {
                 The store isn't open yet — check back soon.
               </p>
             )}
-            <p className="shop__order-note">
-              US shipping. Payment collected when you pre-order.
-            </p>
+            <p className="shop__order-note">US shipping. Secure checkout.</p>
             <ShippingPolicy />
           </div>
         </section>
@@ -489,12 +478,11 @@ function ProductPage() {
               </p>
             </details>
             <details>
-              <summary>When will my pre-order ship?</summary>
+              <summary>When will my order ship?</summary>
               <p>
-                {shipWindow}. Availability is checked again when you enter
-                checkout, and your confirmation email gives your assigned ship
-                window. You can cancel for a full refund anytime before your
-                order ships.
+                {availability}. Choose a shipping service at checkout. We'll
+                email tracking when your order ships. You can cancel for a full
+                refund anytime before it ships.
               </p>
             </details>
           </div>
