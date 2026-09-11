@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql } from './_lib/db.js'
-import { EARLY_BATCH_SELLABLE, SELLABLE_INVENTORY } from '../src/shop/constants.js'
+import { availableInventory } from '../src/shop/constants.js'
 
-// Live counts for the shop page's ship-window messaging — read-only, no auth
+// Live counts for the shop page's available stock — read-only, no auth
 // needed (the numbers are already implied by whether checkout succeeds).
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -10,20 +10,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const [{ sold, earlySold }] = await sql`
+  const [{ sold, inStockSold }] = await sql`
     select
       coalesce(sum(quantity), 0)::int as sold,
-      coalesce(sum(quantity) filter (where ship_window = 'early'), 0)::int as "earlySold"
+      coalesce(sum(quantity) filter (where ship_window in ('early', 'in_stock')), 0)::int as "inStockSold"
     from orders
     where status != 'cancelled'
   `
 
-  const earlyRemaining = Math.max(0, EARLY_BATCH_SELLABLE - earlySold)
-  const sellableRemaining = Math.max(0, SELLABLE_INVENTORY - sold)
+  const sellableRemaining = availableInventory(sold, inStockSold)
 
   res.status(200).json({
-    earlyRemaining,
+    // Retain these fields for already-open older clients.
+    earlyRemaining: sellableRemaining,
     sellableRemaining,
-    earlySoldOut: earlyRemaining === 0,
+    earlySoldOut: sellableRemaining === 0,
   })
 }

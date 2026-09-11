@@ -12,18 +12,38 @@ export const TOTAL_INVENTORY = 118
 export const INVENTORY_RESERVE = 5
 
 // September batch: 18 units, 8 reserved as personal Christmas gifts (pulled on
-// arrival, never in the sellable pool) — 10 sellable, first-come-first-served,
-// before falling back to the January ship window. See docs/store-wayfinder.md.
+// arrival, never in the sellable pool) — 10 sellable. Later stock is held out
+// until its arrival is confirmed. See docs/store-wayfinder.md.
 export const EARLY_BATCH_TOTAL = 18
 export const EARLY_BATCH_GIFT_RESERVE = 8
 export const EARLY_BATCH_SELLABLE = EARLY_BATCH_TOTAL - EARLY_BATCH_GIFT_RESERVE
 
 export const SELLABLE_INVENTORY = TOTAL_INVENTORY - INVENTORY_RESERVE - EARLY_BATCH_GIFT_RESERVE
 
+export const IN_STOCK_INVENTORY = EARLY_BATCH_SELLABLE
+
+export function availableInventory(sold: number, inStockSold: number): number {
+  return Math.max(0, Math.min(SELLABLE_INVENTORY - sold, IN_STOCK_INVENTORY - inStockSold))
+}
+
 export const EARLY_SHIP_DATE_LABEL = 'September 10th'
 export const MAIN_SHIP_DATE_LABEL = 'mid-January 2027'
 
-export type ShipWindow = 'early' | 'january'
+// New orders are available now. Keep the historical windows for existing
+// Stripe sessions and order records; their original promises must not change.
+export type ShipWindow = 'in_stock' | 'early' | 'january'
+export const CURRENT_SHIP_WINDOW: ShipWindow = 'in_stock'
+
+export function resolveShipWindow(value: string | undefined): ShipWindow {
+  return value === 'in_stock' || value === 'early' ? value : 'january'
+}
+
+export function shippingConfirmationLine(window: ShipWindow): string {
+  if (window === 'in_stock') return "We'll email tracking info when your order ships."
+  return window === 'early'
+    ? `We'll email tracking info once your copy ships — expected around ${EARLY_SHIP_DATE_LABEL}.`
+    : `We'll email tracking info once your copy ships — expected ${MAIN_SHIP_DATE_LABEL}.`
+}
 
 export const ALLOWED_SHIP_COUNTRIES = ['US']
 

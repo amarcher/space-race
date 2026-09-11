@@ -71,7 +71,7 @@ export type OrderConfirmationInput = {
 
 function receiptRows(input: OrderConfirmationInput): ReceiptRow[] {
   const rows: ReceiptRow[] = [
-    { label: `Pre-order — ${input.quantity} × ${money(input.unitPriceCents)}`, amount: input.subtotalCents },
+    { label: `Game — ${input.quantity} × ${money(input.unitPriceCents)}`, amount: input.subtotalCents },
     {
       label: input.shippingService ? `Shipping (${input.shippingService})` : 'Shipping',
       amount: input.shippingCents,
@@ -128,7 +128,7 @@ function shell({ title, preheader, body }: { title: string; preheader: string; b
       &nbsp;·&nbsp;
       <a href="${SITE}/shop" style="color:${DIM};text-decoration:underline;">The shop</a>
     </div>
-    <div style="padding-top:10px;color:#6f6d84;">You're receiving this because you pre-ordered from ${SITE.replace('https://', '')}.</div>
+    <div style="padding-top:10px;color:#6f6d84;">You're receiving this because you ordered from ${SITE.replace('https://', '')}.</div>
   </td></tr>
 </table>
 </td></tr>
@@ -156,7 +156,7 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
   <tr><td class="sr-pad" style="padding:30px 34px 4px;">
     <div style="font-family:${DISPLAY_FONT};font-size:24px;font-weight:700;color:${TEXT};line-height:1.25;">You're in!</div>
     <div style="font-family:${BODY_FONT};font-size:15px;line-height:1.6;color:${DIM};padding-top:12px;">
-      Thanks for pre-ordering <span style="color:${TEXT};">${escapeHtml(input.productName)}</span>.
+      Thanks for ordering <span style="color:${TEXT};">${escapeHtml(input.productName)}</span>.
       Here's exactly what you paid for.
     </div>
   </td></tr>
@@ -194,7 +194,7 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
   </td></tr>`
 
   const text = [
-    `Thanks for pre-ordering ${input.productName}!`,
+    `Thanks for ordering ${input.productName}!`,
     '',
     'YOUR ORDER',
     ...rows.map((row) => `  ${row.label}: ${money(row.amount)}`),
@@ -213,10 +213,10 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
   ].join('\n')
 
   return {
-    subject: 'Your Space Race pre-order is confirmed',
+    subject: 'Your Space Race order is confirmed',
     text,
     html: shell({
-      title: 'Your Space Race pre-order is confirmed',
+      title: 'Your Space Race order is confirmed',
       // Shown next to the subject in the inbox — lead with the useful bit.
       preheader: `${money(input.totalCents)} · ${input.shipDateLine}`,
       body,
