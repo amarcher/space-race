@@ -241,7 +241,7 @@ function ProductPage() {
               ← Back to the game
             </button>
             <h1 ref={checkoutHeading} tabIndex={-1}>
-              Your next
+              Your next{' '}
               <br />
               game night.
             </h1>
@@ -430,7 +430,7 @@ function ProductPage() {
         >
           <div>
             <h2 id="questions-heading">
-              Before you
+              Before you{' '}
               <br />
               launch.
             </h2>
