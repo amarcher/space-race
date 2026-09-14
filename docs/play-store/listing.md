@@ -179,7 +179,11 @@ the last second. No ads, no accounts.
 
 ---
 
-## Submission checklist (human steps)
+## Submission checklist (human steps) — ✅ COMPLETE, LIVE 2026-09-14
+
+> **Published:** https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace
+> — release 16 (1.3.0), 177 countries. Submitted 2026-09-03, accepted
+> 2026-09-14. The checklist is kept as the record of how it was done.
 
 > **Account, entity and brand are decided — see `account.md`.** Space Race
 > publishes from a Google Play **organization** account registered to FABLE
@@ -187,7 +191,7 @@ the last second. No ads, no accounts.
 > The org exemption means **no closed test and no 12 testers** — this goes
 > straight to production.
 
-1. [ ] **Register the organization account** ($25) and clear verification —
+1. [x] **Register the organization account** ($25) and clear verification —
    the full sequence, the dead-end accounts to avoid, and the entity reasoning
    are in **`account.md`**. This is the only remaining prerequisite, and it is
    2–4 weeks of Google's time, not ours.
@@ -197,19 +201,19 @@ the last second. No ads, no accounts.
    — the script refuses to overwrite an existing key, but the instinct to
    re-run it is the wrong one: this key is the only thing that can ever ship an
    update to the published app. Enroll in Play App Signing (default) at upload.
-3. [ ] **Create the app** in Play Console: package `tech.spaceexplorer.spacerace`
+3. [x] **Create the app** in Play Console: package `tech.spaceexplorer.spacerace`
    (locks permanently on first upload), name "Space Race" (or fallback), Free,
    Game. The button stays greyed until org verification clears.
-4. [ ] **Build a fresh AAB:** `./web/scripts/android-release.sh` →
+4. [x] **Build a fresh AAB:** `./web/scripts/android-release.sh` →
    `app/build/outputs/bundle/release/app-release.aab`. **Rebuild rather than
    reusing whatever is on disk** — the artifact is a build output, not a
    tracked file, and it silently goes stale behind `main`. Never hand Play a
    binary built with `--amazon`: that flag strips GA4 entirely.
-5. [ ] **Complete the Console forms** — this listing (name, descriptions,
+5. [x] **Complete the Console forms** — this listing (name, descriptions,
    graphics incl. the 1024×500 feature graphic, screenshots), **Data safety**,
    **Content rating (IARC)**, **Target audience**, **Ads = none**, Contact +
    Privacy policy, Pricing (free, all countries).
-6. [ ] **Submit to production** and await review.
+6. [x] **Submit to production** and await review. *(Accepted 2026-09-14.)*
 
 Everything above the checklist is drafted. The checklist items need the
 verified Console account and the Play Console web forms.

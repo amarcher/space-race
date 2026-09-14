@@ -133,19 +133,20 @@
         <span>App Store<span class="sub">iPhone &amp; iPad</span></span>
         <span class="chevron">&rarr;</span>
       </a>
-      <!-- Play is submitted but not published. Swap this <span> for the <a> in
-           the comment below only once the listing actually resolves:
-             curl -s -o /dev/null -w '%{http_code}\n' \
-               'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace'
-           A QR code printed on a physical card cannot be reprinted, so a dead
-           store link here is unrecoverable. -->
-      <span class="link link--soon" data-platform="android">
-        <span>Google Play<span class="sub">Coming soon &mdash; in review</span></span>
-      </span>
-      <!-- <a class="link" data-platform="android"
-             href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace">
-             <span>Google Play<span class="sub">Android phones &amp; tablets</span></span>
-             <span class="chevron">&rarr;</span></a> -->
+      <!-- Live on Google Play since 2026-09-14. If a store ever has to go dark
+           again, turn its row back into a <span class="link link--soon"> (the
+           script below skips those) and flip `live` in
+           src/components/StoreBanner.tsx in the same change. A QR code printed
+           on a physical card cannot be reprinted, so a dead store link here is
+           unrecoverable. -->
+      <a
+        class="link"
+        data-platform="android"
+        href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace"
+      >
+        <span>Google Play<span class="sub">Android phones &amp; tablets</span></span>
+        <span class="chevron">&rarr;</span>
+      </a>
       <!-- NOT amazon.com/gp/mas/dl/android?p=<pkg> — that 404s for this app.
            The /dp/ listing is the only URL that resolves. -->
       <a class="link" data-platform="amazon" href="https://www.amazon.com/dp/B0GXHBHD78">

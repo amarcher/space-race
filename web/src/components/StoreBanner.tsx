@@ -7,7 +7,9 @@ import './StoreBanner.css'
  * yet must never be linked, because a 404 from a QR code printed on a physical
  * card is unrecoverable — the card can't be reprinted.
  *
- * Play is `false` until the listing actually resolves. Verify before flipping:
+ * All three are live as of 2026-09-14 (Play was the last, accepted that day).
+ * If a store ever has to go dark again, flip its `live` flag here AND swap the
+ * matching row in public/get.html, and verify the listing before re-enabling:
  *   curl -s -o /dev/null -w '%{http_code}\n' \
  *     'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace'
  */
@@ -19,7 +21,7 @@ const STORES = {
     aria: 'Get the iOS app',
   },
   android: {
-    live: false,
+    live: true,
     url: 'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace',
     label: 'Free on Google Play — plays offline',
     aria: 'Get the Android app',

@@ -1,11 +1,13 @@
 # Space Race: 1000 Light-Years
 
 A cosmic race to 1,000 light-years — a Mille Bornes-style space card game that
-now exists in **three forms**:
+now exists in **five forms**:
 
 1. **Web app** — free in the browser: https://game.spaceexplorer.tech
 2. **iOS app** — [Space Race: 1000 Light-Years on the App Store](https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058)
-3. **Physical board game** — *First Edition*, printed via The Game Crafter
+3. **Android app** — [Space Race on Google Play](https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace) (live 2026-09-14)
+4. **Fire tablet app** — [Space Race on the Amazon Appstore](https://www.amazon.com/dp/B0GXHBHD78)
+5. **Physical board game** — *First Edition*, printed via The Game Crafter
    (107-card poker deck, tuck box, illustrated rulebook). First production run
    ordered 2026-07-23.
 
@@ -17,6 +19,9 @@ progress tracker: [`docs/store-wayfinder.md`](./docs/store-wayfinder.md).
 
 - **Play the game** — https://game.spaceexplorer.tech (also https://web-phi-tawny-67.vercel.app)
 - **App Store** — https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058
+- **Google Play** — https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace
+- **Amazon Appstore** — https://www.amazon.com/dp/B0GXHBHD78
+- **Every store in one place** — https://game.spaceexplorer.tech/get
 - **The Game Crafter (game editor)** — https://www.thegamecrafter.com/make/games/AE2D3926-864B-11F1-B4CD-6383B6BFA688
 
 ## Web game
