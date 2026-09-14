@@ -539,7 +539,7 @@ mode wouldn't be obvious from the Resend dashboard alone.
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
 but not on each other or on the Android Play launch — the hub page shipped
 with a Play row that just said "coming soon" until the listing went live on
-2026-09-14 (PR #204 flipped it).
+2026-09-14 (PR #210 flipped it).
 
 ## 2026-08-13 — three real bugs found by using the thing
 
