@@ -63,11 +63,12 @@ store queue. Platform routing is layered *on top* of the game instead:
 | Custom store bar | iOS non-Safari + in-app webviews, Android, Fire | `web/src/components/StoreBanner.tsx` |
 | `/get` wayfinder | anyone who opens it; promotes the row matching the device | `web/public/get.html` |
 
-`StoreBanner.tsx` and `get.html` each carry a `live` flag / commented-out link
-per store. **A store that has not published must stay dark** — a dead store
-link from a card that cannot be reprinted is unrecoverable. Google Play is
-gated off until its listing resolves; flip both files together, and verify
-first:
+`StoreBanner.tsx` carries a `live` flag per store and `get.html` a row that is
+either an `<a>` or a `link--soon` `<span>`. **A store that has not published
+must stay dark** — a dead store link from a card that cannot be reprinted is
+unrecoverable. All three stores are live as of 2026-09-14 (Google Play was the
+last to land). If one ever has to go dark again, flip both files together, and
+verify before re-enabling:
 
 ```
 curl -s -o /dev/null -w '%{http_code}\n' \

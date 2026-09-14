@@ -260,9 +260,16 @@ of the on-device pass.)*
 > gates analytics differently between the two Android ships. Web and iOS keep
 > GA4. See `docs/play-store/account.md`.
 
-## Phase 4 — Ship to Google Play
+## Phase 4 — Ship to Google Play — ✅ DONE 2026-09-14
 
-Everything below is drafted/automatable **except** the steps needing the paid
+**Space Race is live on Google Play:**
+https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace
+(production release 16 / 1.3.0, submitted 2026-09-03, accepted 2026-09-14,
+177 countries). The store links in `web/src/components/StoreBanner.tsx` and
+`web/public/get.html` were flipped live the same day. The checklist below is
+kept as the record of how it was done.
+
+Everything below was drafted/automatable **except** the steps needing the paid
 Play Console account and interactive Console web forms — flagged **👤 HUMAN**.
 
 > **The account question is settled (2026-09-03) — see `docs/play-store/account.md`.**
@@ -288,7 +295,7 @@ Play Console account and interactive Console web forms — flagged **👤 HUMAN*
       deliberate divergence is `src/audio/sfx.ts` gating native audio to iOS,
       which exists to defeat iOS's ring/silent switch; Android has no such switch
       and correctly uses WebAudio.
-- [ ] **Target API level** — Play requires **new apps target API 35+** (as of
+- [x] **Target API level** — Play requires **new apps target API 35+** (as of
       Aug 2025). We target 36 → compliant.
 - [x] **Upload key + Play App Signing** — **done 2026-07-08**; the key exists
       and is backed up to `~/SpaceRace-PlayUpload-Key-BACKUP/`. Do not re-run
@@ -299,36 +306,37 @@ Play Console account and interactive Console web forms — flagged **👤 HUMAN*
       **Play App Signing** (default for new apps): Google holds the real
       app-signing key; you only ever ship the *upload* key. **Back up the
       keystore** off-machine.
-- [ ] **Build the AAB** — `./web/scripts/android-release.sh` →
+- [x] **Build the AAB** — `./web/scripts/android-release.sh` →
       `app/build/outputs/bundle/release/app-release.aab` (signed once the key
       exists). `--apk` also emits a sideloadable release APK for device testing.
-- [ ] 👤 **HUMAN — Play Console account** ($25 one-time) + create the app
+- [x] 👤 **HUMAN — Play Console account** ($25 one-time) + create the app
       (package `tech.spaceexplorer.spacerace`, "Space Race", free, game).
-- [ ] 👤 **HUMAN — Internal testing track** — upload the AAB, add testers
+- [x] 👤 **HUMAN — Internal testing track** *(skipped — org account, straight to production)* — upload the AAB, add testers
       (family), install from the Play link. The low-friction equivalent of
       TestFlight; no review wait.
-- [ ] 👤 **HUMAN — Store listing** — fill from `docs/play-store/listing.md`:
+- [x] 👤 **HUMAN — Store listing** — fill from `docs/play-store/listing.md`:
       title, short + full description, app icon (512×512), **feature graphic
       (1024×500, required)**, phone + tablet screenshots, category, contact,
       privacy-policy URL (already live).
-- [ ] 👤 **HUMAN — Data safety form** — Play's privacy declaration. Matches the
+- [x] 👤 **HUMAN — Data safety form** *(as shipped: no data collected — the Play build has no GA4, see the analytics note above)* — Play's privacy declaration. Matches the
       iOS nutrition label: collects **App interactions** (GA4 analytics), not
       shared, not used for tracking, no account. Draft answers in the listing doc.
-- [ ] 👤 **HUMAN — Content rating** — complete the IARC questionnaire (expect
+- [x] 👤 **HUMAN — Content rating** — complete the IARC questionnaire (expect
       **Everyone / PEGI 3**), same honest answers as the iOS 4+ questionnaire.
-- [ ] 👤 **HUMAN — Target audience, Ads, Countries/Pricing** — target **13+**
+- [x] 👤 **HUMAN — Target audience, Ads, Countries/Pricing** *(as shipped: 6–17 and 18+, i.e. child-directed under the Families policy; adding 5-and-under is the agreed follow-up)* — target **13+**
       (staying out of the *Designed for Families* program, which — like Apple's
       Kids category — would restrict the GA4 analytics), declare **no ads**, free
       in all countries.
-- [ ] 👤 **HUMAN — Submit for review** — promote Internal → Production (or a
+- [x] 👤 **HUMAN — Submit for review** *(sent 2026-09-03, accepted 2026-09-14)* — promote Internal → Production (or a
       closed/open test first). First Play reviews can take a few days.
-- [ ] **Guideline insurance (min functionality)** — same as iOS: offline +
+- [x] **Guideline insurance (min functionality)** — same as iOS: offline +
       haptics + share + a polished game usually clears Play's spam/min-function
       bar; Play is generally more permissive than App Review about webview
       wrappers.
 
-**Exit criteria:** a published Play listing; installing on a fresh Android phone
-and winning a game with zero network. *(Blocked only on 👤 HUMAN steps.)*
+**Exit criteria:** a published Play listing ✅ (2026-09-14); installing on a
+fresh Android phone and winning a game with zero network — *still unverified on
+real hardware; only the arm64 emulator has run it.*
 
 ---
 

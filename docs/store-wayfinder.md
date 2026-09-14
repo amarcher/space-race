@@ -372,8 +372,7 @@ that fans out to everywhere the game exists:
 
 - Play free (web)
 - App Store (iOS)
-- Google Play (Android) — once live, hopefully by January 2027 alongside the
-  physical launch (see `docs/android-roadmap.md` for ship status)
+- Google Play (Android) — live 2026-09-14 (see `docs/android-roadmap.md`)
 - Amazon Appstore
 - **Buy the physical game** → `/shop`
 
@@ -538,9 +537,9 @@ cause of "shows verified but emails don't actually arrive," and that failure
 mode wouldn't be obvious from the Resend dashboard alone.
 
 Phases 14–15 depend on 13 (shop must be live before anything can link to it)
-but not on each other or on the Android Play launch — the hub page can ship
-with a Play row that just says "coming soon" until Android roadmap Phase
-whatever lands.
+but not on each other or on the Android Play launch — the hub page shipped
+with a Play row that just said "coming soon" until the listing went live on
+2026-09-14 (PR #204 flipped it).
 
 ## 2026-08-13 — three real bugs found by using the thing
 
