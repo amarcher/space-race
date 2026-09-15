@@ -112,6 +112,12 @@ function selectRates(all: Array<Record<string, unknown>>) {
   return picked.sort((a, b) => Number(a.amount) - Number(b.amount))
 }
 
+// Shippo rejects parcel numbers with more than four decimal places (HTTP 400).
+// Float math makes 3 × 8.1 oz + 1 oz = 25.299999999999997, so round first.
+function shippoDecimal(value: number): string {
+  return String(Math.round(value * 100) / 100)
+}
+
 async function liveShippingOptions(address: ShippoAddress, quantity: number) {
   // No placeholder/flat-rate fallback, ever — a fake accepted rate is a real
   // rate we'd be on the hook for honoring. If Shippo can't quote (missing
@@ -143,11 +149,11 @@ async function liveShippingOptions(address: ShippoAddress, quantity: number) {
       },
       parcels: [
         {
-          length: String(parcel.lengthIn),
-          width: String(parcel.widthIn),
-          height: String(parcel.heightIn),
+          length: shippoDecimal(parcel.lengthIn),
+          width: shippoDecimal(parcel.widthIn),
+          height: shippoDecimal(parcel.heightIn),
           distance_unit: 'in',
-          weight: String(parcel.weightOz),
+          weight: shippoDecimal(parcel.weightOz),
           mass_unit: 'oz',
         },
       ],
@@ -156,7 +162,9 @@ async function liveShippingOptions(address: ShippoAddress, quantity: number) {
   })
 
   if (!response.ok) {
-    throw new Error(`Shippo shipment request failed: ${response.status}`)
+    // Shippo's body names the failing field; it echoes no address data we log.
+    const detail = (await response.text().catch(() => '')).slice(0, 500)
+    throw new Error(`Shippo shipment request failed: ${response.status} ${detail}`)
   }
 
   const shipment = (await response.json()) as { rates?: Array<Record<string, unknown>> }
