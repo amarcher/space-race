@@ -7,7 +7,12 @@ import {
   StoreHero,
   Trailer,
 } from './StoreExperience'
-import { MAX_QTY_PER_ORDER, PRODUCT_NAME, UNIT_PRICE_CENTS } from './constants'
+import {
+  MAX_QTY_PER_ORDER,
+  PRODUCT_NAME,
+  UNIT_PRICE_CENTS,
+  quantityFromMetaCart,
+} from './constants'
 
 const CheckoutPanel = lazy(() => import('./CheckoutPanel'))
 type InventoryStatus = {
@@ -83,7 +88,9 @@ function ShippingPolicy() {
 }
 
 function ProductPage() {
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState(
+    () => quantityFromMetaCart(window.location.search) ?? 1
+  )
   const [checkingOut, setCheckingOut] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
