@@ -7,6 +7,26 @@ export const UNIT_PRICE_CENTS = 2879
 export const CURRENCY = 'usd'
 export const MAX_QTY_PER_ORDER = 3
 
+// Content ID of the First Edition in the Meta Commerce catalog "Space Race Store".
+export const META_CATALOG_CONTENT_ID = 'space-race-first-edition'
+
+// Meta Shops send buyers to /shop?products=<content id>:<qty>,... (plus a coupon
+// and utm_*/cart_origin/fbclid params we ignore). Returns the requested quantity
+// of our product clamped to 1..MAX_QTY_PER_ORDER, or null when the URL carries no
+// usable Meta cart. Inventory clamping still happens on the page and server.
+export function quantityFromMetaCart(search: string): number | null {
+  const products = new URLSearchParams(search).get('products')
+  if (!products) return null
+  for (const entry of products.split(',')) {
+    const [id, qty] = entry.split(':')
+    if (id?.trim() !== META_CATALOG_CONTENT_ID) continue
+    const quantity = Math.trunc(Number(qty))
+    if (!Number.isFinite(quantity) || quantity < 1) return null
+    return Math.min(quantity, MAX_QTY_PER_ORDER)
+  }
+  return null
+}
+
 export const TOTAL_INVENTORY = 118
 // Held back for misprints/damage — see docs/store-wayfinder.md "Decisions locked".
 export const INVENTORY_RESERVE = 5
