@@ -55,20 +55,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // "Sales tax" for the MA-registration follow-up this depends on.
       automatic_tax: { enabled: true },
       shipping_address_collection: { allowed_countries: ALLOWED_SHIP_COUNTRIES },
-      shipping_options: [
-        {
-          shipping_rate_data: {
-            type: 'fixed_amount',
-            // Not "Calculating…" — nothing is in flight yet. Stripe shows this
-            // preselected at $0.00 before an address exists, so a progress
-            // wording reads as free shipping. Say what the customer must do.
-            display_name: 'Enter your shipping address',
-            fixed_amount: { amount: 0, currency: CURRENCY },
-            tax_code: 'txcd_92010001',
-            tax_behavior: 'exclusive',
-          },
-        },
-      ],
       line_items: [
         {
           quantity,
