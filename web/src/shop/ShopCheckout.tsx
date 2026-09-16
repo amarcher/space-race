@@ -145,7 +145,11 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
       ))}
       <div className="checkout-prices__row">
         <span>Shipping</span>
-        <strong>{shippingReady ? checkout.total.shippingRate.amount : quoting || hasAddress ? 'Calculating…' : 'Calculated below'}</strong>
+        {/* No $0 placeholder option exists any more, so until rates arrive and
+            one is selected there may be no shippingRate at all. */}
+        <strong>{shippingReady && checkout.total.shippingRate
+          ? checkout.total.shippingRate.amount
+          : quoting || hasAddress ? 'Calculating…' : 'Calculated below'}</strong>
       </div>
       <div className="checkout-prices__row checkout-prices__total">
         <span>{shippingReady && checkout.tax.status === 'ready' ? 'Total' : 'Total so far'}</span>

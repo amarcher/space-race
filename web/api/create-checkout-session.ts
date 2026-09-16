@@ -40,9 +40,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const origin = (req.headers.origin as string | undefined) ?? `https://${req.headers.host}`
 
-    // shipping_options here is a required $0 placeholder — /api/shipping-rates
-    // replaces it server-side once the customer enters a real address (see
-    // Checkout Form change event and docs/store-wayfinder.md).
+    // No shipping_options at creation. It is optional alongside
+    // shipping_address_collection, and updating it later is supported (Stripe
+    // changelog, Basil 2025-03-31), which is what /api/shipping-rates does once
+    // the customer enters an address. Seeding a $0 placeholder instead rendered
+    // a preselected, focus-grabbing "Shipping method" row offering nothing —
+    // leaving it out keeps the section collapsed until real rates exist.
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'form',
       mode: 'payment',
