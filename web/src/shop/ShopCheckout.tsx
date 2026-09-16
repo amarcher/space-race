@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckoutForm, useCheckoutForm } from '@stripe/react-stripe-js/checkout'
-import type { StripeCheckoutFormConfirmEvent, StripeCheckoutFormOptions } from '@stripe/stripe-js'
+import type { StripeCheckoutFormChangeEvent, StripeCheckoutFormConfirmEvent, StripeCheckoutFormOptions } from '@stripe/stripe-js'
 import { createShippingQuotes, type ShippingDetails } from './shipping-quotes'
 
 // Wallets collect addresses outside the form and bypass its shipping updates.
@@ -60,11 +60,9 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
     }
   }
 
-  // The change event's own payload has proven unreliable as the sole trigger:
-  // production quoted an edited address exactly once, where a live edit should
-  // have re-quoted on every complete keystroke, leaving the previous address's
-  // rates on screen. getForm().getValue() is the same authoritative read that
-  // onConfirm already trusts, so both paths now ask the form, not the event.
+  // Confirm-time only. getValue() validates the whole form as a side effect —
+  // calling it from the change handler renders every shipping and card field
+  // in an error state on a pristine form, before the buyer has typed anything.
   const readShippingAddress = async (): Promise<ShippingDetails | null> => {
     const state = checkoutRef.current
     if (state.type !== 'success') return null
@@ -82,8 +80,10 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
     quoteTimer.current = setTimeout(() => { void refreshShipping() }, QUOTE_DEBOUNCE_MS)
   }
 
-  const onChange = async () => {
-    const details = await readShippingAddress()
+  // Read the event's own payload, never getValue() — see above. The event is
+  // the only non-validating source of the address while the buyer is typing.
+  const onChange = (event: StripeCheckoutFormChangeEvent) => {
+    const details = event.status.shippingAddress?.complete ? event.value.shippingAddress ?? null : null
     quotes.setAddress(details)
     setHasAddress(details !== null)
     if (details) scheduleRefresh()
