@@ -92,23 +92,32 @@ payment, for privacy. Consequences:
 
 - `quotableAddress()` in `src/shop/shipping-quotes.ts` requires `line1` and
   would reject every wallet address. It needs a second, looser mode.
-- `/api/shipping-rates` sends `street1: address.line1` to Shippo. **Unverified:
-  whether Shippo returns USPS rates from city/state/ZIP alone.** It should —
-  USPS retail rates are zone-based, computed origin-ZIP to destination-ZIP —
-  but this must be confirmed against the real API before any of the above is
-  worth building. It is the cheapest way to kill the project early if it fails.
+- `/api/shipping-rates` sends `street1: address.line1` to Shippo. **Verified
+  2026-09-15 against the live Shippo API: quoting from city/state/ZIP alone
+  returns rates identical to the cent.** Three destinations (New York NY 10001,
+  San Francisco CA 94103, Boston MA 02108), 11 rates each, street line present
+  vs. omitted, every amount matching — e.g. SF USPS Ground Advantage $6.95 and
+  UPS Ground $10.00 either way. As expected: carrier retail rates are zone-based,
+  origin-ZIP to destination-ZIP, and the street line does not enter the pricing.
+  **This was the question that could have killed the project. It doesn't.**
+- Shippo returns a warning on the nameless request — `Attribute
+  "address_to.name" must not be empty.` — but quotes anyway. Harmless for
+  rating; a real name *is* needed to buy the label, which happens after the
+  buyer authorises and the full details arrive.
 - The full address arrives only in the confirm event, so the rate shown in the
-  wallet sheet is a ZIP-level estimate that we then commit to. Fine for USPS;
-  worth a sanity check that the final label cost matches.
+  wallet sheet is quoted before we know the street. Given the result above that
+  is not an estimate at all — the street would not have changed the price — so
+  there is nothing to reconcile at confirm time.
 
 ## Recommendation
 
 Do the Dashboard changes now — Cash App Pay off, PayPal on — and treat the
 wallets as a separate project, not a follow-up commit.
 
-Before committing to it, spend an hour on the Shippo partial-address question
-above. If Shippo will not quote without a street, the migration buys nothing and
-the answer is "card and PayPal only".
+The go/no-go question — can Shippo quote without a street line — is **answered
+yes**, so the migration is viable whenever it is worth the time. It is a real
+project, not a follow-up commit: the main cost is re-testing the card path,
+which is the majority of orders and currently works.
 
 Sequencing note: land #214 first. Re-testing a checkout migration on top of
 unverified shipping fixes would make it impossible to tell which layer broke.
