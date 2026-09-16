@@ -88,9 +88,10 @@ function ShippingPolicy() {
 }
 
 function ProductPage() {
-  const [quantity, setQuantity] = useState(
-    () => quantityFromMetaCart(window.location.search) ?? 1
-  )
+  // Non-null when the visitor arrived from a Meta Shops cart, which is also
+  // what makes the itemised cart summary appear.
+  const [metaCart] = useState(() => quantityFromMetaCart(window.location.search))
+  const [quantity, setQuantity] = useState(() => metaCart ?? 1)
   const [checkingOut, setCheckingOut] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -343,6 +344,22 @@ function ProductPage() {
             </div>
           </div>
           <div className="shop__info">
+            {metaCart !== null && (
+              <div className="shop__cart" aria-label="Your cart">
+                <p className="shop__cart-heading">Your cart</p>
+                <p className="shop__cart-line">
+                  <span>
+                    {quantity} × {PRODUCT_NAME}
+                  </span>
+                  <span>
+                    ${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(2)}
+                  </span>
+                </p>
+                <p className="shop__cart-note">
+                  Shipping and any sales tax are calculated at checkout.
+                </p>
+              </div>
+            )}
             <p className="shop__badge">First Edition</p>
             <h2 id="product-heading">Space Race</h2>
             <ul className="shop__contents">
