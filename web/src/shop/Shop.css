@@ -1020,6 +1020,14 @@ img {
   font-size: 16px;
   font-weight: 600;
 }
+.checkout-prices__hint {
+  margin: 10px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #dce0e9;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #555b70;
+}
 .shop__checkout-form {
   margin-top: 20px;
 }

@@ -111,3 +111,52 @@ test('a failed stale address does not prevent a successful quote for the current
   assert.deepEqual(calls, ['02108', '10001'])
   assert.equal(quotes.ready(), true)
 })
+
+// Andrew reported an edited address keeping the previous address's rates on
+// screen. These replay what ShopCheckout does on a change event — including
+// that it only refreshes when the section reports complete — so that a future
+// regression shows up here rather than in a customer's total.
+const replayForm = (update: (details: ShippingDetails) => Promise<void>) => {
+  const quotes = createShippingQuotes(update)
+  return {
+    quotes,
+    async onChange(details: ShippingDetails | null) {
+      quotes.setAddress(details)
+      if (details) await quotes.refresh()
+    },
+  }
+}
+
+test('an address edited through an incomplete state requotes the new address', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => { calls.push(details.address.postal_code!) })
+  await form.onChange(address('02108'))
+  await form.onChange(null)
+  assert.equal(form.quotes.ready(), false)
+  await form.onChange(address('10001'))
+  assert.deepEqual(calls, ['02108', '10001'])
+  assert.equal(form.quotes.ready(), true)
+})
+
+test('an edit that lands back on the quoted address does not block payment', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => { calls.push(details.address.postal_code!) })
+  await form.onChange(address('02108'))
+  await form.onChange(null)
+  await form.onChange(address('02108'))
+  assert.deepEqual(calls, ['02108'])
+  assert.equal(form.quotes.ready(), true)
+})
+
+test('a good address entered after a failed one quotes and unblocks payment', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => {
+    calls.push(details.address.postal_code!)
+    if (details.address.postal_code === '99999') throw new Error('No rates')
+  })
+  await assert.rejects(form.onChange(address('99999')))
+  await form.onChange(null)
+  await form.onChange(address('10001'))
+  assert.deepEqual(calls, ['99999', '10001'])
+  assert.equal(form.quotes.ready(), true)
+})
