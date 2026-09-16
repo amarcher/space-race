@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckoutForm, useCheckoutForm } from '@stripe/react-stripe-js/checkout'
 import type { StripeCheckoutFormChangeEvent, StripeCheckoutFormConfirmEvent, StripeCheckoutFormOptions } from '@stripe/stripe-js'
-import { createShippingQuotes, type ShippingDetails } from './shipping-quotes'
+import { createShippingQuotes, quotableAddress, type ShippingDetails } from './shipping-quotes'
 
 // Wallets collect addresses outside the form and bypass its shipping updates.
 // Stripe's dynamic-shipping guide requires the regular form for this flow.
@@ -27,6 +27,7 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [hasAddress, setHasAddress] = useState(false)
+  const [quotePending, setQuotePending] = useState(false)
   const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (quoteTimer.current) clearTimeout(quoteTimer.current) }, [])
   const [quotes] = useState(() => createShippingQuotes(async (shippingDetails) => {
@@ -57,6 +58,7 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
       setShippingError(error instanceof Error ? error.message : 'Could not calculate shipping. Please try again.')
     } finally {
       setUpdating(false)
+      setQuotePending(false)
     }
   }
 
@@ -67,7 +69,7 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
     const state = checkoutRef.current
     if (state.type !== 'success') return null
     const form = await state.checkout.getForm()?.getValue()
-    return form?.status.shippingAddress?.complete ? form.value.shippingAddress ?? null : null
+    return quotableAddress(form?.value.shippingAddress)
   }
 
   // Every keystroke in an already-valid address line ("350 Fifth Ave" →
@@ -77,24 +79,34 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   // stale rate stops being displayed and Pay stays blocked during the wait.
   const scheduleRefresh = () => {
     if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    // Show the pending state from the keystroke, not from the request: the
+    // debounce window is otherwise dead air in which the old rate still reads
+    // as though it applies to the address now on screen.
+    if (!quotes.ready()) setQuotePending(true)
     quoteTimer.current = setTimeout(() => { void refreshShipping() }, QUOTE_DEBOUNCE_MS)
+  }
+
+  const cancelScheduledRefresh = () => {
+    if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    quoteTimer.current = null
+    setQuotePending(false)
   }
 
   // Read the event's own payload, never getValue() — see above. The event is
   // the only non-validating source of the address while the buyer is typing.
   const onChange = (event: StripeCheckoutFormChangeEvent) => {
-    const details = event.status.shippingAddress?.complete ? event.value.shippingAddress ?? null : null
+    const details = quotableAddress(event.value.shippingAddress)
     quotes.setAddress(details)
     setHasAddress(details !== null)
     if (details) scheduleRefresh()
-    else if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    else cancelScheduledRefresh()
   }
 
   const onConfirm = async (event: StripeCheckoutFormConfirmEvent) => {
     if (checkoutState.type !== 'success') return
     setPaymentError(null)
     // Pay beats the debounce: quote now rather than racing a queued timer.
-    if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    cancelScheduledRefresh()
     try {
       // Read the current form as well as change events, so an edit followed
       // immediately by Pay cannot reuse rates for the previous address.
@@ -120,7 +132,8 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   if (checkoutState.type === 'loading') return <p role="status">Loading secure payment form…</p>
 
   const { checkout } = checkoutState
-  const shippingReady = quotes.ready() && !updating
+  const quoting = updating || quotePending
+  const shippingReady = quotes.ready() && !quoting
 
   return <>
     <section className="checkout-prices" aria-label="Order summary">
@@ -132,22 +145,19 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
       ))}
       <div className="checkout-prices__row">
         <span>Shipping</span>
-        <strong>{shippingReady ? checkout.total.shippingRate.amount : hasAddress ? 'Calculating…' : 'Calculated below'}</strong>
+        <strong>{shippingReady ? checkout.total.shippingRate.amount : quoting || hasAddress ? 'Calculating…' : 'Calculated below'}</strong>
       </div>
       <div className="checkout-prices__row checkout-prices__total">
         <span>{shippingReady && checkout.tax.status === 'ready' ? 'Total' : 'Total so far'}</span>
         <strong>{checkout.total.total.amount}</strong>
       </div>
       {!hasAddress && (
-        // Stripe treats the recipient name as part of the shipping address, so
-        // no rate can be quoted until it is filled. Say so, rather than leaving
-        // the customer to guess why the shipping line has no price.
         <p className="checkout-prices__hint">
-          Enter your name and shipping address below to see shipping options.
+          Enter your shipping address below to see shipping options.
         </p>
       )}
     </section>
-    {updating && <p role="status">Calculating shipping…</p>}
+    {quoting && <p className="checkout-quoting" role="status">Calculating shipping…</p>}
     {shippingError && <div role="alert">
       <p className="shop__error">{shippingError}</p>
       <button className="shop__back" disabled={updating} onClick={() => refreshShipping(true)}>Retry shipping</button>

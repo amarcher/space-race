@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createShippingQuotes, type ShippingDetails } from '../src/shop/shipping-quotes.ts'
+import { createShippingQuotes, quotableAddress, type ShippingDetails } from '../src/shop/shipping-quotes.ts'
 
 const address = (postal_code: string): ShippingDetails => ({
   name: 'Checkout Test',
@@ -159,4 +159,39 @@ test('a good address entered after a failed one quotes and unblocks payment', as
   await form.onChange(address('10001'))
   assert.deepEqual(calls, ['99999', '10001'])
   assert.equal(form.quotes.ready(), true)
+})
+
+// A rate depends on the postal address, never the recipient name, so a buyer
+// who has typed an address but not yet their name still gets shipping shown.
+test('a complete address quotes without a recipient name', () => {
+  const details = quotableAddress({
+    name: '',
+    address: { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' },
+  })
+  assert.notEqual(details, null)
+  assert.equal(details!.name, '')
+  assert.equal(details!.address.postal_code, '02108')
+})
+
+test('adding the name later does not requote the same address', async () => {
+  const calls: string[] = []
+  const quotes = createShippingQuotes(async (details) => { calls.push(details.name) })
+  const at = { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' }
+  quotes.setAddress(quotableAddress({ name: '', address: at }))
+  await quotes.refresh()
+  quotes.setAddress(quotableAddress({ name: 'Checkout Test', address: at }))
+  await quotes.refresh()
+  assert.deepEqual(calls, [''])
+  assert.equal(quotes.ready(), true)
+})
+
+test('half-typed addresses do not burn a quote', () => {
+  const base = { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' }
+  assert.equal(quotableAddress(null), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, line1: '' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, city: '  ' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, state: '' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, postal_code: '021' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, country: 'CA' } }), null)
+  assert.notEqual(quotableAddress({ name: 'A', address: { ...base, postal_code: '02108-1234' } }), null)
 })
