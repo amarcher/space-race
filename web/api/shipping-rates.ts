@@ -1,19 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type Stripe from 'stripe'
 import { stripe } from './_lib/stripe.js'
+import { FROM_ADDRESS, SHIPPO_API_BASE } from './_lib/shippo.js'
 import { ALLOWED_SHIP_COUNTRIES, CURRENCY, parcelForQuantity } from '../src/shop/constants.js'
 
 const SHIPPO_API_TOKEN = process.env.SHIPPO_API_TOKEN
-const SHIPPO_API_BASE = 'https://api.goshippo.com'
-
-const FROM_ADDRESS = {
-  name: 'Space Race',
-  street1: '137 Woburn Street',
-  city: 'Lexington',
-  state: 'MA',
-  zip: '02420',
-  country: 'US',
-}
 
 type ShippoAddress = {
   line1?: string | null

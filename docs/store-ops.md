@@ -16,7 +16,8 @@ first time you actually pack a parcel.
    unfulfilled orders — they sort first.
 2. For each: note the **Ship via** service and the address.
 3. Pack it in the right packaging **for that service** (see below).
-4. Buy and print the label in the Shippo dashboard.
+4. Buy and print the label from the order on Shippo's Orders page
+   (`apps.goshippo.com/orders`) — every paid order is sent there automatically.
 5. Mark it shipped in `/shop/admin` with the tracking number.
 
 ## Which packaging, and where it comes from
@@ -58,8 +59,13 @@ into checkout.
   ~95 orders shipping in one month would blow through 30 and need the Pro plan
   (~$19/mo) for that month. Plan for one month of Pro rather than being
   surprised.
-- **No live API token needed for this.** Labels are bought by hand in the
-  dashboard. The live token (which Shippo only issues on request — self-serve
+- **Paid orders appear on Shippo's Orders page on their own** (since
+  2026-09-16): the Stripe webhook creates each one with the address, the
+  service the buyer paid for, and the estimated packed weight. Open it, correct
+  the weight/dimensions to the real packed parcel, buy. Orders placed before
+  then were added by hand. A failed send is only logged (`Shippo order creation
+  failed` in Vercel logs), so if one is missing, create it in the dashboard.
+- **Labels are still bought by hand** in the dashboard. The live token (which Shippo only issues on request — self-serve
   covers test keys only) is needed if we ever automate label purchase from
   `/shop/admin`. Today the store only *quotes* rates; **nothing in the code
   buys a label.**
