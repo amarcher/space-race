@@ -4,7 +4,9 @@ import { Resend } from 'resend'
 import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
 import { renderOrderConfirmation } from './_lib/orderEmail.js'
+import { createShippoOrder } from './_lib/shippo.js'
 import {
+  parcelForQuantity,
   resolveShipWindow,
   shippingConfirmationLine,
   PRODUCT_NAME,
@@ -70,7 +72,12 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   const shippingService = typeof shippingRate === 'object' && shippingRate !== null ? shippingRate.display_name : null
 
   const customerEmail = fullSession.customer_details?.email ?? ''
-  const customerName = fullSession.customer_details?.name ?? null
+  // The checkout form collects the recipient's name with the shipping address
+  // and leaves customer_details.name empty, so fall back to it — without this
+  // every order was stored nameless and a label had no one to address.
+  const customerName = fullSession.customer_details?.name
+    ?? fullSession.collected_information?.shipping_details?.name
+    ?? null
   const shippingAddress = fullSession.collected_information?.shipping_details?.address ?? {}
   const amountTotal = fullSession.amount_total ?? 0
   // Decided at checkout-session creation (see create-checkout-session.ts) so the
@@ -114,6 +121,32 @@ async function recordOrder(session: Stripe.Checkout.Session) {
       }
     } catch (err) {
       console.error('Order Slack alert failed to send', { orderId: inserted[0].id, err })
+    }
+  }
+
+  // Put the order on Shippo's Orders page so the label is a few clicks, not
+  // retyping the address. Same rule as the alerts: a Shippo failure must not
+  // fail the webhook, or the retry's insert conflicts and it never gets sent.
+  if (inserted.length > 0) {
+    try {
+      await createShippoOrder({
+        orderRef: String(inserted[0].id).slice(0, 8),
+        placedAt: new Date(fullSession.created * 1000),
+        productName: PRODUCT_NAME,
+        quantity,
+        weightOz: parcelForQuantity(quantity).weightOz,
+        customerName,
+        customerEmail,
+        customerPhone: fullSession.customer_details?.phone ?? null,
+        address: shippingAddress,
+        shippingService,
+        shippingCents,
+        subtotalCents: fullSession.amount_subtotal ?? UNIT_PRICE_CENTS * quantity,
+        taxCents: fullSession.total_details?.amount_tax ?? 0,
+        totalCents: amountTotal,
+      })
+    } catch (err) {
+      console.error('Shippo order creation failed', { orderId: inserted[0].id, err })
     }
   }
 
