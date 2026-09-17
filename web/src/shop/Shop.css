@@ -1020,6 +1020,45 @@ img {
   font-size: 16px;
   font-weight: 600;
 }
+.checkout-prices__hint {
+  margin: 10px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #dce0e9;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #555b70;
+}
+/* Stands in for the Stripe shipping-method section, which stays collapsed
+   until real rates arrive — without this the form shows nothing at all while
+   Shippo is being called. */
+.checkout-quoting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid #dce0e9;
+  border-radius: 8px;
+  background: #f7f8fb;
+  font-size: 14px;
+  color: #30313d;
+}
+.checkout-quoting::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #c6cbd8;
+  border-top-color: #30313d;
+  border-radius: 50%;
+  animation: checkout-quoting-spin 0.7s linear infinite;
+}
+@keyframes checkout-quoting-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkout-quoting::before { animation: none; }
+}
 .shop__checkout-form {
   margin-top: 20px;
 }

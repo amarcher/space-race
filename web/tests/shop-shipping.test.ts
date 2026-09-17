@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createShippingQuotes, type ShippingDetails } from '../src/shop/shipping-quotes.ts'
+import { createShippingQuotes, quotableAddress, type ShippingDetails } from '../src/shop/shipping-quotes.ts'
+import { parcelForQuantity } from '../src/shop/constants.ts'
 
 const address = (postal_code: string): ShippingDetails => ({
   name: 'Checkout Test',
@@ -110,4 +111,132 @@ test('a failed stale address does not prevent a successful quote for the current
   await pending
   assert.deepEqual(calls, ['02108', '10001'])
   assert.equal(quotes.ready(), true)
+})
+
+// Andrew reported an edited address keeping the previous address's rates on
+// screen. These replay what ShopCheckout does on a change event — including
+// that it only refreshes when the section reports complete — so that a future
+// regression shows up here rather than in a customer's total.
+const replayForm = (update: (details: ShippingDetails) => Promise<void>) => {
+  const quotes = createShippingQuotes(update)
+  return {
+    quotes,
+    async onChange(details: ShippingDetails | null) {
+      quotes.setAddress(details)
+      if (details) await quotes.refresh()
+    },
+  }
+}
+
+test('an address edited through an incomplete state requotes the new address', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => { calls.push(details.address.postal_code!) })
+  await form.onChange(address('02108'))
+  await form.onChange(null)
+  assert.equal(form.quotes.ready(), false)
+  await form.onChange(address('10001'))
+  assert.deepEqual(calls, ['02108', '10001'])
+  assert.equal(form.quotes.ready(), true)
+})
+
+test('an edit that lands back on the quoted address does not block payment', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => { calls.push(details.address.postal_code!) })
+  await form.onChange(address('02108'))
+  await form.onChange(null)
+  await form.onChange(address('02108'))
+  assert.deepEqual(calls, ['02108'])
+  assert.equal(form.quotes.ready(), true)
+})
+
+test('a good address entered after a failed one quotes and unblocks payment', async () => {
+  const calls: string[] = []
+  const form = replayForm(async (details) => {
+    calls.push(details.address.postal_code!)
+    if (details.address.postal_code === '99999') throw new Error('No rates')
+  })
+  await assert.rejects(form.onChange(address('99999')))
+  await form.onChange(null)
+  await form.onChange(address('10001'))
+  assert.deepEqual(calls, ['99999', '10001'])
+  assert.equal(form.quotes.ready(), true)
+})
+
+// A rate depends on the postal address, never the recipient name, so a buyer
+// who has typed an address but not yet their name still gets shipping shown.
+test('a complete address quotes without a recipient name', () => {
+  const details = quotableAddress({
+    name: '',
+    address: { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' },
+  })
+  assert.notEqual(details, null)
+  assert.equal(details!.name, '')
+  assert.equal(details!.address.postal_code, '02108')
+})
+
+test('adding the name later does not requote the same address', async () => {
+  const calls: string[] = []
+  const quotes = createShippingQuotes(async (details) => { calls.push(details.name) })
+  const at = { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' }
+  quotes.setAddress(quotableAddress({ name: '', address: at }))
+  await quotes.refresh()
+  quotes.setAddress(quotableAddress({ name: 'Checkout Test', address: at }))
+  await quotes.refresh()
+  assert.deepEqual(calls, [''])
+  assert.equal(quotes.ready(), true)
+})
+
+test('half-typed addresses do not burn a quote', () => {
+  const base = { line1: '1 Main St', city: 'Boston', state: 'MA', postal_code: '02108', country: 'US' }
+  assert.equal(quotableAddress(null), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, line1: '' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, city: '  ' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, state: '' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, postal_code: '021' } }), null)
+  assert.equal(quotableAddress({ name: 'A', address: { ...base, country: 'CA' } }), null)
+  assert.notEqual(quotableAddress({ name: 'A', address: { ...base, postal_code: '02108-1234' } }), null)
+})
+
+// Parcel dimensions feed live carrier quotes that customers are charged, so
+// the box mapping is pinned rather than left to drift with an edit.
+test('each order size ships in its own Uline box, at outside dimensions', () => {
+  const one = parcelForQuantity(1)
+  assert.deepEqual(one, { weightOz: 10.7, lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625 })
+
+  const two = parcelForQuantity(2)
+  assert.deepEqual(two, { weightOz: 18.96, lengthIn: 4.375, widthIn: 4.375, heightIn: 4.625 })
+
+  // The 3-copy box is wider, not taller — copies stand on edge side by side.
+  const three = parcelForQuantity(3)
+  assert.deepEqual(three, { weightOz: 27.38, lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625 })
+})
+
+test('every quantity declares more weight than the old bubble-mailer model', () => {
+  // Old model: 8.1 oz per copy + 1 oz of packaging for any order size.
+  for (const copies of [1, 2, 3]) {
+    const previous = 8.1 * copies + 1
+    assert.ok(
+      parcelForQuantity(copies).weightOz > previous,
+      `${copies} copies must not be declared lighter than before (postage shortfall)`,
+    )
+  }
+})
+
+test('actual weight governs pricing — dim weight never exceeds it', () => {
+  // UPS bills the greater of actual and dim weight (L*W*H/139, rounded up).
+  for (const copies of [1, 2, 3]) {
+    const p = parcelForQuantity(copies)
+    const dimWeightLb = Math.ceil((p.lengthIn * p.widthIn * p.heightIn) / 139)
+    const actualLb = Math.ceil(p.weightOz / 16)
+    assert.ok(
+      dimWeightLb <= actualLb,
+      `${copies} copies: dim weight ${dimWeightLb}lb would govern over actual ${actualLb}lb`,
+    )
+  }
+})
+
+test('out-of-range quantities clamp to a real box rather than crashing', () => {
+  assert.deepEqual(parcelForQuantity(0), parcelForQuantity(1))
+  assert.deepEqual(parcelForQuantity(99), parcelForQuantity(3))
+  assert.deepEqual(parcelForQuantity(2.7), parcelForQuantity(2))
 })

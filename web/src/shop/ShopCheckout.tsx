@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckoutForm, useCheckoutForm } from '@stripe/react-stripe-js/checkout'
 import type { StripeCheckoutFormChangeEvent, StripeCheckoutFormConfirmEvent, StripeCheckoutFormOptions } from '@stripe/stripe-js'
-import { createShippingQuotes } from './shipping-quotes'
+import { createShippingQuotes, quotableAddress, type ShippingDetails } from './shipping-quotes'
 
 // Wallets collect addresses outside the form and bypass its shipping updates.
 // Stripe's dynamic-shipping guide requires the regular form for this flow.
@@ -15,6 +15,10 @@ const FORM_OPTIONS: StripeCheckoutFormOptions = {
   },
 }
 
+// Long enough to swallow typing, short enough that a customer who finishes the
+// address and reaches for Pay sees the rate rather than a blocked button.
+const QUOTE_DEBOUNCE_MS = 600
+
 export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   const checkoutState = useCheckoutForm()
   const checkoutRef = useRef(checkoutState)
@@ -22,6 +26,10 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   const [shippingError, setShippingError] = useState<string | null>(null)
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [hasAddress, setHasAddress] = useState(false)
+  const [quotePending, setQuotePending] = useState(false)
+  const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (quoteTimer.current) clearTimeout(quoteTimer.current) }, [])
   const [quotes] = useState(() => createShippingQuotes(async (shippingDetails) => {
     const state = checkoutRef.current
     if (state.type !== 'success') throw new Error('Checkout is still loading. Please try again.')
@@ -50,23 +58,59 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
       setShippingError(error instanceof Error ? error.message : 'Could not calculate shipping. Please try again.')
     } finally {
       setUpdating(false)
+      setQuotePending(false)
     }
   }
 
-  const onChange = async (event: StripeCheckoutFormChangeEvent) => {
-    const details = event.status.shippingAddress?.complete ? event.value.shippingAddress ?? null : null
+  // Confirm-time only. getValue() validates the whole form as a side effect —
+  // calling it from the change handler renders every shipping and card field
+  // in an error state on a pristine form, before the buyer has typed anything.
+  const readShippingAddress = async (): Promise<ShippingDetails | null> => {
+    const state = checkoutRef.current
+    if (state.type !== 'success') return null
+    const form = await state.checkout.getForm()?.getValue()
+    return quotableAddress(form?.value.shippingAddress)
+  }
+
+  // Every keystroke in an already-valid address line ("350 Fifth Ave" →
+  // "351 Fifth Ave") produces a complete-but-different address, and quoting
+  // each one is a Shippo round trip per character. Wait for the address to
+  // stop changing instead. setAddress above still runs immediately, so the
+  // stale rate stops being displayed and Pay stays blocked during the wait.
+  const scheduleRefresh = () => {
+    if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    // Show the pending state from the keystroke, not from the request: the
+    // debounce window is otherwise dead air in which the old rate still reads
+    // as though it applies to the address now on screen.
+    if (!quotes.ready()) setQuotePending(true)
+    quoteTimer.current = setTimeout(() => { void refreshShipping() }, QUOTE_DEBOUNCE_MS)
+  }
+
+  const cancelScheduledRefresh = () => {
+    if (quoteTimer.current) clearTimeout(quoteTimer.current)
+    quoteTimer.current = null
+    setQuotePending(false)
+  }
+
+  // Read the event's own payload, never getValue() — see above. The event is
+  // the only non-validating source of the address while the buyer is typing.
+  const onChange = (event: StripeCheckoutFormChangeEvent) => {
+    const details = quotableAddress(event.value.shippingAddress)
     quotes.setAddress(details)
-    if (details) await refreshShipping()
+    setHasAddress(details !== null)
+    if (details) scheduleRefresh()
+    else cancelScheduledRefresh()
   }
 
   const onConfirm = async (event: StripeCheckoutFormConfirmEvent) => {
     if (checkoutState.type !== 'success') return
     setPaymentError(null)
+    // Pay beats the debounce: quote now rather than racing a queued timer.
+    cancelScheduledRefresh()
     try {
       // Read the current form as well as change events, so an edit followed
       // immediately by Pay cannot reuse rates for the previous address.
-      const form = await checkoutState.checkout.getForm()?.getValue()
-      quotes.setAddress(form?.status.shippingAddress?.complete ? form.value.shippingAddress ?? null : null)
+      quotes.setAddress(await readShippingAddress())
       if (!quotes.ready()) {
         setPaymentError('Please finish your shipping address and wait for shipping to update before paying.')
         await refreshShipping(true)
@@ -88,7 +132,8 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
   if (checkoutState.type === 'loading') return <p role="status">Loading secure payment form…</p>
 
   const { checkout } = checkoutState
-  const shippingReady = quotes.ready() && !updating
+  const quoting = updating || quotePending
+  const shippingReady = quotes.ready() && !quoting
 
   return <>
     <section className="checkout-prices" aria-label="Order summary">
@@ -100,14 +145,23 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
       ))}
       <div className="checkout-prices__row">
         <span>Shipping</span>
-        <strong>{shippingReady ? checkout.total.shippingRate.amount : 'Calculated below'}</strong>
+        {/* No $0 placeholder option exists any more, so until rates arrive and
+            one is selected there may be no shippingRate at all. */}
+        <strong>{shippingReady && checkout.total.shippingRate
+          ? checkout.total.shippingRate.amount
+          : quoting || hasAddress ? 'Calculating…' : 'Calculated below'}</strong>
       </div>
       <div className="checkout-prices__row checkout-prices__total">
         <span>{shippingReady && checkout.tax.status === 'ready' ? 'Total' : 'Total so far'}</span>
         <strong>{checkout.total.total.amount}</strong>
       </div>
+      {!hasAddress && (
+        <p className="checkout-prices__hint">
+          Enter your shipping address below to see shipping options.
+        </p>
+      )}
     </section>
-    {updating && <p role="status">Calculating shipping…</p>}
+    {quoting && <p className="checkout-quoting" role="status">Calculating shipping…</p>}
     {shippingError && <div role="alert">
       <p className="shop__error">{shippingError}</p>
       <button className="shop__back" disabled={updating} onClick={() => refreshShipping(true)}>Retry shipping</button>
