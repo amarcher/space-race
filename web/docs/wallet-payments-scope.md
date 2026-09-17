@@ -3,25 +3,48 @@
 Written 2026-09-15. Question asked: can we offer more payment methods than card
 and Cash App Pay?
 
-## Two different problems
+## What the Dashboard actually says
 
-Splitting these up front, because one is a settings change and one is a
-migration.
+Read 2026-09-17 from both live accounts. An earlier draft of this file claimed
+Cash App Pay could be switched off and PayPal switched on in "minutes". The
+second half was wrong, and the framing was misleading.
 
-| Want | Where it lives | Effort |
+| | Space Race (`acct_1OPdcR…`) | Fable Designer (`acct_1Tsoob…`) |
 |---|---|---|
-| Turn **Cash App Pay** off | Stripe Dashboard → Payment methods | minutes |
-| Turn **PayPal** on | Stripe Dashboard → Payment methods | minutes |
-| **Apple Pay / Google Pay / Link** | Code — see below | days |
+| Enabled | 6 | 13 |
+| Cards | enabled | enabled |
+| Apple Pay | **enabled** | **enabled** |
+| Google Pay | *requires action* | disabled |
+| Link | enabled | enabled |
+| Cash App Pay | enabled | enabled |
+| Bancontact, EPS | enabled | enabled |
+| Amazon Pay, Klarna, Affirm, MB WAY, Satispay, BLIK, Pix | not enabled | enabled |
 
-Cash App Pay is not in our code at all. It appears because it is enabled in the
-Dashboard, and it can be turned off there. PayPal should be the same: it is a
-redirect method that appears in the payment-method list, and Stripe passes it
-the shipping address our form already collected, so our Shippo quote still
-governs. *Verify on a preview before trusting that last point.*
+Three things follow:
 
-Apple Pay and Google Pay are different in kind, and the rest of this document
-is about them.
+- **PayPal is in neither list**, out of ~40 methods. It is not a toggle. It
+  presumably sits behind "Manual integration options", i.e. integration work.
+- **Apple Pay is already enabled account-side on both.** The shop does not
+  offer it because `ShopCheckout.tsx` sets `applePay: 'never'`. No Dashboard
+  change would have surfaced it, and none is needed for the migration below.
+- **Google Pay is enabled on neither**, and shows "requires action" on Space
+  Race — something must be accepted before it can even be turned on.
+
+### Why the two accounts cannot simply be made to match
+
+Fable Designer is a superset, so "make them the same" reads as enabling its
+seven extras on Space Race. That is the wrong direction for a store shipping
+physical goods: those extras either supply their own shipping address (Amazon
+Pay) or can surface as an express button that bypasses the address form
+(Klarna, Affirm) — the same failure this document is about, a checkout that
+completes without our Shippo quote ever running. The rest (MB WAY, Satispay,
+BLIK, Pix) are Portugal, Italy, Poland and Brazil methods on a
+US-shipping-only store.
+
+Fable sells digital books and collects no shipping address, so it carries those
+methods safely. **The accounts differ because the businesses differ.** Aligning
+them only becomes meaningful once Space Race can quote shipping from a wallet
+address — the migration below. Sequence it that way round.
 
 ## Why they are switched off today
 
