@@ -62,7 +62,12 @@ export function shippoOrderRequest(order: PaidOrder) {
       {
         title: order.productName,
         quantity: order.quantity,
-        total_price: dollars(order.subtotalCents),
+        // PER UNIT, despite the name. Shippo multiplies this by `quantity` to
+        // display the line — its Shipping Elements schema calls the same field
+        // `unit_amount`. Sending the whole subtotal here billed a 3-copy order
+        // as 3 × $86.37 = $259.11 on the packing slip. The order-level
+        // subtotal_price/total_price below are the real extended totals.
+        total_price: dollars(order.subtotalCents / Math.max(order.quantity, 1)),
         currency: 'USD',
       },
     ],

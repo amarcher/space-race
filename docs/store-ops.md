@@ -125,6 +125,30 @@ comes out of margin. At the January batch's ~$8.16/unit net that's absorbable,
 but it's real money across 95 units, and it's worth re-checking actual rates
 before promising anything to anyone.
 
+### A bigger order can ship cheaper than a small one — that's real
+
+Quoted live 2026-09-17, both from Lexington MA by UPS Ground Saver:
+
+| Parcel | → New York NY 10128 | → Los Gatos CA 95030 |
+|---|---|---|
+| 1 copy (10.25 oz) | $6.16 | $6.94 |
+| 3 copies (27.15 oz) | **$5.71** | $8.78 |
+
+Two things are going on, and neither is a bug:
+
+1. **Zone dominates weight.** Lexington → NYC is a neighbouring zone;
+   Lexington → the Bay Area crosses the country. A heavy nearby parcel beats
+   a light far one, so *never compare two orders' shipping without checking
+   where they're going.*
+2. **UPS Ground Saver prices under 1 lb on a separate, ounce-based table**,
+   and in near zones that table can come out *above* the 1 lb+ rate. Hence
+   the genuinely odd $6.16 for one copy vs $5.71 for three to the same NYC
+   address. A 1-copy order is 10.25 oz (under the break); 3 copies is 1.70 lb
+   (over it).
+
+So a single-copy order to a nearby address is the *worst* value per unit we
+ship, and there is nothing to fix in the quote — those are live carrier rates.
+
 ### The packaging numbers are still partly estimates
 
 Box weights are now real catalog figures rather than a guess, but what goes
