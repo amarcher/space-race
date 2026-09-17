@@ -46,11 +46,15 @@ sizes, $60.49 landed for 100 ($0.6049/box, of which $20.38 is inbound
 shipping, so unit cost falls on a bigger reorder). `parcelForQuantity()` in
 `web/src/shop/constants.ts` maps order size to box:
 
-| Copies | Box | Outside (in) | Empty box |
-|---|---|---|---|
-| 1 | S-16725 (4×4×3) | 4⅜ × 4⅜ × 3⅝ | 1.6 oz |
-| 2 | S-4040 (4×4×4) | 4⅜ × 4⅜ × 4⅝ | 1.76 oz |
-| 3 | S-4582 (6×4×3) | 6⅜ × 4⅜ × 3⅝ | 2.08 oz |
+| Copies | Box | Outside (in) | Empty box | Packed parcel |
+|---|---|---|---|---|
+| 1 | S-16725 (4×4×3) | 4⅜ × 4⅜ × 3⅝ | 1.6 oz | **10.25 oz** (weighed 2026-09-17) |
+| 2 | S-4040 (4×4×4) | 4⅜ × 4⅜ × 4⅝ | 1.76 oz | 18.96 oz (still estimated) |
+| 3 | S-4582 (6×4×3) | 6⅜ × 4⅜ × 3⅝ | 2.08 oz | **27.15 oz** (weighed 2026-09-17) |
+
+"Packed parcel" is the whole thing on a scale — games, box, void fill and
+tape — and is what goes on the label. Where it's measured it overrides the
+old copies+box+extras estimate outright (`packedOz` in `constants.ts`).
 
 A 3-copy order is **wider, not taller** — copies stand on their long edges
 side by side, 3 × 1.75" = 5.25" across a 6" inside length. **S-22101** (4×4×4
@@ -60,8 +64,10 @@ $0.09. Send carriers the **outside** dimensions — UPS bills the greater of
 actual and dim weight (L×W×H÷139), so the outer size moves the quote by
 itself.
 
-> These are Uline's catalog figures, not our measurements, and **no box has
-> been test-packed**. Confirm each size actually fits, and weigh a packed box.
+> The 1- and 3-copy sizes have been test-packed and weighed — the 3-copy fit
+> (copies on edge, side by side) is confirmed real, not just arithmetic. **The
+> 2-copy box has not been packed yet**, so its weight is still the estimate
+> and the S-4040 vs S-22101 choice is still open.
 
 > **Trap: don't put a non-Flat-Rate shipment in a Flat Rate box.** USPS Flat
 > Rate packaging must ship as Flat Rate. Our rates are weight-based, so use
@@ -84,6 +90,17 @@ into checkout.
   the weight/dimensions to the real packed parcel, buy. Orders placed before
   then were added by hand. A failed send is only logged (`Shippo order creation
   failed` in Vercel logs), so if one is missing, create it in the dashboard.
+- **A Shippo order carries no dimensions, and cannot be edited after
+  creation.** Shippo's objects are disposable — only Carrier Accounts accept a
+  `PUT` — so the weight the webhook sent is frozen at whatever the model said
+  that day, and box size was never on the order at all. Both are therefore
+  entered at label-buy time, which is why the **parcel templates** below exist.
+- **Three parcel templates are saved in the account** (created 2026-09-17), one
+  per order size: `1 copy - Uline S-16725`, `2 copies - Uline S-4040`,
+  `3 copies - Uline S-4582`. Pick the matching one when buying and the outside
+  dimensions fill themselves in. A template supplies dimensions only — Shippo
+  still wants the weight separately, so **check the weight against the table
+  above**, especially on orders created before the boxes were weighed.
 - **Labels are still bought by hand** in the dashboard. The live token (which Shippo only issues on request — self-serve
   covers test keys only) is needed if we ever automate label purchase from
   `/shop/admin`. Today the store only *quotes* rates; **nothing in the code
@@ -114,17 +131,20 @@ Box weights are now real catalog figures rather than a guess, but what goes
 *around* the game still isn't measured:
 
 - `PACKING_EXTRAS_OZ = 1` in `web/src/shop/constants.ts` — tape, label and
-  void fill, on top of the box's own weight. Unmeasured. It feeds the weight
-  sent to Shippo for **live rate quotes at checkout**, and it deliberately
-  errs heavy: an understated parcel doesn't fail loudly, it gets delivered and
-  billed back weeks later as a carrier adjustment, after the customer has paid
-  a quote we can no longer revise.
+  void fill, on top of the box's own weight. Unmeasured. It now only applies
+  to the **2-copy** order, the one size without a scale reading; the other two
+  use `packedOz` directly. It deliberately errs heavy: an understated parcel
+  doesn't fail loudly, it gets delivered and billed back weeks later as a
+  carrier adjustment, after the customer has paid a quote we can no longer
+  revise. The two real weights came in *under* the estimate (10.25 vs 10.7,
+  27.15 vs 27.38), so erring heavy is working as intended.
 - The **$1.00/unit packaging cost** in the margin table in
   `docs/store-wayfinder.md` — the box alone is $0.6049 landed, so this is
   roughly right, but it's still carrying tape and filler as a guess.
 
-**Weigh a packed box of each size as soon as the boxes arrive,** and correct
-both. Underdeclared weight means postage-due and carrier adjustment fees.
+**Weigh a packed 2-copy box** and correct both — it's the last size still
+running on an estimate. Underdeclared weight means postage-due and carrier
+adjustment fees.
 
 ### A slipped ship date is a legal obligation, not just bad manners
 

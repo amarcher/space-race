@@ -200,15 +200,17 @@ test('half-typed addresses do not burn a quote', () => {
 // Parcel dimensions feed live carrier quotes that customers are charged, so
 // the box mapping is pinned rather than left to drift with an edit.
 test('each order size ships in its own Uline box, at outside dimensions', () => {
+  // Packed and weighed, not derived — see packedOz in constants.ts.
   const one = parcelForQuantity(1)
-  assert.deepEqual(one, { weightOz: 10.7, lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625 })
+  assert.deepEqual(one, { weightOz: 10.25, lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625 })
 
+  // Still the estimate: this is the one size that has not been test-packed.
   const two = parcelForQuantity(2)
   assert.deepEqual(two, { weightOz: 18.96, lengthIn: 4.375, widthIn: 4.375, heightIn: 4.625 })
 
   // The 3-copy box is wider, not taller — copies stand on edge side by side.
   const three = parcelForQuantity(3)
-  assert.deepEqual(three, { weightOz: 27.38, lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625 })
+  assert.deepEqual(three, { weightOz: 27.15, lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625 })
 })
 
 test('every quantity declares more weight than the old bubble-mailer model', () => {

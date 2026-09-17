@@ -78,20 +78,23 @@ export const SINGLE_UNIT_DIMS_IN = { length: 3.55, width: 2.55, height: 1.75 }
  *  (L×W×H÷139, rounded up) — so the box's outer size moves the quote on its
  *  own, not just what it weighs.
  *
- *  ⚠ These are Uline's published catalog specs, not our measurements: the
- *  boxes had not arrived when this was written. `weightOz` here is the empty
- *  box only. Replace both with scale readings from a packed box — see
+ *  `weightOz` is the EMPTY box, from Uline's catalog. `packedOz`, where
+ *  present, is a scale reading of the finished parcel — game copies, box,
+ *  void fill and tape — and supersedes the whole estimate. Sizes without it
+ *  have not been packed yet and still quote the estimate; see
  *  PACKING_EXTRAS_OZ below and docs/store-ops.md.
  */
 const SHIPPING_BOX_BY_QUANTITY = {
-  1: { sku: 'S-16725', lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625, weightOz: 1.6 },
+  // Packed and weighed 2026-09-17.
+  1: { sku: 'S-16725', lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625, weightOz: 1.6, packedOz: 10.25 },
   // Two 4x4x4 boxes were bought to compare sturdiness: S-4040 (1.76 oz) and
   // S-22101 (1.6 oz, lightweight 32 ECT). Until Andrew picks one after test
   // packing, quote the heavier — understating weight is what costs money.
+  // The only size not yet packed, so it alone still quotes the estimate.
   2: { sku: 'S-4040', lengthIn: 4.375, widthIn: 4.375, heightIn: 4.625, weightOz: 1.76 },
   // Copies stand on their long edges side by side: 3 × 1.75" = 5.25" across a
-  // 6" inside length. Unverified — no box has been test-packed yet.
-  3: { sku: 'S-4582', lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625, weightOz: 2.08 },
+  // 6" inside length. Packed and weighed 2026-09-17, which also proves they fit.
+  3: { sku: 'S-4582', lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625, weightOz: 2.08, packedOz: 27.15 },
 } as const
 
 /** Tape, label and void fill. Not measured, and deliberately not zero.
@@ -107,13 +110,19 @@ const PACKING_EXTRAS_OZ = 1
 export function parcelForQuantity(quantity: number) {
   const copies = Math.min(Math.max(Math.trunc(quantity) || 1, 1), MAX_QTY_PER_ORDER)
   const box = SHIPPING_BOX_BY_QUANTITY[copies as keyof typeof SHIPPING_BOX_BY_QUANTITY]
+  // A scale reading of the real packed parcel always wins. Without one, fall
+  // back to the estimate — copies + empty box + extras — which errs heavy on
+  // purpose, because the failure mode of understating is a carrier adjustment
+  // billed back after the customer has already paid.
+  const weightOz =
+    'packedOz' in box ? box.packedOz : SINGLE_UNIT_WEIGHT_OZ * copies + box.weightOz + PACKING_EXTRAS_OZ
   return {
     // Round here, not just in the caller: 3 × 8.1 + 2.08 + 1 is
     // 27.379999999999995 in float, and Shippo rejects more than four decimal
     // places with a 400 — which is exactly how 3-copy orders broke before
     // (#212). api/shipping-rates.ts still guards too; this stops the ugly
     // number existing at all, including in the webhook's label pre-fill.
-    weightOz: Math.round((SINGLE_UNIT_WEIGHT_OZ * copies + box.weightOz + PACKING_EXTRAS_OZ) * 100) / 100,
+    weightOz: Math.round(weightOz * 100) / 100,
     lengthIn: box.lengthIn,
     widthIn: box.widthIn,
     heightIn: box.heightIn,
