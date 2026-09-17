@@ -27,6 +27,11 @@ test('a paid 3-copy order becomes a Shippo order with the paid-for service and p
   assert.equal(request.total_price, '92.08')
   assert.equal(request.weight, '25.3')
   assert.equal(request.line_items[0].quantity, 3)
+  // Per unit, not the $86.37 subtotal — Shippo multiplies by quantity, so
+  // sending the subtotal displayed the line as 3 × $86.37 = $259.11.
+  assert.equal(request.line_items[0].total_price, '28.79')
+  // The order-level figures stay the real extended totals.
+  assert.equal(request.subtotal_price, '86.37')
   assert.deepEqual(request.to_address, {
     name: 'Pat Buyer', street1: '1 Main St', street2: '', city: 'Albany', state: 'NY',
     zip: '12207', country: 'US', email: 'pat@example.com',
