@@ -16,13 +16,37 @@
     <meta property="og:title" content="Space Race — Play Anywhere" />
     <meta
       property="og:description"
-      content="Buy the physical card game, or play free on the web, iOS, Android and Amazon Fire."
+      content="Buy the First Edition deck, or play free on iOS, Android, Fire tablets and the web."
     />
     <meta property="og:site_name" content="Space Race" />
+    <!-- Without an og:image the unfurl fell back to the app icon — a tiny
+         square beside the title. This card is specific to /get: the shuttle
+         plate the root domain uses, plus the tuck box, since /get now leads
+         with the physical game. -->
+    <meta property="og:image" content="https://game.spaceexplorer.tech/get/og-get.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Space Race First Edition tuck box beside a rescue shuttle blazing through glowing clouds"
+    />
+    <meta property="og:video" content="https://game.spaceexplorer.tech/og.mp4" />
+    <meta property="og:video:secure_url" content="https://game.spaceexplorer.tech/og.mp4" />
+    <meta property="og:video:type" content="video/mp4" />
+    <meta property="og:video:width" content="1280" />
+    <meta property="og:video:height" content="720" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Space Race — Play Anywhere" />
+    <meta
+      name="twitter:description"
+      content="Buy the First Edition deck, or play free on iOS, Android, Fire tablets and the web."
+    />
+    <meta name="twitter:image" content="https://game.spaceexplorer.tech/get/og-get.jpg" />
 
     <meta name="theme-color" content="#07071a" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="preload" as="image" href="/og-poster.jpg" fetchpriority="high" />
 
     <style>
       :root {
@@ -34,53 +58,87 @@
       body {
         margin: 0 auto;
         max-width: 32rem;
-        padding: 3.5rem calc(1.25rem + env(safe-area-inset-right)) calc(4rem + env(safe-area-inset-bottom))
+        padding: 3rem calc(1.25rem + env(safe-area-inset-right)) calc(3rem + env(safe-area-inset-bottom))
           calc(1.25rem + env(safe-area-inset-left));
         background: #07071a;
         color: #e8e8f2;
         font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         text-align: center;
       }
+
+      /* The shuttle plate sits behind everything. The still is always present,
+         so blocked autoplay, a reduced-motion preference or a slow connection
+         degrades to the poster rather than to flat colour. */
+      .bg-still,
+      .bg-video,
+      .bg-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+      }
+      .bg-still {
+        background: #07071a url('/og-poster.jpg') center / cover no-repeat;
+      }
+      .bg-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      /* A real scrim, not a tint: the plate is bright gold cloud and the page
+         has to stay readable over its brightest frame. */
+      .bg-scrim {
+        background:
+          linear-gradient(180deg, #07071ae0 0%, #07071a8f 30%, #07071ac4 70%, #07071af2 100%),
+          linear-gradient(90deg, #07071a8c, #07071a1f 45%, #07071a8c);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bg-video {
+          display: none;
+        }
+      }
+
       .icon {
-        width: 72px;
-        height: 72px;
-        border-radius: 18px;
-        margin-bottom: 1rem;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        margin-bottom: 0.9rem;
+        box-shadow: 0 8px 24px #0009;
       }
       h1 {
         font-size: 1.5rem;
-        margin: 0 0 0.5rem;
+        margin: 0 0 0.4rem;
+        text-shadow: 0 2px 12px #000a;
       }
       p.tagline {
-        color: #9a9ab0;
+        color: #c3c3d6;
         margin: 0 0 1.75rem;
+        text-shadow: 0 1px 8px #000a;
       }
 
-      /* The physical game sits above .links, not inside it. The script below
-         floats the row matching the visitor's device to the top of .links, so
-         anything inside that list can be reordered away from first position. */
+      /* Outside the badge row on purpose: the script below moves the visitor's
+         own platform to the front of that row, so anything inside it can be
+         pushed out of first position. */
       .hero-shop {
         display: flex;
         align-items: center;
         gap: 1rem;
         text-align: left;
         padding: 1rem;
-        margin-bottom: 2rem;
+        margin-bottom: 2.25rem;
         border-radius: 16px;
-        background: linear-gradient(135deg, #1a1a3d, #24244f);
-        border: 1px solid #ffd93d66;
-        box-shadow: 0 0 0 1px #ffd93d1a, 0 12px 28px #0006;
+        background: #12122bdd;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid #ffd93d80;
+        box-shadow: 0 0 0 1px #ffd93d1a, 0 16px 40px #000a;
         color: #e8e8f2;
         text-decoration: none;
       }
       .hero-shop:active {
-        background: linear-gradient(135deg, #20204a, #2b2b5e);
+        background: #1a1a3ddd;
       }
       .hero-shop__img {
         flex: none;
-        /* Fixed 112px left the title wrapping to three lines on a 320px
-           screen. Sized against the card rather than the viewport so it also
-           holds if this card is ever dropped into a narrower column. */
         width: 30%;
         min-width: 88px;
         max-width: 112px;
@@ -108,7 +166,7 @@
         line-height: 1.3;
       }
       .hero-shop__sub {
-        color: #9a9ab0;
+        color: #b6b6cc;
         font-size: 0.85rem;
         line-height: 1.45;
       }
@@ -120,98 +178,99 @@
       }
 
       .section-label {
-        margin: 0 0 0.75rem;
-        color: #9a9ab0;
-        font-size: 0.8rem;
+        margin: 0 0 1rem;
+        color: #b6b6cc;
+        font-size: 0.75rem;
         font-weight: 600;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-      }
-      .links {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        text-align: left;
-      }
-      .link {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.9rem 1.1rem;
-        border-radius: 12px;
-        background: #12122b;
-        border: 1px solid #22224a;
-        color: #e8e8f2;
-        text-decoration: none;
-        font-weight: 600;
-      }
-      .link:active {
-        background: #1a1a3d;
-      }
-      .link--soon {
-        opacity: 0.55;
-        cursor: default;
-      }
-      .link__body {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.35rem;
-        min-width: 0;
-      }
-      .link span.sub {
-        display: block;
-        font-weight: 400;
-        color: #9a9ab0;
-        font-size: 0.85rem;
-      }
-      .link .chevron {
-        color: #6a6a90;
-        flex-shrink: 0;
-      }
-      .link--match {
-        border-color: #ffd93d99;
-        box-shadow: 0 0 0 1px #ffd93d33;
+        text-shadow: 0 1px 8px #000a;
       }
 
-      /* Official store artwork, used unmodified — no recolouring, distortion or
-         relettering. Sources in marketing/campaigns/.../BADGE-SOURCES-V5.md. */
-      .store-badge {
+      /* Badges only — no card, no chevron, no "iPhone & iPad" caption. The
+         artwork already says which store it is and which device it means.
+         The gap is at least a quarter of the badge height, which is the clear
+         space Google's guidelines ask for around theirs. */
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+        /* Narrow enough to force two per row. At full width the four badges
+           wrap 3 + 1, leaving Amazon stranded on a line of its own. */
+        max-width: 330px;
+        margin: 0 auto;
+      }
+      .badge-link {
+        display: inline-flex;
+        border-radius: 9px;
+        line-height: 0;
+      }
+      .badge-link:focus-visible {
+        outline: 3px solid #ffd93d;
+        outline-offset: 4px;
+      }
+      /* Normalised on HEIGHT, which is how store guidelines specify badges —
+         the widths differ because the lockups genuinely have different
+         proportions. Google's file used to carry ~41px of baked-in clear space
+         per side, which pushed its artwork right of everything else; it is now
+         trimmed to its artwork so all four share one edge. */
+      .badge-img {
         display: block;
-        height: 40px;
+        height: 44px;
         width: auto;
       }
-      /* Google's badge bakes its clear space into the file: the logo occupies
-         only 168px of the asset's 250px height (measured), so at an equal
-         rendered height it reads visibly smaller than Apple's. Scale it so the
-         artwork matches 40px, then pull the surrounding whitespace back out of
-         the layout so every row keeps the same height. */
-      .store-badge--play {
-        height: 60px;
-        margin-block: -10px;
+      .badge-link--match {
+        outline: 2px solid #ffd93daa;
+        outline-offset: 5px;
       }
-      .badge {
-        display: inline-block;
-        padding: 0.1rem 0.45rem;
-        border-radius: 999px;
-        background: #ffd93d;
-        color: #2a2200;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
+
       .legal {
         margin: 2.5rem 0 0;
-        color: #5c5c7a;
-        font-size: 0.7rem;
+        color: #8a8aa6;
+        font-size: 0.68rem;
         line-height: 1.5;
-        text-align: left;
+        text-shadow: 0 1px 6px #000c;
       }
     </style>
   </head>
   <body>
+    <div class="bg-still" aria-hidden="true"></div>
+    <video
+      class="bg-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      disablepictureinpicture
+      preload="auto"
+      poster="/og-poster.jpg"
+      aria-hidden="true"
+      tabindex="-1"
+      data-src="/og.mp4"
+    ></video>
+    <script>
+      /* The source is attached here rather than in the markup so the 1.1MB
+         clip is never fetched by someone who cannot or does not want to watch
+         it. The CSS reduced-motion rule hides the video but would still pay
+         for it. No JS, blocked autoplay, Save-Data or a 2G connection all land
+         on the poster, which is already painted underneath. */
+      (function () {
+        var v = document.querySelector('.bg-video');
+        var c = navigator.connection || {};
+        var slow = c.saveData === true || /(^|-)2g$/.test(c.effectiveType || '');
+        var still =
+          window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (slow || still) {
+          v.remove();
+          return;
+        }
+        v.src = v.dataset.src;
+      })();
+    </script>
+    <div class="bg-scrim" aria-hidden="true"></div>
+
     <img class="icon" src="/icon-192.png" alt="" />
     <h1>Space Race</h1>
     <p class="tagline">A cosmic race to 1,000 light-years.</p>
@@ -233,70 +292,59 @@
       </span>
     </a>
 
-    <p class="section-label">Or play free on any device</p>
+    <p class="section-label">Or play free</p>
 
-    <div class="links">
-      <a class="link" data-platform="web" href="https://game.spaceexplorer.tech">
-        <span class="link__body">
-          <strong>Play free on the web</strong>
-          <span class="sub">Works in any browser, installs as an app</span>
-        </span>
-        <span class="chevron">&rarr;</span>
-      </a>
+    <div class="badges">
+      <!-- Ours, not a store's. Built in the same lockup grammar as the official
+           badges so the row reads evenly, but deliberately not an imitation of
+           any platform's mark — there is no third party to represent here. -->
       <a
-        class="link"
-        data-platform="ios"
-        href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058"
+        class="badge-link"
+        data-platform="web"
+        href="https://game.spaceexplorer.tech"
+        aria-label="Play free on the web"
       >
-        <span class="link__body">
-          <img
-            class="store-badge"
-            src="/get/app-store-badge.svg"
-            width="120"
-            height="40"
-            alt="Download on the App Store"
-          />
-          <span class="sub">iPhone &amp; iPad</span>
-        </span>
-        <span class="chevron">&rarr;</span>
+        <svg class="badge-img" viewBox="0 0 150 44" role="img" aria-hidden="true" focusable="false">
+          <rect x="0.6" y="0.6" width="148.8" height="42.8" rx="7.4" fill="#000" stroke="#a6a6a6" stroke-width="1.2" />
+          <g transform="translate(12.5 10.5)">
+            <rect x="0.9" y="0.9" width="21.2" height="21.2" rx="4.6" fill="none" stroke="#fff" stroke-width="1.7" />
+            <path d="M1.2 7.3h21.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" />
+            <path d="M9.4 11.6l6.6 3.9-6.6 3.9z" fill="#fff" />
+          </g>
+          <text
+            x="45"
+            y="18.4"
+            fill="#fff"
+            font-size="8"
+            letter-spacing="0.7"
+            font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+          >PLAY FREE ON</text>
+          <text
+            x="44.2"
+            y="34.4"
+            fill="#fff"
+            font-size="17.5"
+            font-weight="600"
+            letter-spacing="-0.2"
+            font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+          >The Web</text>
+        </svg>
+      </a>
+      <a class="badge-link" data-platform="ios" href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058">
+        <img class="badge-img" src="/get/app-store-badge.svg" width="132" height="44" alt="Download on the App Store" />
       </a>
       <!-- Live on Google Play since 2026-09-14. If a store ever has to go dark
-           again, turn its row back into a <span class="link link--soon"> (the
-           script below skips those) and flip `live` in
+           again, drop its badge here and flip `live` in
            src/components/StoreBanner.tsx in the same change. A QR code printed
            on a physical card cannot be reprinted, so a dead store link here is
            unrecoverable. -->
-      <a
-        class="link"
-        data-platform="android"
-        href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace"
-      >
-        <span class="link__body">
-          <img
-            class="store-badge store-badge--play"
-            src="/get/google-play-badge.png"
-            width="155"
-            height="60"
-            alt="Get it on Google Play"
-          />
-          <span class="sub">Android phones &amp; tablets</span>
-        </span>
-        <span class="chevron">&rarr;</span>
+      <a class="badge-link" data-platform="android" href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace">
+        <img class="badge-img" src="/get/google-play-badge.png" width="148" height="44" alt="Get it on Google Play" />
       </a>
       <!-- NOT amazon.com/gp/mas/dl/android?p=<pkg> — that 404s for this app.
            The /dp/ listing is the only URL that resolves. -->
-      <a class="link" data-platform="amazon" href="https://www.amazon.com/dp/B0GXHBHD78">
-        <span class="link__body">
-          <img
-            class="store-badge"
-            src="/get/amazon-appstore-badge.png"
-            width="136"
-            height="40"
-            alt="Available at Amazon Appstore"
-          />
-          <span class="sub">Fire tablets</span>
-        </span>
-        <span class="chevron">&rarr;</span>
+      <a class="badge-link" data-platform="amazon" href="https://www.amazon.com/dp/B0GXHBHD78">
+        <img class="badge-img" src="/get/amazon-appstore-badge.png" width="150" height="44" alt="Available at Amazon Appstore" />
       </a>
     </div>
 
@@ -307,11 +355,11 @@
     </p>
 
     <script>
-      /* Progressive enhancement only. With JS off the list above is already in
-         a sensible order, every link works, and nothing here is required. All
-         this does is float the row matching the current device to the top and
-         tag it, so a QR scan lands on the right store without reading a menu.
-         The physical game sits outside .links and is never reordered. */
+      /* Progressive enhancement only. With JS off the badges are already in a
+         sensible order, every link works, and nothing here is required. All
+         this does is move the badge matching the current device to the front
+         and ring it, so a QR scan lands on the right store without hunting.
+         The physical game sits outside .badges and is never reordered. */
       (function () {
         var ua = navigator.userAgent;
         var platform = null;
@@ -323,20 +371,17 @@
         else if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) platform = 'ios';
         if (!platform) return;
 
-        var row = document.querySelector('.links [data-platform="' + platform + '"]');
-        /* A "coming soon" row is not a destination — leave the default order. */
-        if (!row || row.classList.contains('link--soon')) return;
+        var row = document.querySelector('.badges');
+        var link = row && row.querySelector('[data-platform="' + platform + '"]');
+        if (!link) return;
 
-        var badge = document.createElement('span');
-        badge.className = 'badge';
-        badge.textContent = 'Your device';
-        /* .sub is display:block, so the badge has to go BEFORE it to stay off
-           a line of its own below the description. */
-        var sub = row.querySelector('.sub');
-        if (sub) sub.parentNode.insertBefore(badge, sub);
-        else row.querySelector('span').appendChild(badge);
-        row.classList.add('link--match');
-        row.parentNode.insertBefore(row, row.parentNode.firstChild);
+        link.classList.add('badge-link--match');
+        /* The ring is the only visible cue, so say it where a screen reader
+           will hear it rather than adding another line of visible text. */
+        var img = link.querySelector('img');
+        var label = (img && img.getAttribute('alt')) || link.getAttribute('aria-label') || '';
+        link.setAttribute('aria-label', label + ' — your device');
+        row.insertBefore(link, row.firstChild);
       })();
     </script>
   </body>
