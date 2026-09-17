@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createShippingQuotes, quotableAddress, type ShippingDetails } from '../src/shop/shipping-quotes.ts'
+import { parcelForQuantity } from '../src/shop/constants.ts'
 
 const address = (postal_code: string): ShippingDetails => ({
   name: 'Checkout Test',
@@ -194,4 +195,48 @@ test('half-typed addresses do not burn a quote', () => {
   assert.equal(quotableAddress({ name: 'A', address: { ...base, postal_code: '021' } }), null)
   assert.equal(quotableAddress({ name: 'A', address: { ...base, country: 'CA' } }), null)
   assert.notEqual(quotableAddress({ name: 'A', address: { ...base, postal_code: '02108-1234' } }), null)
+})
+
+// Parcel dimensions feed live carrier quotes that customers are charged, so
+// the box mapping is pinned rather than left to drift with an edit.
+test('each order size ships in its own Uline box, at outside dimensions', () => {
+  const one = parcelForQuantity(1)
+  assert.deepEqual(one, { weightOz: 10.7, lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625 })
+
+  const two = parcelForQuantity(2)
+  assert.deepEqual(two, { weightOz: 18.96, lengthIn: 4.375, widthIn: 4.375, heightIn: 4.625 })
+
+  // The 3-copy box is wider, not taller — copies stand on edge side by side.
+  const three = parcelForQuantity(3)
+  assert.deepEqual(three, { weightOz: 27.38, lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625 })
+})
+
+test('every quantity declares more weight than the old bubble-mailer model', () => {
+  // Old model: 8.1 oz per copy + 1 oz of packaging for any order size.
+  for (const copies of [1, 2, 3]) {
+    const previous = 8.1 * copies + 1
+    assert.ok(
+      parcelForQuantity(copies).weightOz > previous,
+      `${copies} copies must not be declared lighter than before (postage shortfall)`,
+    )
+  }
+})
+
+test('actual weight governs pricing — dim weight never exceeds it', () => {
+  // UPS bills the greater of actual and dim weight (L*W*H/139, rounded up).
+  for (const copies of [1, 2, 3]) {
+    const p = parcelForQuantity(copies)
+    const dimWeightLb = Math.ceil((p.lengthIn * p.widthIn * p.heightIn) / 139)
+    const actualLb = Math.ceil(p.weightOz / 16)
+    assert.ok(
+      dimWeightLb <= actualLb,
+      `${copies} copies: dim weight ${dimWeightLb}lb would govern over actual ${actualLb}lb`,
+    )
+  }
+})
+
+test('out-of-range quantities clamp to a real box rather than crashing', () => {
+  assert.deepEqual(parcelForQuantity(0), parcelForQuantity(1))
+  assert.deepEqual(parcelForQuantity(99), parcelForQuantity(3))
+  assert.deepEqual(parcelForQuantity(2.7), parcelForQuantity(2))
 })

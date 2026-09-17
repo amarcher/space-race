@@ -70,15 +70,52 @@ export const ALLOWED_SHIP_COUNTRIES = ['US']
 // Measured on one of the 4 proof copies, 2026-08-12 — see docs/store-wayfinder.md.
 export const SINGLE_UNIT_WEIGHT_OZ = 8.1
 export const SINGLE_UNIT_DIMS_IN = { length: 3.55, width: 2.55, height: 1.75 }
-// Bubble mailer + label, rough estimate until real packaging is chosen.
-const PACKAGING_OVERHEAD_OZ = 1
+
+/** The Uline box each order size ships in — order #57968922, 2026-09-16, 25 each.
+ *
+ *  Dimensions are the OUTSIDE ones, because that is what a carrier measures,
+ *  and because UPS bills the greater of actual weight and dim weight
+ *  (L×W×H÷139, rounded up) — so the box's outer size moves the quote on its
+ *  own, not just what it weighs.
+ *
+ *  ⚠ These are Uline's published catalog specs, not our measurements: the
+ *  boxes had not arrived when this was written. `weightOz` here is the empty
+ *  box only. Replace both with scale readings from a packed box — see
+ *  PACKING_EXTRAS_OZ below and docs/store-ops.md.
+ */
+const SHIPPING_BOX_BY_QUANTITY = {
+  1: { sku: 'S-16725', lengthIn: 4.375, widthIn: 4.375, heightIn: 3.625, weightOz: 1.6 },
+  // Two 4x4x4 boxes were bought to compare sturdiness: S-4040 (1.76 oz) and
+  // S-22101 (1.6 oz, lightweight 32 ECT). Until Andrew picks one after test
+  // packing, quote the heavier — understating weight is what costs money.
+  2: { sku: 'S-4040', lengthIn: 4.375, widthIn: 4.375, heightIn: 4.625, weightOz: 1.76 },
+  // Copies stand on their long edges side by side: 3 × 1.75" = 5.25" across a
+  // 6" inside length. Unverified — no box has been test-packed yet.
+  3: { sku: 'S-4582', lengthIn: 6.375, widthIn: 4.375, heightIn: 3.625, weightOz: 2.08 },
+} as const
+
+/** Tape, label and void fill. Not measured, and deliberately not zero.
+ *
+ *  The old model allowed 1 oz for a whole bubble mailer, which the corrugated
+ *  box alone now exceeds. An understated parcel doesn't fail loudly: the
+ *  carrier accepts it, delivers it, and bills the difference back weeks later
+ *  as an adjustment, after the customer has paid a quote we can't revise. So
+ *  this errs heavy on purpose until a packed box goes on a scale.
+ */
+const PACKING_EXTRAS_OZ = 1
 
 export function parcelForQuantity(quantity: number) {
+  const copies = Math.min(Math.max(Math.trunc(quantity) || 1, 1), MAX_QTY_PER_ORDER)
+  const box = SHIPPING_BOX_BY_QUANTITY[copies as keyof typeof SHIPPING_BOX_BY_QUANTITY]
   return {
-    // copies stack in the same footprint; height scales with quantity
-    weightOz: SINGLE_UNIT_WEIGHT_OZ * quantity + PACKAGING_OVERHEAD_OZ,
-    lengthIn: SINGLE_UNIT_DIMS_IN.length,
-    widthIn: SINGLE_UNIT_DIMS_IN.width,
-    heightIn: SINGLE_UNIT_DIMS_IN.height * quantity,
+    // Round here, not just in the caller: 3 × 8.1 + 2.08 + 1 is
+    // 27.379999999999995 in float, and Shippo rejects more than four decimal
+    // places with a 400 — which is exactly how 3-copy orders broke before
+    // (#212). api/shipping-rates.ts still guards too; this stops the ugly
+    // number existing at all, including in the webhook's label pre-fill.
+    weightOz: Math.round((SINGLE_UNIT_WEIGHT_OZ * copies + box.weightOz + PACKING_EXTRAS_OZ) * 100) / 100,
+    lengthIn: box.lengthIn,
+    widthIn: box.widthIn,
+    heightIn: box.heightIn,
   }
 }

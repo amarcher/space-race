@@ -39,10 +39,29 @@ list on essentially every address, so it's what most buyers will pick — and
 it's exactly the one USPS gives you nothing for.
 
 The game box measures **3.55" × 2.55" × 1.75"** at **8.1 oz** (measured on a
-proof copy, 2026-08-12). For a single copy that suits a **6×9 bubble mailer**
-or a small **6×4×2 box**. Multi-copy orders stack in the same footprint —
-`parcelForQuantity()` in `web/src/shop/constants.ts` models height scaling
-with quantity, so a 3-copy order is ~5.25" tall.
+proof copy, 2026-08-12).
+
+**Boxes are bought** — Uline order #57968922, 2026-09-16, 25 each of four
+sizes, $60.49 landed for 100 ($0.6049/box, of which $20.38 is inbound
+shipping, so unit cost falls on a bigger reorder). `parcelForQuantity()` in
+`web/src/shop/constants.ts` maps order size to box:
+
+| Copies | Box | Outside (in) | Empty box |
+|---|---|---|---|
+| 1 | S-16725 (4×4×3) | 4⅜ × 4⅜ × 3⅝ | 1.6 oz |
+| 2 | S-4040 (4×4×4) | 4⅜ × 4⅜ × 4⅝ | 1.76 oz |
+| 3 | S-4582 (6×4×3) | 6⅜ × 4⅜ × 3⅝ | 2.08 oz |
+
+A 3-copy order is **wider, not taller** — copies stand on their long edges
+side by side, 3 × 1.75" = 5.25" across a 6" inside length. **S-22101** (4×4×4
+lightweight, 32 ECT, 1.6 oz) was also bought to compare sturdiness against
+S-4040; whichever wins becomes the 2-copy box, and they differ by 0.16 oz and
+$0.09. Send carriers the **outside** dimensions — UPS bills the greater of
+actual and dim weight (L×W×H÷139), so the outer size moves the quote by
+itself.
+
+> These are Uline's catalog figures, not our measurements, and **no box has
+> been test-packed**. Confirm each size actually fits, and weigh a packed box.
 
 > **Trap: don't put a non-Flat-Rate shipment in a Flat Rate box.** USPS Flat
 > Rate packaging must ship as Flat Rate. Our rates are weight-based, so use
@@ -89,19 +108,23 @@ comes out of margin. At the January batch's ~$8.16/unit net that's absorbable,
 but it's real money across 95 units, and it's worth re-checking actual rates
 before promising anything to anyone.
 
-### The packaging numbers are estimates
+### The packaging numbers are still partly estimates
 
-Two constants are currently guesses, both in `web/src/shop/constants.ts`:
+Box weights are now real catalog figures rather than a guess, but what goes
+*around* the game still isn't measured:
 
-- `PACKAGING_OVERHEAD_OZ = 1` — feeds the weight sent to Shippo for **live
-  rate quotes at checkout**. If the real mailer is heavier, every quote is
-  low, and the carrier bills the difference back as an adjustment.
+- `PACKING_EXTRAS_OZ = 1` in `web/src/shop/constants.ts` — tape, label and
+  void fill, on top of the box's own weight. Unmeasured. It feeds the weight
+  sent to Shippo for **live rate quotes at checkout**, and it deliberately
+  errs heavy: an understated parcel doesn't fail loudly, it gets delivered and
+  billed back weeks later as a carrier adjustment, after the customer has paid
+  a quote we can no longer revise.
 - The **$1.00/unit packaging cost** in the margin table in
-  `docs/store-wayfinder.md`.
+  `docs/store-wayfinder.md` — the box alone is $0.6049 landed, so this is
+  roughly right, but it's still carrying tape and filler as a guess.
 
-**Weigh a real mailer with a real copy in it as soon as the mailers arrive,**
-and correct both. Underdeclared weight means postage-due and carrier
-adjustment fees.
+**Weigh a packed box of each size as soon as the boxes arrive,** and correct
+both. Underdeclared weight means postage-due and carrier adjustment fees.
 
 ### A slipped ship date is a legal obligation, not just bad manners
 
