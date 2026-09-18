@@ -35,6 +35,31 @@ export type PaidOrder = {
   totalCents: number
 }
 
+type NamedSession = {
+  customer_details?: { name?: string | null } | null
+  collected_information?: { shipping_details?: { name?: string | null } | null } | null
+}
+
+/** Who the parcel is addressed to, or null if the session carries no name.
+ *
+ *  The shipping name comes first: it's the recipient (not always the payer —
+ *  gifts), and the Checkout Form requires it before payment. The billing name
+ *  is only a fallback, because `ui_mode: 'form'` leaves customer_details.name
+ *  empty for card payments — reading it first is how every real order until
+ *  #216 reached Shippo nameless, and a nameless order can't buy a label.
+ *  Blank strings count as missing so `??` can't stop on an empty value.
+ */
+export function recipientName(session: NamedSession): string | null {
+  for (const name of [
+    session.collected_information?.shipping_details?.name,
+    session.customer_details?.name,
+  ]) {
+    const trimmed = name?.trim()
+    if (trimmed) return trimmed
+  }
+  return null
+}
+
 const dollars = (cents: number) => (cents / 100).toFixed(2)
 // Shippo rejects numbers with more than four decimal places.
 const ounces = (oz: number) => String(Math.round(oz * 100) / 100)
