@@ -40,16 +40,31 @@ export default defineConfig({
         // heavy media (cards/video ~19MB, card art, sfx, ui rasters) so install
         // stays small/fast — those are runtime-cached on first use below.
         globPatterns: ['**/*.{js,css,html,woff2}', 'favicon.svg', 'icon-*.png'],
-        globIgnores: ['**/cards/**', '**/sfx/**', '**/ui/**', '**/print-sheet.html', 'shop.html', 'shop-admin.html'],
+        globIgnores: [
+          '**/cards/**',
+          '**/sfx/**',
+          '**/ui/**',
+          '**/print-sheet.html',
+          'shop.html',
+          'shop-admin.html',
+          // /get is the QR-code and marketing landing page, and it changes
+          // independently of the game. Precached, every edit to it stayed
+          // invisible on any device that had loaded the site before — a store
+          // badge or a price could be a release behind on exactly the page we
+          // point people at.
+          'get.html',
+        ],
         navigateFallback: '/index.html',
-        // Commerce pages must come from the network so their client and API
-        // stay on the same release. Excluding them from precache alone would
-        // instead send them to the game's navigation fallback.
+        // Commerce and landing pages must come from the network so their client
+        // and API stay on the same release. Excluding them from precache alone
+        // would instead send them to the game's navigation fallback.
         // Workbox matches pathname + search. Stripe returns with ?session_id=,
-        // and shop/admin links may also carry query parameters.
+        // shop/admin links may carry query parameters, and /get is linked with
+        // utm_* tags from ads and from the printed QR code.
         navigateFallbackDenylist: [
           /^\/shop(?:\.html|\/admin)?\/?(?:\?.*)?$/,
           /^\/shop-admin\.html(?:\?.*)?$/,
+          /^\/get(?:\.html)?\/?(?:\?.*)?$/,
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         runtimeCaching: [
