@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shippoOrderRequest } from '../api/_lib/shippo.ts'
+import { recipientName, shippoOrderRequest } from '../api/_lib/shippo.ts'
 
 test('a paid 3-copy order becomes a Shippo order with the paid-for service and packed weight', () => {
   const request = shippoOrderRequest({
@@ -36,4 +36,30 @@ test('a paid 3-copy order becomes a Shippo order with the paid-for service and p
     name: 'Pat Buyer', street1: '1 Main St', street2: '', city: 'Albany', state: 'NY',
     zip: '12207', country: 'US', email: 'pat@example.com',
   })
+})
+
+// The shape `ui_mode: 'form'` actually produces for a card payment: no billing
+// name, recipient name only on the shipping details. Reading the billing name
+// alone is how every real order reached Shippo nameless and couldn't be labeled.
+test('the recipient name comes from the shipping details when there is no billing name', () => {
+  assert.equal(recipientName({
+    customer_details: { name: null },
+    collected_information: { shipping_details: { name: 'Pat Recipient' } },
+  }), 'Pat Recipient')
+})
+
+test('a gift ships to the recipient, not the payer', () => {
+  assert.equal(recipientName({
+    customer_details: { name: 'Pat Payer' },
+    collected_information: { shipping_details: { name: 'Sam Recipient' } },
+  }), 'Sam Recipient')
+})
+
+test('blank names count as missing, so the billing name still backs them up', () => {
+  assert.equal(recipientName({
+    customer_details: { name: '  Pat Payer ' },
+    collected_information: { shipping_details: { name: '   ' } },
+  }), 'Pat Payer')
+  assert.equal(recipientName({ customer_details: { name: '' }, collected_information: null }), null)
+  assert.equal(recipientName({}), null)
 })

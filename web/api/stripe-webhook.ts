@@ -4,7 +4,7 @@ import { Resend } from 'resend'
 import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
 import { renderOrderConfirmation } from './_lib/orderEmail.js'
-import { createShippoOrder } from './_lib/shippo.js'
+import { createShippoOrder, recipientName } from './_lib/shippo.js'
 import {
   parcelForQuantity,
   resolveShipWindow,
@@ -21,6 +21,24 @@ export const config = {
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 const slackOrdersWebhookUrl = process.env.SLACK_ORDERS_WEBHOOK_URL ?? null
+
+// Awaited so a failure can be logged, but never thrown: a bad or revoked
+// webhook URL must not fail the checkout webhook itself (Stripe would retry,
+// the insert would conflict, and the order would silently stop reaching
+// #space-race — same reasoning as the email send below).
+async function postOrderAlert(text: string, orderId: unknown) {
+  if (!slackOrdersWebhookUrl) return
+  try {
+    const res = await fetch(slackOrdersWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+    if (!res.ok) console.error('Order Slack alert rejected', { orderId, status: res.status })
+  } catch (err) {
+    console.error('Order Slack alert failed to send', { orderId, err })
+  }
+}
 
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -72,12 +90,7 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   const shippingService = typeof shippingRate === 'object' && shippingRate !== null ? shippingRate.display_name : null
 
   const customerEmail = fullSession.customer_details?.email ?? ''
-  // The checkout form collects the recipient's name with the shipping address
-  // and leaves customer_details.name empty, so fall back to it — without this
-  // every order was stored nameless and a label had no one to address.
-  const customerName = fullSession.customer_details?.name
-    ?? fullSession.collected_information?.shipping_details?.name
-    ?? null
+  const customerName = recipientName(fullSession)
   const shippingAddress = fullSession.collected_information?.shipping_details?.address ?? {}
   const amountTotal = fullSession.amount_total ?? 0
   // Decided at checkout-session creation (see create-checkout-session.ts) so the
@@ -100,34 +113,28 @@ async function recordOrder(session: Stripe.Checkout.Session) {
   `
 
   // Webhooks can retry/redeliver — only alert/email on the first successful insert.
-  if (inserted.length > 0 && slackOrdersWebhookUrl) {
+  if (inserted.length > 0) {
     const who = customerName ?? customerEmail ?? 'someone'
     const copies = `${quantity} ${quantity === 1 ? 'copy' : 'copies'}`
     const shipping = shippingService ?? 'no shipping method on file'
-    // Fire-and-forget-ish, but awaited so a failure can be logged: a bad or
-    // revoked webhook URL must not fail the checkout webhook itself (Stripe
-    // would retry, the insert would conflict, and the order would silently
-    // stop reaching #space-race — same reasoning as the email send below).
-    try {
-      const res = await fetch(slackOrdersWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: `🎲 New order — ${who} bought ${copies}, shipping via ${shipping}.`,
-        }),
-      })
-      if (!res.ok) {
-        console.error('Order Slack alert rejected', { orderId: inserted[0].id, status: res.status })
-      }
-    } catch (err) {
-      console.error('Order Slack alert failed to send', { orderId: inserted[0].id, err })
-    }
+    await postOrderAlert(`🎲 New order — ${who} bought ${copies}, shipping via ${shipping}.`, inserted[0].id)
   }
 
   // Put the order on Shippo's Orders page so the label is a few clicks, not
   // retyping the address. Same rule as the alerts: a Shippo failure must not
   // fail the webhook, or the retry's insert conflicts and it never gets sent.
-  if (inserted.length > 0) {
+  // A nameless Shippo order looks fine until the label purchase, which the
+  // carrier refuses with nothing but a generic error. Hold it back and say so
+  // now, while the buyer's name is still one Stripe lookup away.
+  if (inserted.length > 0 && !customerName) {
+    const orderRef = String(inserted[0].id).slice(0, 8)
+    console.error('Shippo order skipped: no recipient name', { orderId: inserted[0].id })
+    await postOrderAlert(
+      `⚠️ Order ${orderRef} has no recipient name, so it was not sent to Shippo. `
+        + 'Find the name on the payment in Stripe and create the Shippo order by hand.',
+      inserted[0].id,
+    )
+  } else if (inserted.length > 0) {
     try {
       await createShippoOrder({
         orderRef: String(inserted[0].id).slice(0, 8),
