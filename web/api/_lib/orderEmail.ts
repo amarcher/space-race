@@ -105,6 +105,7 @@ function shell({ title, preheader, body }: { title: string; preheader: string; b
     .sr-container{width:100%!important}
     .sr-pad{padding-left:22px!important;padding-right:22px!important}
     .sr-total{font-size:22px!important}
+    .sr-track{font-size:16px!important}
   }
 </style>
 </head>
@@ -219,6 +220,117 @@ export function renderOrderConfirmation(input: OrderConfirmationInput) {
       title: 'Your Space Race order is confirmed',
       // Shown next to the subject in the inbox — lead with the useful bit.
       preheader: `${money(input.totalCents)} · ${input.shipDateLine}`,
+      body,
+    }),
+  }
+}
+
+/** The carrier's public tracking page, or null when we can't tell the carrier.
+ *
+ *  The service name the buyer paid for is the reliable signal ("UPS Ground
+ *  Saver", "USPS Ground Advantage"); a 1Z… number is UPS whatever it says. An
+ *  unknown carrier gets no link rather than a guessed one — a tracking page
+ *  that says "not found" reads as a lost parcel.
+ */
+export function trackingUrl(shippingService: string | null, trackingNumber: string): string | null {
+  const number = encodeURIComponent(trackingNumber.trim())
+  const service = (shippingService ?? '').toLowerCase()
+  if (/^1z/i.test(trackingNumber.trim()) || service.includes('ups')) {
+    return `https://www.ups.com/track?tracknum=${number}`
+  }
+  if (service.includes('usps')) return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${number}`
+  if (service.includes('fedex')) return `https://www.fedex.com/fedextrack/?trknbr=${number}`
+  return null
+}
+
+export type ShippedNoticeInput = {
+  productName: string
+  quantity: number
+  customerName: string | null
+  address: EmailAddress
+  shippingService: string | null
+  trackingNumber: string
+  orderRef: string
+}
+
+export function renderShippedNotice(input: ShippedNoticeInput) {
+  const ship = addressLines(input.address, input.customerName)
+  const url = trackingUrl(input.shippingService, input.trackingNumber)
+  const copies = input.quantity === 1 ? 'Your copy' : `Your ${input.quantity} copies`
+  const via = input.shippingService ? ` via ${input.shippingService}` : ''
+
+  // A table-cell button, not a styled link alone: Outlook ignores padding on
+  // <a>, so the cell carries the colour and size and the link fills it.
+  const button = url
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;">
+          <tr><td style="background:${GOLD};border-radius:8px;">
+            <a href="${escapeHtml(url)}" style="display:inline-block;padding:12px 22px;font-family:${BODY_FONT};font-size:14px;font-weight:700;color:${BG};text-decoration:none;">Track your package &rarr;</a>
+          </td></tr>
+        </table>`
+    : ''
+
+  const body = `
+  <tr><td class="sr-pad" style="padding:30px 34px 4px;">
+    <div style="font-family:${DISPLAY_FONT};font-size:24px;font-weight:700;color:${TEXT};line-height:1.25;">It's on its way!</div>
+    <div style="font-family:${BODY_FONT};font-size:15px;line-height:1.6;color:${DIM};padding-top:12px;">
+      ${escapeHtml(copies)} of <span style="color:${TEXT};">${escapeHtml(input.productName)}</span>
+      just shipped${escapeHtml(via)}.
+    </div>
+  </td></tr>
+
+  <tr><td class="sr-pad" style="padding:22px 34px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:${INSET};border:1px solid ${BORDER};border-radius:10px;">
+      <tr><td style="padding:16px 18px 18px;">
+        <div style="font-family:${BODY_FONT};font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${DIM};padding-bottom:8px;">Tracking number</div>
+        <div class="sr-track" style="font-family:${DISPLAY_FONT};font-size:20px;font-weight:700;color:${GOLD};letter-spacing:.02em;word-break:break-all;">${escapeHtml(input.trackingNumber)}</div>
+        ${button}
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <tr><td class="sr-pad" style="padding:16px 34px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background:${INSET};border:1px solid ${BORDER};border-radius:10px;">
+      <tr><td style="padding:16px 18px;">
+        <div style="font-family:${BODY_FONT};font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${DIM};padding-bottom:8px;">Shipping to</div>
+        <div style="font-family:${BODY_FONT};font-size:14px;line-height:1.65;color:${TEXT};">${ship.map(escapeHtml).join('<br>')}</div>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <tr><td class="sr-pad" style="padding:20px 34px 4px;">
+    <div style="font-family:${BODY_FONT};font-size:13px;line-height:1.6;color:${DIM};">
+      Tracking can take up to a day to show movement after the carrier's first scan.
+      If it arrives damaged or never turns up, reply to this email and we'll send a replacement.
+    </div>
+  </td></tr>
+
+  <tr><td class="sr-pad" style="padding:18px 34px 30px;">
+    <div style="font-family:${BODY_FONT};font-size:12px;color:#6f6d84;">Order ${escapeHtml(input.orderRef)}</div>
+  </td></tr>`
+
+  const text = [
+    `${copies} of ${input.productName} just shipped${via}.`,
+    '',
+    'TRACKING NUMBER',
+    `  ${input.trackingNumber}`,
+    ...(url ? [`  Track it: ${url}`] : []),
+    '',
+    'SHIPPING TO',
+    ...ship.map((line) => `  ${line}`),
+    '',
+    "Tracking can take up to a day to show movement after the carrier's first scan.",
+    "If it arrives damaged or never turns up, reply and we'll send a replacement.",
+    '',
+    `Order ${input.orderRef}`,
+    `Questions? Reply to this email or write to ${SUPPORT_EMAIL}.`,
+  ].join('\n')
+
+  return {
+    subject: 'Your Space Race order has shipped',
+    text,
+    html: shell({
+      title: 'Your Space Race order has shipped',
+      preheader: `On its way${via} · tracking ${input.trackingNumber}`,
       body,
     }),
   }

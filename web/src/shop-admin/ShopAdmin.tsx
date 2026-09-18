@@ -27,6 +27,7 @@ type Order = {
   status: 'paid' | 'fulfilled' | 'cancelled' | 'refunded'
   tracking_number: string | null
   fulfilled_at: string | null
+  shipped_email_sent_at: string | null
   notes: string | null
   ship_window: 'in_stock' | 'early' | 'january'
 }
@@ -97,6 +98,40 @@ function FulfillForm({ order, secret, onFulfilled }: { order: Order; secret: str
   )
 }
 
+// Orders shipped before the email existed, or whose send failed, show the
+// button; the server refuses a second send, so a double click can't spam.
+function ShippedEmail({ order, secret, onSent }: { order: Order; secret: string; onSent: () => void }) {
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const send = useCallback(async () => {
+    setSending(true)
+    setError(null)
+    try {
+      await callAdminApi('/api/admin/send-shipped-email', secret, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: order.id }),
+      })
+      onSent()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send')
+    } finally {
+      setSending(false)
+    }
+  }, [secret, order.id, onSent])
+
+  if (order.shipped_email_sent_at) {
+    return <span className="admin__dim">Emailed {new Date(order.shipped_email_sent_at).toLocaleDateString()}</span>
+  }
+  return (
+    <span className="admin__fulfill">
+      <button onClick={send} disabled={sending}>Send shipping email</button>
+      {error && <span className="admin__error">{error}</span>}
+    </span>
+  )
+}
+
 function OrderRow({ order, secret, onChanged }: { order: Order; secret: string; onChanged: () => void }) {
   return (
     <tr className={`admin__row admin__row--${order.status}`}>
@@ -118,7 +153,13 @@ function OrderRow({ order, secret, onChanged }: { order: Order; secret: string; 
       <td>{order.status}</td>
       <td>
         {order.status === 'paid' && <FulfillForm order={order} secret={secret} onFulfilled={onChanged} />}
-        {order.status === 'fulfilled' && (order.tracking_number ?? '—')}
+        {order.status === 'fulfilled' && (
+          <>
+            {order.tracking_number ?? '—'}
+            <br />
+            <ShippedEmail order={order} secret={secret} onSent={onChanged} />
+          </>
+        )}
       </td>
     </tr>
   )
