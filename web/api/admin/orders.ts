@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id, created_at, customer_email, customer_name, shipping_address,
       quantity, unit_price_cents, shipping_cents, shipping_service,
       amount_total_cents, currency, status, tracking_number, fulfilled_at,
-      notes, ship_window
+      shipped_email_sent_at, notes, ship_window
     from orders
     order by
       case status when 'paid' then 0 else 1 end,

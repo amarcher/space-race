@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql } from '../_lib/db.js'
 import { requireAdmin } from '../_lib/adminAuth.js'
+import { sendShippedEmail } from '../_lib/shippedEmail.js'
 
 // Marks an order shipped + records tracking — see docs/store-wayfinder.md Phase 12.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -30,5 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  res.status(200).json({ ok: true })
+  // The order is shipped whether or not the email goes out; report the email
+  // separately so /shop/admin can say so and offer a retry.
+  const email = await sendShippedEmail(id)
+  res.status(200).json({ ok: true, emailed: email.sent, emailError: email.sent ? null : email.reason })
 }
