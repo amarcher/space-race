@@ -1,7 +1,8 @@
-import { CARD_DEFS, DISTANCE_VALUES, LANES, WIN_DISTANCE, type CardInstance } from '../game/cards'
+import { CARD_DEFS, DISTANCE_VALUES, LANES, type CardInstance } from '../game/cards'
 import { activeHazard, hazardTurnsLeft, SELF_HEAL_MAX, SPEED_LIMIT_VALUE, speedLimited, type PlayerState } from '../game/engine'
 import { Card } from './Card'
 import { MomentumMeter } from './MomentumMeter'
+import { RaceTrack } from './RaceTrack'
 import './PlayerBoard.css'
 
 interface PlayerBoardProps {
@@ -117,7 +118,6 @@ function Stack({
 export function PlayerBoard({ player, isOpponent, active, impact, momentum, canBurst, onBurst, selfHeal = false }: PlayerBoardProps) {
   const hzr = activeHazard(player)
   const slow = speedLimited(player)
-  const pct = Math.min(100, (player.distance / WIN_DISTANCE) * 100)
 
   // Persistent ambient state — communicated purely with colour/motion (no icon,
   // no text). BLOCKED is a red emergency (stopped, powered-down, awaiting a
@@ -150,10 +150,13 @@ export function PlayerBoard({ player, isOpponent, active, impact, momentum, canB
       aria-label={`${player.name} — ${ambientLabel}`}
     >
       <header className="board__head">
-        <div className="board__meter" title={`${player.distance} of ${WIN_DISTANCE} light-years`}>
-          <div className="board__meter-fill" style={{ width: `${pct}%` }} />
-          <span className="board__meter-num" aria-hidden>{player.distance}</span>
-        </div>
+        <RaceTrack
+          distance={player.distance}
+          trail={player.trail}
+          pile={player.distancePile}
+          state={ambient}
+          isOpponent={isOpponent}
+        />
         {momentum && (
           <MomentumMeter
             charge={momentum.charge}

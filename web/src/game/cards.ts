@@ -124,7 +124,7 @@ export const SCORE_DELAYED_ACTION = 300
 export const SCORE_SHUTOUT = 500
 
 export const artUrl = (def: CardDef): string => `/cards/${def.art}.webp`
-export const CARD_BACK_URL = '/cards/card-back.webp'
+export const CARD_BACK_URL = '/cards/card-back-printed.webp'
 
 /** A dealt physical card: a definition plus a unique instance id. */
 export interface CardInstance {

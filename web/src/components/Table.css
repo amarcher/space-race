@@ -667,11 +667,11 @@
   .table__main { perspective: none; }
   .table__plane { transform: none; gap: 6px; }
 
-  /* compact boards: smaller tableau cards + a slimmer meter/head so two boards
+  /* compact boards: smaller tableau cards + a slimmer track/head so two boards
      plus the centre leave room for the hand */
   .board { --tab-w: clamp(38px, 6.2vh, 60px); padding: 6px 10px 7px; }
   .board__head { gap: 10px; margin-bottom: 5px; }
-  .board__meter { height: 24px; }
+  .board .race { height: 28px; --rail-h: 16px; --ship: 34px; }
 
   /* the deck + discard sit closer together */
   .table__center { gap: clamp(18px, 9vw, 56px); padding: 0 8px; }
