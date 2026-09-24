@@ -999,7 +999,7 @@ img {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 12px 22px;
   margin-bottom: 22px;
   font: 600 11px/1 Inter, sans-serif;
   letter-spacing: 0.16em;
