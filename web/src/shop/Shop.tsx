@@ -210,6 +210,13 @@ function ProductPage() {
           className="checkout-payment"
           aria-label="Shipping and payment"
         >
+          <div className="checkout-finish" aria-hidden="true">
+            <span>Finish line</span>
+            <i>
+              <img src="/ui/ship-marker.png" alt="" />
+            </i>
+            <span>1,000 ly</span>
+          </div>
           <h2>Checkout</h2>
           {checkoutError ? (
             <div className="checkout-status" role="alert">

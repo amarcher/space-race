@@ -139,7 +139,14 @@ export function ShopCheckout({ onRetry }: { onRetry: () => void }) {
     <section className="checkout-prices" aria-label="Order summary">
       {checkout.lineItems.map((item) => (
         <div className="checkout-prices__row" key={item.id}>
-          <span>{item.name}<small>{item.quantity} {item.quantity === 1 ? 'copy' : 'copies'}</small></span>
+          <span className="checkout-prices__item">
+            <span className="checkout-prices__boxes" aria-hidden="true">
+              {Array.from({ length: Math.min(item.quantity, 3) }, (_, i) => (
+                <img key={i} src="/shop/scroll/box-front.webp" alt="" width="757" height="1057" />
+              ))}
+            </span>
+            <span>{item.name}<small>{item.quantity} {item.quantity === 1 ? 'copy' : 'copies'}</small></span>
+          </span>
           <strong>{item.total.amount}</strong>
         </div>
       ))}
