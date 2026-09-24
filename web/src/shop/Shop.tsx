@@ -1,16 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Brand,
-  FilmSection,
-  GameMoment,
-  StoreFooter,
-  StoreHero,
-  Trailer,
-} from './StoreExperience'
+import { Brand, StoreFooter } from './StoreExperience'
+import { ScrollStore } from './ScrollStore'
 import {
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
-  UNIT_PRICE_CENTS,
   quantityFromMetaCart,
 } from './constants'
 
@@ -21,19 +14,8 @@ type InventoryStatus = {
   earlySoldOut: boolean
 }
 const CHECKOUT_CONFIGURED = Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-const PRICE_LABEL = (UNIT_PRICE_CENTS / 100).toFixed(2)
-const GALLERY_IMAGES = [
-  {
-    src: '/shop/hero.jpg',
-    label: 'The complete game',
-    alt: 'The real Space Race First Edition: illustrated tuck box, rulebook, distance cards, hazards, repairs, and safeties laid out on a table',
-  },
-  {
-    src: '/shop/box-closeup.jpg',
-    label: 'The tuck box',
-    alt: 'Close-up of the shrink-wrapped Space Race: 1000 Light-Years tuck box',
-  },
-]
+const CHECKOUT_PHOTO_ALT =
+  'The real Space Race First Edition: illustrated tuck box, rulebook, distance cards, hazards, repairs, and safeties laid out on a table'
 
 export function Shop() {
   const sessionId = new URLSearchParams(window.location.search).get(
@@ -70,23 +52,6 @@ function Confirmation() {
   )
 }
 
-function ShippingPolicy() {
-  return (
-    <details className="shop__policy">
-      <summary>Shipping &amp; returns</summary>
-      <ul>
-        <li>US shipping. Shipping and tax calculated at checkout.</li>
-        <li>Return within 30 days of delivery for a refund.</li>
-        <li>
-          Damaged or lost in transit? Choose a free replacement or full refund.
-          No return needed.
-        </li>
-        <li>Cancel before shipping for a full refund.</li>
-      </ul>
-    </details>
-  )
-}
-
 function ProductPage() {
   // Non-null when the visitor arrived from a Meta Shops cart, which is also
   // what makes the itemised cart summary appear.
@@ -97,23 +62,9 @@ function ProductPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const checkoutRequest = useRef(0)
   const [inventory, setInventory] = useState<InventoryStatus | null>(null)
-  const [activeImage, setActiveImage] = useState(0)
-  const [watching, setWatching] = useState(false)
   const purchaseButton = useRef<HTMLButtonElement>(null)
   const checkoutHeading = useRef<HTMLHeadingElement>(null)
   const productScroll = useRef(0)
-  const productSection = useRef<HTMLElement>(null)
-  const [offerVisible, setOfferVisible] = useState(false)
-  useEffect(() => {
-    if (checkingOut || !productSection.current) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setOfferVisible(entry.isIntersecting),
-      { rootMargin: '0px 0px -80px 0px' }
-    )
-    observer.observe(productSection.current)
-    return () => observer.disconnect()
-  }, [checkingOut])
-
   useEffect(() => {
     let cancelled = false
     fetch('/api/inventory-status', { signal: AbortSignal.timeout(10000) })
@@ -225,246 +176,88 @@ function ProductPage() {
     }
   }, [checkingOut])
 
-  if (checkingOut)
-    return (
-      <>
-        <header className="store-header">
-          <Brand />
-          <span className="store-secure">Secure checkout</span>
-        </header>
-        <main className="shop--checkout">
-          <aside className="checkout-summary">
-            <button
-              className="shop__back"
-              onClick={() => window.history.back()}
-            >
-              ← Back to the game
-            </button>
-            <h1 ref={checkoutHeading} tabIndex={-1}>
-              Your order.
-            </h1>
-            <img
-              className="checkout-summary__photo"
-              src="/shop/hero.jpg"
-              alt={GALLERY_IMAGES[0].alt}
-            />
-            <h2>Space Race: 1,000 Light-Years</h2>
-            <p>
-              First Edition · {quantity} {quantity === 1 ? 'copy' : 'copies'}
-            </p>
-            <p className="checkout-summary__promise">
-              Cancel anytime before it ships. 30-day returns after it arrives.
-            </p>
-          </aside>
-          <section
-            className="checkout-payment"
-            aria-label="Shipping and payment"
-          >
-            <h2>Checkout</h2>
-            {checkoutError ? (
-              <div className="checkout-status" role="alert">
-                <p className="shop__error">{checkoutError}</p>
-                <button className="shop__buy" onClick={startCheckout}>
-                  Try again
-                </button>
-              </div>
-            ) : clientSecret ? (
-              <Suspense
-                fallback={
-                  <p className="checkout-status" role="status">
-                    Loading secure payment form…
-                  </p>
-                }
-              >
-                <CheckoutPanel
-                  clientSecret={clientSecret}
-                  onRetry={startCheckout}
-                />
-              </Suspense>
-            ) : (
-              <p className="checkout-status" role="status">
-                Opening secure checkout…
-              </p>
-            )}
-          </section>
-        </main>
-      </>
-    )
-
-  return (
+  const checkout = checkingOut && (
     <>
-      <a className="store-skip" href="#get-the-game">
-        Skip to product and ordering
-      </a>
       <header className="store-header">
         <Brand />
-        <nav aria-label="Store">
-          <a href="#the-film">The film</a>
-          <a href="#your-move">How it plays</a>
-          <a className="store-header__buy" href="#get-the-game">
-            Get the game
-          </a>
-        </nav>
+        <span className="store-secure">Secure checkout</span>
       </header>
-      <main className="store">
-        <StoreHero onWatch={() => setWatching(true)} />
-        <FilmSection onWatch={() => setWatching(true)} />
+      <main className="shop--checkout">
+        <aside className="checkout-summary">
+          <button
+            className="shop__back"
+            onClick={() => window.history.back()}
+          >
+            ← Back to the game
+          </button>
+          <h1 ref={checkoutHeading} tabIndex={-1}>
+            Your order.
+          </h1>
+          <img
+            className="checkout-summary__photo"
+            src="/shop/hero.jpg"
+            alt={CHECKOUT_PHOTO_ALT}
+          />
+          <h2>Space Race: 1,000 Light-Years</h2>
+          <p>
+            First Edition · {quantity} {quantity === 1 ? 'copy' : 'copies'}
+          </p>
+          <p className="checkout-summary__promise">
+            Cancel anytime before it ships. 30-day returns after it arrives.
+          </p>
+        </aside>
         <section
-          ref={productSection}
-          className="store-product store-section"
-          id="get-the-game"
-          aria-labelledby="product-heading"
+          className="checkout-payment"
+          aria-label="Shipping and payment"
         >
-          <div className="shop__gallery">
-            <div className="shop__photo-frame">
-              <img
-                className="shop__hero"
-                src={GALLERY_IMAGES[activeImage].src}
-                alt={GALLERY_IMAGES[activeImage].alt}
-                width="1200"
-                height="1600"
-                loading="lazy"
-              />
-            </div>
-            <div className="shop__thumbs">
-              {GALLERY_IMAGES.map((image, i) => (
-                <button
-                  key={image.src}
-                  type="button"
-                  className={`shop__thumb${
-                    i === activeImage ? ' shop__thumb--active' : ''
-                  }`}
-                  onClick={() => setActiveImage(i)}
-                  aria-pressed={i === activeImage}
-                >
-                  <img src={image.src} alt="" loading="lazy" />
-                  <span>{image.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="shop__info">
-            {metaCart !== null && (
-              <div className="shop__cart" aria-label="Your cart">
-                <p className="shop__cart-heading">Your cart</p>
-                <p className="shop__cart-line">
-                  <span>
-                    {quantity} × {PRODUCT_NAME}
-                  </span>
-                  <span>
-                    ${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(2)}
-                  </span>
-                </p>
-                <p className="shop__cart-note">
-                  Shipping and any sales tax are calculated at checkout.
-                </p>
-              </div>
-            )}
-            <p className="shop__badge">First Edition</p>
-            <h2 id="product-heading">Space Race</h2>
-            <ul className="shop__contents">
-              <li>107 UV-coated cards</li>
-              <li>Illustrated tuck box</li>
-              <li>Rulebook with advanced modes</li>
-            </ul>
-            <div className="shop__price-row">
-              <p className="shop__price">${PRICE_LABEL}</p>
-              <span>
-                per game
-                <br />+ shipping and any sales tax
-              </span>
-            </div>
-            <p className="shop__ship-window">
-              {soldOut ? 'This edition is currently sold out.' : availability}
-            </p>
-            <div className="shop__order-row">
-              <label className="shop__qty">
-                Quantity
-                <select
-                  disabled={soldOut}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                >
-                  {Array.from(
-                    { length: Math.max(1, maxQuantity) },
-                    (_, i) => i + 1
-                  ).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                ref={purchaseButton}
-                className="shop__buy"
-                disabled={soldOut || !CHECKOUT_CONFIGURED}
-                onClick={startCheckout}
-              >
-                {soldOut
-                  ? 'Sold out'
-                  : `Buy now · $${((quantity * UNIT_PRICE_CENTS) / 100).toFixed(
-                      2
-                    )}`}
+          <h2>Checkout</h2>
+          {checkoutError ? (
+            <div className="checkout-status" role="alert">
+              <p className="shop__error">{checkoutError}</p>
+              <button className="shop__buy" onClick={startCheckout}>
+                Try again
               </button>
             </div>
-            {!CHECKOUT_CONFIGURED && (
-              <p className="shop__error">
-                The store isn't open yet — check back soon.
-              </p>
-            )}
-            <p className="shop__order-note">US shipping. Secure checkout.</p>
-            <ShippingPolicy />
-          </div>
-        </section>
-        <GameMoment />
-        <section
-          className="store-questions store-section"
-          aria-labelledby="questions-heading"
-        >
-          <div>
-            <h2 id="questions-heading">Questions?</h2>
-            <a
-              className="store-text-link"
-              href="/"
-              target="_blank"
-              rel="noreferrer"
+          ) : clientSecret ? (
+            <Suspense
+              fallback={
+                <p className="checkout-status" role="status">
+                  Loading secure payment form…
+                </p>
+              }
             >
-              Play free in your browser ↗
-            </a>
-          </div>
-          <div>
-            <details>
-              <summary>How do you play?</summary>
-              <p>
-                Race to 1,000 light-years. Play hazards to slow your rivals,
-                and repairs and safeties to keep moving.
-              </p>
-            </details>
-            <details>
-              <summary>Do we need a phone or an app?</summary>
-              <p>No. Just the deck and 2–4 players.</p>
-            </details>
-            <details>
-              <summary>When will my order ship?</summary>
-              <p>
-                {availability}. Choose shipping at checkout. We'll email
-                tracking when it ships.
-              </p>
-            </details>
-          </div>
+              <CheckoutPanel
+                clientSecret={clientSecret}
+                onRetry={startCheckout}
+              />
+            </Suspense>
+          ) : (
+            <p className="checkout-status" role="status">
+              Opening secure checkout…
+            </p>
+          )}
         </section>
       </main>
-      <StoreFooter />
-      <div className="store-mobile-order" hidden={offerVisible}>
-        <span>
-          First Edition<strong>${PRICE_LABEL}</strong>
-        </span>
-        <a className="shop__buy" href="#get-the-game">
-          {soldOut ? 'View the game' : 'Get the game'}
-        </a>
-      </div>
-      <Trailer open={watching} onClose={() => setWatching(false)} />
+    </>
+  )
+
+  // The store stays mounted behind the checkout: its scroll engine has no
+  // teardown, and Back must return to the exact frame the buyer left.
+  return (
+    <>
+      {checkout}
+      <ScrollStore
+        hidden={checkingOut}
+        quantity={quantity}
+        onQuantity={setQuantity}
+        maxQuantity={maxQuantity}
+        soldOut={soldOut}
+        availability={availability}
+        checkoutConfigured={CHECKOUT_CONFIGURED}
+        metaCart={metaCart}
+        onBuy={startCheckout}
+        buyRef={purchaseButton}
+      />
     </>
   )
 }
