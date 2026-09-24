@@ -1,0 +1,233 @@
+/* RACE TRACK — see RaceTrack.tsx. Sized to sit where the 32px progress pill was,
+   so the board keeps its height. */
+
+.race {
+  --rail-h: 22px;
+  --ship: 46px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  /* hop colours: two alternating fills so equal hops stay countable */
+  --seg-a: linear-gradient(180deg, #8fd0ff, #5b8bff);
+  --seg-b: linear-gradient(180deg, #a9c2ff, #6f78ff);
+  --seg-glow: rgba(111, 183, 255, 0.5);
+  --seg-ink: #0b1030;
+  /* a safety / Slingshot bonus: the gold reserved for the glorious moments */
+  --seg-bonus: linear-gradient(180deg, #ffe79a, #f0b43a);
+  --seg-bonus-ink: #2a1a02;
+  --seg-bonus-glow: rgba(255, 200, 80, 0.55);
+}
+
+.race__total {
+  min-width: 4.4ch;
+  font: 700 17px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-align: right;
+}
+
+/* the lane leaves room for the ship's tail at 0 and the flag past 1,000 */
+.race__lane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 24px 0 4px;
+  display: flex;
+  align-items: center;
+}
+
+.race__rail {
+  position: relative;
+  width: 100%;
+  height: var(--rail-h);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.race__tick {
+  position: absolute;
+  left: calc(var(--at) * 100%);
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* one hop per card played; a 1px gap on each side keeps equal hops countable */
+.race__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--at) * 100% + 1px);
+  width: calc(var(--w) * 100% - 2px);
+  border-radius: 4px;
+  background: var(--seg-a);
+  box-shadow: 0 0 14px var(--seg-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  display: grid;
+  place-items: center;
+  container-type: inline-size;
+  transform-origin: left center;
+  animation: segIn 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.race__seg:nth-child(odd of .race__seg) { background: var(--seg-b); }
+/* re-point the hop's own colour variables, so no fill selector can outrank it */
+.race__seg--bonus { --seg-a: var(--seg-bonus); --seg-b: var(--seg-bonus); --seg-glow: var(--seg-bonus-glow); --seg-ink: var(--seg-bonus-ink); }
+.race__seg:nth-child(1 of .race__seg) { border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+.race__seg b {
+  font: 800 11px/1 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--seg-ink);
+  letter-spacing: -0.02em;
+}
+/* a hop too short to hold its number just shows as a hop */
+@container (max-width: 17px) {
+  .race__seg b { display: none; }
+}
+@keyframes segIn {
+  0% { transform: scaleX(0); filter: brightness(2); }
+  100% { transform: scaleX(1); filter: brightness(1); }
+}
+
+/* the ship rides the leading edge; its nose sits on the current distance */
+.race__ship {
+  position: absolute;
+  top: 50%;
+  left: calc(4px + var(--p) * (100% - 28px));
+  width: var(--ship);
+  height: var(--ship);
+  translate: -26% -56%;
+  transition: left 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+  pointer-events: none;
+}
+.race__ship::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: 72%;
+  top: 50%;
+  width: 26px;
+  height: 8px;
+  translate: 0 -30%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(125, 240, 255, 0.85));
+  filter: blur(2px);
+}
+.race--dormant .race__ship::after,
+.race--blocked .race__ship::after { display: none; }
+.race__ship img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+.race--opp .race__ship img {
+  filter: hue-rotate(250deg) saturate(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+/* chequered flag at 1,000: flutters the whole race, and warms to gold once the
+   finish is in sight */
+.race__flag {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 18px;
+  height: 26px;
+  translate: 0 -50%;
+  border-left: 2px solid rgba(255, 255, 255, 0.6);
+}
+.race__flag::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 16px;
+  height: 12px;
+  background: repeating-conic-gradient(#fff 0 25%, #1a1a2e 0 50%) 0 0 / 8px 6px;
+  border-radius: 0 2px 2px 0;
+  opacity: 0.85;
+  transform-origin: left center;
+  animation: flagWave 1.8s ease-in-out infinite;
+}
+@keyframes flagWave {
+  0%, 100% { transform: skewY(0) scaleX(1); }
+  25% { transform: skewY(-12deg) scaleX(0.86); }
+  50% { transform: skewY(0) scaleX(1); }
+  75% { transform: skewY(10deg) scaleX(0.9); }
+}
+
+/* ── ambient states (mirrors .board--*) ─────────────────────────────────── */
+
+.race--cruising .race__ship img { animation: thrust 1.4s ease-in-out infinite; }
+@keyframes thrust {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+.race--dormant .race__ship { filter: grayscale(0.7) brightness(0.8); }
+
+.race--limited {
+  --seg-a: linear-gradient(180deg, #ffd98a, #d99a2b);
+  --seg-b: linear-gradient(180deg, #ffe3a6, #c7892a);
+  --seg-glow: rgba(255, 190, 80, 0.3);
+  --seg-ink: #2a1a02;
+}
+
+/* stopped dead: the hops go dark, the ship noses down and pulses red */
+.race--blocked {
+  --seg-a: linear-gradient(180deg, #7a1f2e, #4a0f1a);
+  --seg-b: linear-gradient(180deg, #6a1826, #3e0c16);
+  --seg-glow: transparent;
+  --seg-ink: rgba(255, 205, 210, 0.8);
+  --seg-bonus: linear-gradient(180deg, #8a5a1c, #5a3510);
+  --seg-bonus-ink: rgba(255, 225, 180, 0.85);
+  --seg-bonus-glow: transparent;
+}
+.race--blocked .race__ship img { filter: grayscale(0.6) brightness(0.75) drop-shadow(0 0 6px rgba(255, 60, 80, 0.9)); transform: rotate(14deg); }
+.race--blocked .race__ship::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 80, 100, 0.8);
+  animation: sos 0.95s ease-out infinite;
+}
+@keyframes sos {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* finish in sight: the flag warms to gold and whips harder */
+.race--near .race__flag { border-left-color: var(--gold); }
+.race--near .race__flag::after {
+  opacity: 1;
+  background-image: repeating-conic-gradient(#fff3c4 0 25%, #1a1a2e 0 50%);
+  box-shadow: 0 0 14px rgba(255, 217, 61, 0.85);
+  animation-duration: 0.9s;
+}
+.race--done {
+  --seg-a: linear-gradient(180deg, #ffe79a, #ffb43a);
+  --seg-b: linear-gradient(180deg, #fff0b8, #f5a623);
+  --seg-glow: rgba(255, 200, 80, 0.5);
+  --seg-ink: #2a1a02;
+}
+.race--done .race__total { color: var(--gold); }
+
+@media (max-width: 520px) {
+  .race { gap: 8px; }
+  .race__total { font-size: 14px; }
+  .race__seg b { font-size: 9.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .race__seg { animation: none; }
+  .race__ship { transition: none; }
+  .race--cruising .race__ship img,
+  .race__flag::after { animation: none; }
+  .race--blocked .race__ship::before { animation: none; transform: scale(1.2); }
+}

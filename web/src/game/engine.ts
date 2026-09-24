@@ -53,6 +53,19 @@ export interface PlayerState {
   coupSafeties: string[]
   coupFourres: number
   count200: number
+  /** every light-year gained, in order: each distance card, plus each safety /
+   *  Slingshot bonus paid onto the track. Drives the race track's hops. Optional
+   *  so a state from an older client (TV relay, debug setups) still renders. */
+  trail?: TrailHop[]
+}
+
+export interface TrailHop {
+  /** light-years this hop added */
+  v: number
+  /** the card that earned it: a distance card, or the safety revealed */
+  kind: string
+  /** a safety / Slingshot bonus rather than a distance card */
+  bonus?: boolean
 }
 
 const emptyBattle = (): Record<Lane, CardInstance[]> =>
@@ -390,6 +403,7 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     coupSafeties: [],
     coupFourres: 0,
     count200: 0,
+    trail: [],
   }))
 
   for (let i = 0; i < HAND_SIZE; i++) {
@@ -522,10 +536,11 @@ function beginTurnFor(s: GameState, p: PlayerState) {
  * you down on exactly WIN_DISTANCE.
  *
  * Returns the light-years actually added, so the caller can word its log line. */
-function awardMileage(s: GameState, p: PlayerState, mileage: number): number {
+function awardMileage(s: GameState, p: PlayerState, mileage: number, safety: string): number {
   if (s.rules.ledgerScoring) return 0
   const gain = s.rules.exactFinish ? Math.max(0, Math.min(mileage, WIN_DISTANCE - p.distance)) : mileage
   p.distance += gain
+  if (gain > 0) (p.trail ??= []).push({ v: gain, kind: safety, bonus: true })
   return gain
 }
 
@@ -645,6 +660,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       me.hand.splice(idx, 1)
       me.distancePile.push(card)
       me.distance += def.value ?? 0
+      ;(me.trail ??= []).push({ v: def.value ?? 0, kind: def.kind })
       if (def.value === 200) me.count200++
       pushLog(s, me.seat, `${me.name} warps ${def.value} ly — now at ${me.distance}.`, 'distance', {
         card: def.kind,
@@ -690,7 +706,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       me.hand.splice(idx, 1)
       me.safeties.push(def.kind)
       // revealing a safety also pays a bonus — onto the track, or into the ledger
-      const gained = awardMileage(s, me, SAFETY_MILEAGE)
+      const gained = awardMileage(s, me, SAFETY_MILEAGE, def.kind)
       // Rescue Shuttle covers the Stop lane → it doubles as a green light, so it
       // launches you even if you never fired Ignition.
       if (grantsGreenLight(def)) me.started = true
@@ -731,7 +747,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         target.coupFourres++
         // Worth double a plain reveal either way: +200 ly on the track, or the
         // safety's 100 plus the Slingshot's own 100 in the ledger.
-        const slungBy = awardMileage(s, target, SLINGSHOT_MILEAGE)
+        const slungBy = awardMileage(s, target, SLINGSHOT_MILEAGE, sdef.kind)
         if (grantsGreenLight(sdef)) target.started = true // Rescue Shuttle also launches you
         s.discard.push(card) // the hazard is sent to the discard pile
         if (s.deck.length > 0) target.hand.push(s.deck.pop()!) // replacement draw
