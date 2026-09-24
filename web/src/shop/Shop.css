@@ -28,11 +28,11 @@
 }
 :root {
   color-scheme: dark;
-  --bg: #07071a;
+  --bg: #0d0a08;
   --panel: #151d38;
   --gold: #ffd93d;
   --text: #f5f2e9;
-  --text-dim: #b8bdd2;
+  --text-dim: #bfae98;
   --font-display: Unbounded, system-ui, sans-serif;
 }
 * {
@@ -968,34 +968,95 @@ img {
   padding-top: 20px;
   margin-top: 22px;
 }
+/* The payment panel continues the storefront: warm off-black under lamp
+   gold, the race track parked at the finish, and the order as a ticket. */
 .checkout-payment {
-  border-radius: 14px;
-  background: #fff;
-  color: #17172b;
+  position: relative;
+  isolation: isolate;
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 60% at 70% -10%, hsl(42 90% 55% / 0.16), transparent 60%),
+    linear-gradient(180deg, #1d1610, #120d0a 70%);
+  color: #f7efe3;
   padding: 32px;
   min-height: 340px;
-  color-scheme: light;
+  color-scheme: dark;
+  box-shadow:
+    inset 0 1px 0 hsl(45 90% 75% / 0.14),
+    0 30px 80px -30px hsl(30 60% 2% / 0.9),
+    0 0 0 1px hsl(45 80% 60% / 0.22);
+}
+.checkout-payment::before {
+  /* the lamp's pool of light across the top edge */
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 12% auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(45 100% 70% / 0.85), transparent);
+}
+.checkout-finish {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px 22px;
+  margin-bottom: 22px;
+  font: 600 11px/1 Inter, sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #bfae98;
+}
+.checkout-finish span:last-child {
+  color: #ffd23f;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-finish i {
+  position: relative;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ffd23f, #ffe38a);
+  box-shadow: 0 0 12px hsl(45 100% 60% / 0.5);
+  transform-origin: left;
+  animation: checkout-track 900ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.checkout-finish img {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  rotate: 90deg;
+  filter: drop-shadow(0 0 6px hsl(45 100% 60% / 0.6));
+  max-width: none;
+}
+@keyframes checkout-track {
+  from { transform: scaleX(0.3); }
 }
 .checkout-payment h2 {
-  font-size: 25px;
+  font-size: 28px;
   margin: 0 0 12px;
 }
 .checkout-payment > p {
   font-size: 13px;
-  color: #555b70;
+  color: #bfae98;
   margin-bottom: 30px;
 }
+/* The order, as a ticket: perforation between the items and the total. */
 .checkout-prices {
-  padding: 18px;
+  position: relative;
+  padding: 18px 20px;
   margin: 24px 0;
-  border: 1px solid #dce0e9;
-  border-radius: 8px;
-  background: #f7f8fb;
+  border: 1px solid hsl(45 80% 60% / 0.2);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, hsl(42 70% 45% / 0.12), transparent 55%),
+    #17110d;
 }
 .checkout-prices__row {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 18px;
   padding: 7px 0;
   font-size: 13px;
@@ -1003,9 +1064,32 @@ img {
 .checkout-prices__row > span {
   min-width: 0;
 }
+.checkout-prices__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.checkout-prices__boxes {
+  display: flex;
+  flex: none;
+}
+.checkout-prices__boxes img {
+  width: 30px;
+  height: auto;
+  border-radius: 3px;
+  box-shadow: 0 4px 10px hsl(30 60% 2% / 0.7), 0 0 0 1px hsl(45 80% 70% / 0.15);
+  rotate: -6deg;
+}
+.checkout-prices__boxes img + img {
+  margin-left: -16px;
+  rotate: 4deg;
+}
+.checkout-prices__boxes img + img + img {
+  rotate: 12deg;
+}
 .checkout-prices__row small {
   display: block;
-  color: #555b70;
+  color: #bfae98;
   margin-top: 5px;
 }
 .checkout-prices__row strong {
@@ -1014,19 +1098,40 @@ img {
   font-variant-numeric: tabular-nums;
 }
 .checkout-prices__total {
-  border-top: 1px solid #dce0e9;
-  margin-top: 10px;
-  padding-top: 14px;
+  position: relative;
+  border-top: 1px dashed hsl(45 60% 70% / 0.3);
+  margin-top: 12px;
+  padding-top: 16px;
   font-size: 16px;
   font-weight: 600;
 }
+.checkout-prices__total strong {
+  color: #ffd23f;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.checkout-prices__total::before,
+.checkout-prices__total::after {
+  /* ticket notches where the perforation meets the edge */
+  content: '';
+  position: absolute;
+  top: -9px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #120d0a;
+  box-shadow: inset 0 0 0 1px hsl(45 80% 60% / 0.2);
+}
+.checkout-prices__total::before { left: -29px; }
+.checkout-prices__total::after { right: -29px; }
 .checkout-prices__hint {
   margin: 10px 0 0;
   padding-top: 12px;
-  border-top: 1px solid #dce0e9;
+  border-top: 1px solid hsl(45 60% 70% / 0.12);
   font-size: 13px;
   line-height: 1.45;
-  color: #555b70;
+  color: #bfae98;
 }
 /* Stands in for the Stripe shipping-method section, which stays collapsed
    until real rates arrive — without this the form shows nothing at all while
@@ -1037,19 +1142,19 @@ img {
   gap: 10px;
   margin: 0 0 12px;
   padding: 14px 16px;
-  border: 1px solid #dce0e9;
-  border-radius: 8px;
-  background: #f7f8fb;
+  border: 1px solid hsl(45 80% 60% / 0.2);
+  border-radius: 12px;
+  background: #17110d;
   font-size: 14px;
-  color: #30313d;
+  color: #f7efe3;
 }
 .checkout-quoting::before {
   content: '';
   flex: none;
   width: 14px;
   height: 14px;
-  border: 2px solid #c6cbd8;
-  border-top-color: #30313d;
+  border: 2px solid hsl(45 40% 60% / 0.3);
+  border-top-color: #ffd23f;
   border-radius: 50%;
   animation: checkout-quoting-spin 0.7s linear infinite;
 }
@@ -1057,7 +1162,7 @@ img {
   to { transform: rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .checkout-quoting::before { animation: none; }
+  .checkout-quoting::before, .checkout-finish i { animation: none; }
 }
 .shop__checkout-form {
   margin-top: 20px;
@@ -1066,14 +1171,14 @@ img {
   padding: 25px 0;
 }
 .checkout-payment .shop__error {
-  color: #9b2534;
+  color: #ff9c86;
   font-size: 14px;
 }
 .checkout-payment .shop__back {
-  color: #26365c;
+  color: #ffd23f;
 }
 .checkout-payment :focus-visible {
-  outline-color: #26365c;
+  outline-color: #ffd23f;
 }
 .shop__error {
   color: #ffd0c5;
