@@ -19,7 +19,6 @@ import { loadRules } from '../settings'
 import { bumpGamesPlayed, LABEL_HIDE_GAMES, loadGamesPlayed, loadPrefs, savePrefs, type Prefs } from '../prefs'
 import { Settings } from './Settings'
 import { cardHeroVideo, cardSlingshotHeroVideo, cardSlingshotVideo, cardVideo } from '../game/cardArt'
-import { preloadClips } from '../preloadHero'
 import { playSfx, toggleMuted } from '../audio/sfx'
 import * as haptics from '../native/haptics'
 import { useBackHandler } from '../native/backButton'
@@ -37,6 +36,7 @@ import { SlingshotOverlay } from './SlingshotOverlay'
 import { TableView } from './TableView'
 import { WinTakeover } from './WinTakeover'
 import { warmEndClips } from './endClips'
+import { warmForState } from './clipWarm'
 import { loadTabGame, saveTabGame } from './tabSave'
 import { prefersReducedMotion, type Rect } from '../motion'
 import { Body, World } from './space/physics'
@@ -999,61 +999,12 @@ export function Table({
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  // Idle-warm the takeover clips BEFORE a takeover needs them so it plays
-  // instantly (no cold-fetch stall / iOS play button on the gesture-less AI path).
-  // The key changes only when the relevant kinds change; preloadClips dedupes.
-  const heroPreloadKey = useMemo(() => {
-    const mine = human.hand.map((c) => c.kind)
-    const theirs = opp.hand.map((c) => c.kind)
-    return `${mine.join(',')}|${theirs.join(',')}`
-  }, [human.hand, opp.hand])
-  // Potential Slingshot pairs, BOTH directions: a hazard in one hand whose
-  // matching safety sits in the other hand → that play would fire the dodge
-  // cinematic (gold for your dodge, red for the opponent's). Warm the cinematic
-  // + the chained safety-reveal clip so the chain never fetches cold.
-  const slingshotWarmups = (hero: boolean): (string | undefined)[] => {
-    const pairs: { safety: string; hazard: string }[] = []
-    const collect = (hazardHand: CardInstance[], safetyHand: CardInstance[]) => {
-      for (const hz of hazardHand) {
-        if (CARD_DEFS[hz.kind]?.type !== 'hazard') continue
-        for (const sf of safetyHand) {
-          if ((CARD_DEFS[sf.kind].immuneTo ?? []).includes(hz.kind))
-            pairs.push({ safety: sf.kind, hazard: hz.kind })
-        }
-      }
-    }
-    collect(opp.hand, human.hand) // the AI hazards you → YOUR dodge
-    collect(human.hand, opp.hand) // you hazard the AI → ITS dodge
-    return pairs.flatMap((p) =>
-      hero
-        ? [cardSlingshotHeroVideo(p.safety, p.hazard), cardHeroVideo(p.safety)]
-        : [cardSlingshotVideo(p.safety, p.hazard), cardVideo(p.safety, ['idle'])],
-    )
-  }
+  // Warm the takeover clips a card in play could trigger, the moment it's in a
+  // hand (see clipWarm.ts): whole clips into memory, playable-now first, so a
+  // takeover never sits on a blank screen waiting for the network.
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const aiHazards = opp.hand.filter((c) => CARD_DEFS[c.kind]?.type === 'hazard')
-    if (window.innerWidth > 760) {
-      // WIDE: the takeover upgrades to the crisp hero clip — warm those. YOUR
-      // takeover-kind hand cards (hazard/remedy/safety/warp-200) + the AI's
-      // hazards (the AI only fires a takeover for a hazard-on-you, per #52).
-      preloadClips([
-        ...human.hand.map((c) => cardHeroVideo(c.kind)),
-        ...aiHazards.map((c) => cardHeroVideo(c.kind)),
-        ...slingshotWarmups(true),
-      ])
-    } else {
-      // MOBILE: the takeover uses the STANDARD clip. The AI's hazard cards render
-      // face-down and are never hovered/selected, so their clip is NEVER cached —
-      // the gesture-less AI-hazard-on-you takeover would fetch it COLD and (on
-      // iOS) surface a native play button. Warm the AI's hazard standard clips so
-      // the takeover plays from cache. (Your own plays carry a user gesture, so
-      // their takeover autoplays even cold — no need to warm those on mobile.)
-      preloadClips([...aiHazards.map((c) => cardVideo(c.kind, ['idle'])), ...slingshotWarmups(false)])
-    }
-    // human.hand/opp.hand are captured via heroPreloadKey (their relevant kinds)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heroPreloadKey])
+    warmForState(state)
+  }, [state])
 
   const canDrawDeck = drawPhaseHuman && !animating && state.deck.length > 0
   const canDrawDiscard = drawPhaseHuman && !animating && state.discard.length > 0

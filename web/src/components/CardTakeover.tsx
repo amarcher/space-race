@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cardHeroVideo, cardPoster } from '../game/cardArt'
+import { clipSrc } from './clipCache'
 import './CardTakeover.css'
 
 export type TakeoverVariant = 'warp' | 'hazard' | 'remedy' | 'safety' | 'slingshot'
@@ -95,7 +96,8 @@ export function CardTakeover({
   const [chosenSrc] = useState(() => {
     const wide = typeof window !== 'undefined' && window.innerWidth >= WIDE_MIN_PX
     const hero = wide ? (heroSrc ?? cardHeroVideo(kind)) : undefined
-    return hero ?? src
+    // play the in-memory copy when clipWarm got it there first
+    return clipSrc(hero ?? src)
   })
   const objectPosition = (kind && OBJECT_POSITION[kind]) || undefined
   // read onDone via a ref so the effect can run exactly once (the parent passes
