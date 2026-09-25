@@ -8,17 +8,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // WKWebView's WebAudio runs under the default *ambient* session, which the
-        // hardware ring/silent switch mutes outright — the game was dead silent on
-        // most devices. `.playback` ignores the switch; `.mixWithOthers` keeps the
-        // player's own music/podcast running under our short card SFX.
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            print("AVAudioSession setup failed: \(error)")
-        }
+        configureAudioSession()
         return true
     }
 
@@ -37,7 +27,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // Re-assert on every activation: the NativeAudio plugin resets the session
+        // to plain .playback when it loads (after launch), and any configure() call
+        // from JS would switch it to .ambient, which the silent switch mutes.
+        configureAudioSession()
+    }
+
+    /// Game SFX must play with the ring/silent switch ON (native-game behaviour,
+    /// the owner's call 2026-07-20) and mix under the player's own music.
+    /// `.playback` ignores the switch; `.mixWithOthers` keeps their audio running.
+    private func configureAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            print("AVAudioSession setup failed: \(error)")
+        }
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
