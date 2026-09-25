@@ -25,7 +25,9 @@ const IN_SIGHT = 0.8
 
 export function RaceTrack({ distance, trail, pile, state, isOpponent }: RaceTrackProps) {
   const p = Math.min(1, distance / WIN_DISTANCE)
-  const hops = trail ?? fallbackTrail(distance, pile)
+  // trust the recorded trail only when it accounts for every light-year (a
+  // board built without one, like the dev previews, falls back to the pile)
+  const hops = trail && trail.reduce((a, h) => a + h.v, 0) === distance ? trail : fallbackTrail(distance, pile)
   // an overshoot (allowed unless PRECISION APPROACH is on) stops at the flag
   let at = 0
   const segs = hops.map((h, i) => {

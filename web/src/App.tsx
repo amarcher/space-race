@@ -8,6 +8,7 @@ import { StoreBanner } from './components/StoreBanner'
 import { Gallery } from './components/Gallery'
 import { Starfield } from './components/Starfield'
 import { Table } from './components/Table'
+import { SPACE_TABLE } from './components/space/flag'
 import { tvMode } from './tv/mode'
 import { TvStage } from './tv/TvStage'
 import { usePhoneBroadcast } from './tv/usePhoneBroadcast'
@@ -63,7 +64,8 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
       <BackExitHint />
       {/* "get the app" bar pointing at whichever store matches the device (no-op in the native apps and in Safari, which has its own) */}
       <StoreBanner />
-      <Starfield />
+      {/* the space table brings its own sky; the starfield still backs the gallery */}
+      {(!SPACE_TABLE || view === 'gallery') && <Starfield />}
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
           native apps: they're served offline from localhost (iOS capacitor://,

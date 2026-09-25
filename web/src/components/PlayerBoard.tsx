@@ -26,10 +26,10 @@ const OFFSET = 5 // px each card peeks below the one in front of it
 // The paralysis-timer ring counts DOWN over the victim's turns: a fresh block
 // reads N-1 (it aged to 1 at this turn-start) and steps 3→2→1, then heals. So
 // the visible max is N-1.
-const HEAL_BARS = Math.max(1, SELF_HEAL_MAX - 1)
+export const HEAL_BARS = Math.max(1, SELF_HEAL_MAX - 1)
 
 /** hue lerps red(0°) → green(130°) as the block nears recovery (full = red). */
-function healHue(left: number, max: number): number {
+export function healHue(left: number, max: number): number {
   const t = max <= 1 ? 0 : 1 - (left - 1) / (max - 1) // 0 when full, 1 when 1 left
   return Math.round(t * 130)
 }
@@ -42,7 +42,7 @@ function healHue(left: number, max: number): number {
  * the count for the smallest viewers, and the colour drains red → green as
  * freedom nears. Both are React-keyed on turns-left so the SVG/bars remount each
  * tick → a step-down pop replays (a felt beat). */
-function HealCountdown({ left, max }: { left: number; max: number }) {
+export function HealCountdown({ left, max }: { left: number; max: number }) {
   const R = 46 // ring radius in the 100×100 viewBox
   const C = 2 * Math.PI * R
   const frac = Math.max(0, Math.min(1, left / max))
