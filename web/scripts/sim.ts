@@ -4,13 +4,18 @@
 import { createGame, applyMove, legalMoves, scoreRound, activeHazard, type GameState } from '../src/game/engine'
 import { chooseMove } from '../src/game/ai'
 import { type GameRules } from '../src/game/rules'
-import { WIN_DISTANCE, MAX_200_PER_PLAYER, LANES, CARD_DEFS, type CardInstance } from '../src/game/cards'
+import { WIN_DISTANCE, MAX_200_PER_PLAYER, LANES, CARD_DEFS, HAND_SIZE, type CardInstance } from '../src/game/cards'
 
 function playGame(seed: number, rules?: Partial<GameRules>): { state: GameState; turns: number } {
   let state = createGame({ aiSeats: [0, 1], seed, names: ['A', 'B'], rules })
   let turns = 0
   const MAX = 5000
   while (state.phase !== 'roundOver' && turns < MAX) {
+    // DRAW TWO, PLAY TWO can hold two extra cards mid-turn; nothing ever more
+    const cap = HAND_SIZE + (state.rules.drawTwo ? 2 : 1)
+    for (const p of state.players) {
+      if (p.hand.length > cap) throw new Error(`hand overflow: ${p.hand.length} > ${cap}`)
+    }
     const mv = chooseMove(state)
     if (!mv) {
       // no move available: force a pass to avoid deadlock
@@ -158,5 +163,61 @@ runMode(
   { scry: true, catchUp: true, momentum: true, selfHeal: true, exactFinish: true, ledgerScoring: true },
   N,
 )
+
+// DRAW TWO, PLAY TWO — alone and stacked on everything else.
+runMode('drawTwo', { drawTwo: true }, N)
+runMode('drawTwo+scry', { drawTwo: true, scry: true }, N)
+runMode('drawTwo+all', { drawTwo: true, scry: true, catchUp: true, momentum: true, selfHeal: true }, N)
+runMode('drawTwo+mb', { drawTwo: true, exactFinish: true, ledgerScoring: true }, N)
+
+// DRAW TWO, PLAY TWO turn shape, by hand: two draws (the second can take the
+// card that was under the discard), two actions, and a Slingshot on the first
+// action hands the turn BACK to the attacker for their second.
+{
+  const inst = (kind: string, uid: string): CardInstance => ({ uid, kind })
+  const fresh = () => {
+    const g = createGame({ aiSeats: [0, 1], seed: 7, names: ['A', 'B'], rules: { drawTwo: true } })
+    for (const p of g.players) {
+      g.deck.push(...p.hand)
+      p.hand = []
+      p.started = true
+      p.battle.stop = [inst('ignition', `go${p.seat}`)]
+    }
+    return g
+  }
+  // two draws off the discard pile: the top, then the card that was under it
+  let g = fresh()
+  g.discard.push(inst('warp-25', 'under'), inst('warp-50', 'top'))
+  g.players[0].hand = [inst('warp-100', 'h1')]
+  g = applyMove(g, { type: 'draw', source: 'discard' })
+  if (g.phase !== 'draw' || g.drawsLeft !== 1) throw new Error('[d2p2] first draw should leave one draw')
+  g = applyMove(g, { type: 'draw', source: 'discard' })
+  if (g.phase !== 'play' || !g.players[0].hand.some((c) => c.uid === 'under'))
+    throw new Error('[d2p2] second discard draw should take the card that was under')
+  // two actions, then the turn passes
+  g = applyMove(g, { type: 'play', uid: 'top' })
+  if (g.turn !== 0 || g.phase !== 'play' || g.actionsLeft !== 1) throw new Error('[d2p2] first action should keep the turn')
+  g = applyMove(g, { type: 'discard', uid: 'h1' })
+  if (g.turn !== 1 || g.phase !== 'draw' || g.drawsLeft !== 2 || g.actionsLeft !== 2)
+    throw new Error('[d2p2] second action should pass a fresh two-and-two turn')
+
+  // a Slingshot on the FIRST action: the defender reveals and redraws, then the
+  // attacker still takes their second action
+  for (const first of [true, false]) {
+    let h = fresh()
+    h.phase = 'play'
+    h.drawsLeft = 0
+    h.actionsLeft = first ? 2 : 1
+    h.players[0].hand = [inst('asteroid-strike', 'hz'), inst('warp-75', 'w75')]
+    h.players[1].hand = [inst('ace-pilot', 'ace'), inst('warp-25', 'b25')]
+    h = applyMove(h, { type: 'play', uid: 'hz', targetSeat: 1 })
+    if (!h.lastSlingshot || !h.players[1].safeties.includes('ace-pilot')) throw new Error('[d2p2] slingshot did not resolve')
+    if (h.players[1].hand.length !== 2) throw new Error('[d2p2] defender did not draw a replacement')
+    if (first && (h.turn !== 0 || h.phase !== 'play' || h.actionsLeft !== 1))
+      throw new Error('[d2p2] first-action slingshot should return the turn to the attacker')
+    if (!first && (h.turn !== 1 || h.phase !== 'draw')) throw new Error('[d2p2] second-action slingshot should pass the turn')
+  }
+  console.log('draw-two-play-two turn shape: discard double-draw, two actions, slingshot on either action ✅')
+}
 
 console.log('All invariants held for every mode (no overflow, no card leak, all games terminated). ✅')

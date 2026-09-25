@@ -111,6 +111,19 @@ export interface GameRules {
    * Mille Bornes feel.
    */
   ledgerScoring: boolean
+  /**
+   * DRAW TWO, PLAY TWO (a house rule from family playtesting): every turn you
+   * draw TWO cards, in any mix (deck then deck, discard then the card that was
+   * under it, or one of each, in either order), then take TWO actions, each a
+   * play or a discard. The board updates between them, so you can fire Ignition
+   * or fix a hazard and then fly. No undo: a card drawn is drawn, and the card
+   * under the discard is only revealed once you take the top one.
+   *
+   * A Slingshot on your FIRST action resolves in full (the defender reveals,
+   * banks the bonus and draws their replacement), then you take your second
+   * action. On your second action it ends your turn as usual.
+   */
+  drawTwo: boolean
 }
 
 /** Classic Mille Bornes — every mode flag off. The regression-critical baseline. */
@@ -121,6 +134,7 @@ export const DEFAULT_RULES: GameRules = {
   selfHeal: false,
   exactFinish: false,
   ledgerScoring: false,
+  drawTwo: false,
 }
 
 /** How many top-of-deck cards a scry draw reveals by default. 2 = the tighter,

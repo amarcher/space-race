@@ -85,6 +85,13 @@ export function Settings({ rules, onChange, prefs, onChangePrefs, onClose, rules
           )}
 
           <Toggle
+            label="Draw two, play two"
+            help="Every turn, draw two cards (from the deck or the discard pile, in any order) and make two moves."
+            checked={draft.drawTwo}
+            onChange={(v) => set('drawTwo', v)}
+          />
+
+          <Toggle
             label="Catch-up valve"
             help="When you fall far behind, your next draw lets you scout the stars and pick the card you need."
             checked={draft.catchUp}

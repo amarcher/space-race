@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from 'react'
 import { playSfx } from '../../audio/sfx'
 import { prefersReducedMotion } from '../../motion'
 
-const PLATES = { land: '/space/space-land.webp', port: '/space/space-port.webp' }
+// 4096px plates (Topaz 2x upscale of the approved 2048 drafts)
+const PLATES = { land: '/space/space-land-4k.webp', port: '/space/space-port-4k.webp' }
 
 interface Comet {
   id: number
