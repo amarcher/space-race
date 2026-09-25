@@ -160,7 +160,7 @@ export interface SpacePlay {
 }
 
 // ── your area ──────────────────────────────────────────────────────────────
-function YourArea({ game, p, impact, active, children }: { game: GameState; p: PlayerState; impact: string; active: boolean; children?: React.ReactNode }) {
+function YourArea({ game, p, impact, active }: { game: GameState; p: PlayerState; impact: string; active: boolean }) {
   const s = situation(p)
   const hz = activeHazard(p)
   const healLeft = hz ? hazardTurnsLeft(game.rules.selfHeal, p, CARD_DEFS[hz].lane!) : null
@@ -202,7 +202,6 @@ function YourArea({ game, p, impact, active, children }: { game: GameState; p: P
           ))}
           <span className="sp-safety sp-safety--next" data-slot="next" />
         </div>
-        {children && <div className="sp-you__pips">{children}</div>}
       </div>
     </section>
   )
@@ -496,6 +495,12 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
             aria-label={`Draw from the deck (${game.deck.length} left)`}
           >
             {game.deck.length > 0 && <img className="sp-card sp-pile__card" src={CARD_BACK} alt="" draggable={false} />}
+            {/* Draw Two, Play Two: the draws left, as tiny card backs on the deck itself */}
+            {game.rules.drawTwo && play.drawPhaseHuman && (
+              <span className="sp-deck__pips">
+                <TurnPips kind="draw" left={game.drawsLeft ?? 1} />
+              </span>
+            )}
             <span className="sp-deck__count">{game.deck.length}</span>
           </div>
           <div
@@ -520,16 +525,9 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
             ))}
             {!top && <span className="sp-discard__ring" />}
           </div>
-          {game.rules.drawTwo && play.drawPhaseHuman && (
-            <span className="sp-piles__pips">
-              <TurnPips kind="draw" left={game.drawsLeft ?? 1} />
-            </span>
-          )}
         </div>
 
-        <YourArea game={game} p={human} impact={`${fxFor(human.seat)} ${dropState('self')}`} active={game.turn === human.seat && !over}>
-          {game.rules.drawTwo && play.yourTurn && <TurnPips kind="play" left={game.actionsLeft ?? 1} />}
-        </YourArea>
+        <YourArea game={game} p={human} impact={`${fxFor(human.seat)} ${dropState('self')}`} active={game.turn === human.seat && !over} />
 
         {game.rules.momentum && (
           <div className="sp-momentum">
@@ -543,6 +541,13 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
           </div>
         )}
       </main>
+
+      {/* Draw Two, Play Two: moves left, as a number sitting on your hand */}
+      {game.rules.drawTwo && play.yourTurn && (
+        <span className="sp-moves" role="img" aria-label={`${game.actionsLeft ?? 1} moves left`} key={game.actionsLeft}>
+          {game.actionsLeft ?? 1}
+        </span>
+      )}
 
       <div className="sp-bodies">
         {selected && <div className="sp-scrim" onClick={() => play.setSelectedUid(null)} />}

@@ -219,11 +219,21 @@
   transform: translate(-2px, -3px);
   box-shadow:
     1px 1px 0 #e9dcc0, 2px 2px 0 #d3c3a2, 3px 3px 0 #e9dcc0, 4px 4px 0 #cdbd9c,
-    5px 5px 0 #e3d5b8, 6px 6px 0 #c4b393, 10px 14px 22px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 214, 120, 0.9), 0 0 30px rgba(255, 200, 90, 0.55);
+    5px 5px 0 #e3d5b8, 6px 6px 0 #c4b393, 12px 18px 26px rgba(0, 0, 0, 0.5), 0 0 0 3px #ffd76a, 0 0 42px rgba(255, 205, 95, 0.75);
   animation: spBreathe 1.6s ease-in-out infinite;
 }
-.sp-deck--nudge .sp-pile__card { animation-duration: 0.5s; }
-@keyframes spBreathe { 50% { transform: translate(-2px, -7px); } }
+@keyframes spBreathe { 50% { transform: translate(-2px, -11px); } }
+/* your draw: a soft halo keeps pulsing outward from the deck */
+.sp-deck--live::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(255, 215, 106, 0.8);
+  animation: spHalo 1.6s ease-out infinite;
+}
+@keyframes spHalo { 0% { transform: scale(1); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
 .sp-deck:focus-visible, .sp-discard:focus-visible { outline: 2px solid var(--sp-gold); outline-offset: 6px; }
 .sp-deck__count {
   position: absolute;
@@ -373,7 +383,7 @@
 .sp-log__close { position: sticky; top: 0; float: right; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.08); color: var(--sp-ink); font-size: 22px; cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp--shake, .sp-deck--live .sp-pile__card, .sp-discard--live .sp-pile__card, .sp-rival--active .sp-rival__hand .sp-card, .sp-fx-hit,
+  .sp--shake, .sp-deck--live .sp-pile__card, .sp-deck--live::before, .sp-discard--live .sp-pile__card, .sp-rival--active .sp-rival__hand .sp-card, .sp-fx-hit,
   .sp-status__card, .sp-status__go, .body--hint .sp-body__face, .sp-safety .sp-card, .sp-you--blocked .sp-status::before,
   .sp-you--blocked .sp-status__card, .sp-rival--blocked .sp-rival__status .sp-card, .sp-discard--invite::after, .space-comet::before { animation: none; }
 }
@@ -381,9 +391,27 @@
 /* DRAW TWO, PLAY TWO markers */
 .sp-piles { position: relative; }
 /* the piles sit centred in their row: tuck the marker just under the cards */
-.sp-piles__pips { position: absolute; left: 50%; top: calc(50% + var(--pile-w) * 0.7 + 16px); translate: -50% 0; }
-.sp--land .sp-piles__pips { top: 50%; left: calc(50% + var(--pile-w) / 2 + 14px); translate: 0 -50%; }
-.sp-you__pips { margin-left: auto; align-self: flex-start; }
+.sp-deck__pips { position: absolute; z-index: 2; left: -10px; top: -12px; }
+.sp-deck__pips .pips { padding: 4px 6px; gap: 4px; }
+.sp-deck__pips .pip { width: 10px; height: 14px; }
+/* moves left: a gold number on the hand's top edge */
+.sp-moves {
+  position: fixed;
+  z-index: 60;
+  right: max(14px, var(--safe-right));
+  bottom: calc(var(--hand-w) * 1.4 * 0.86 + var(--safe-bottom));
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 800 20px/1 var(--font-display);
+  color: #1a1205;
+  background: linear-gradient(180deg, #ffe79a, #ffc54a);
+  box-shadow: 0 0 0 3px rgba(8, 8, 22, 0.8), 0 6px 18px rgba(255, 190, 70, 0.45);
+  pointer-events: none;
+  animation: spSettle 320ms cubic-bezier(0.3, 1.5, 0.5, 1) backwards;
+}
 
 /* the rival's Tractor Beam, shown beside a blocking hazard */
 .sp-rival__limit { position: relative; flex: none; width: calc(var(--rival-w) * 0.62); }
