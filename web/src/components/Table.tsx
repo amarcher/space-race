@@ -542,8 +542,13 @@ export function Table({
         playSfx('card-flick', { gain: 0.5, rate: 0.9 + Math.random() * 0.2 })
         if (move.type === 'play') firePlayEffect(move)
         setState((s) => applyMove(s, move))
-        world.remove(b.id)
         setAnimating(false)
+        // the landed card covers its slot until the slot's own image has painted
+        // (a fresh <img> decodes async on phones), so the card never blinks out;
+        // a distance card has already dived into the track, so it goes at once
+        const intoTrack = move.type === 'play' && !!kind && CARD_DEFS[kind].type === 'distance'
+        if (intoTrack) world.remove(b.id)
+        else window.setTimeout(() => world.remove(b.id), 260)
       })
       return
     }

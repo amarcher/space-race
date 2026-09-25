@@ -221,6 +221,12 @@ function RivalStrip({ p, handRef, impact, active }: { p: PlayerState; handRef: R
       <div className="sp-rival__status" data-slot="status">
         {s.card && <img className="sp-card" src={printedFace(s.card)} alt={CARD_DEFS[s.card].title} draggable={false} />}
       </div>
+      {s.limited && (
+        <div className="sp-rival__limit" data-slot="limit" aria-label={`Speed limited to ${SPEED_LIMIT_VALUE}`}>
+          <img className="sp-card" src={printedFace('tractor-beam')} alt="Tractor Beam" draggable={false} />
+          <span>≤{SPEED_LIMIT_VALUE}</span>
+        </div>
+      )}
       <div className="sp-rival__mid">
         <div data-slot="track">
           <RaceTrack distance={p.distance} trail={p.trail} pile={p.distancePile} state={trackState(s.tone)} isOpponent />
@@ -566,6 +572,7 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
                 <img className="sp-card sp-body__back" src={CARD_BACK} alt="" draggable={false} />
                 <span className="sp-body__gloss" />
               </span>
+              <span className="sp-body__shade" />
             </div>
           )
         })}
