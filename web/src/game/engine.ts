@@ -152,6 +152,10 @@ export interface GameState {
    * end the turn — it clears this flag instead, granting the free double-jump.
    * Null whenever no breakaway is pending. */
   breakaway: number | null
+  /** DRAW TWO, PLAY TWO: draws / actions the mover has left this turn. Every other
+   *  mode runs 1 and 1. Optional so a state from an older client still plays. */
+  drawsLeft?: number
+  actionsLeft?: number
   /** SELF-HEALING HAZARDS mode: set the instant a blocking hazard recovers on its
    * own as control passes to its victim, so the UI can fire the release burst.
    * Always present + serializable; stays null in modes where selfHeal is off. */
@@ -430,6 +434,8 @@ export function createGame(opts: NewGameOptions = {}): GameState {
     catchUpScry: false,
     momentum: [0, 0],
     breakaway: null,
+    drawsLeft: perTurn(rules),
+    actionsLeft: perTurn(rules),
     lastHeal: null,
     log: [{ id: 0, seat: -1, text: `${goal} ${names[0]} launches first.`, kind: 'info' }],
   }
@@ -499,6 +505,29 @@ function pushLog(s: GameState, seat: number, text: string, kind: LogKind, cards:
   s.log.push({ id: s.logSeq++, seat, text, kind, ...cards })
 }
 
+/** Draws and actions per turn: two each under DRAW TWO, PLAY TWO, else one. */
+const perTurn = (rules: GameRules): number => (rules.drawTwo ? 2 : 1)
+
+/** A draw just landed in the mover's hand: draw again, or move on to play. A
+ *  second draw is only offered while the deck has cards (an empty deck offers
+ *  nothing but the no-op draw, so we skip straight to play). */
+function afterDraw(s: GameState) {
+  const left = (s.drawsLeft ?? 1) - 1
+  s.drawsLeft = Math.max(0, left)
+  s.phase = left > 0 && s.deck.length > 0 ? 'draw' : 'play'
+}
+
+/** A play or discard just resolved: the mover goes again if they have an action
+ *  left and a card to spend it on, otherwise the turn passes. */
+function endAction(s: GameState, me: PlayerState) {
+  const left = (s.actionsLeft ?? 1) - 1
+  if (left > 0 && me.hand.length > 0) {
+    s.actionsLeft = left
+    return
+  }
+  endTurn(s)
+}
+
 function endTurn(s: GameState) {
   if (s.phase === 'roundOver') return
   // stalemate: nobody can draw and nobody can act
@@ -514,6 +543,7 @@ function endTurn(s: GameState) {
 /** Hook run as control passes to a player: self-healing hazards age + recover.
  * (No-op unless the selfHeal mode is on.) */
 function beginTurnFor(s: GameState, p: PlayerState) {
+  s.drawsLeft = s.actionsLeft = perTurn(s.rules)
   const healed = ageAndHealHazards(s, p)
   for (const kind of healed) {
     s.lastHeal = { id: s.logSeq, seat: p.seat, hazardKind: kind }
@@ -581,7 +611,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         card: card.kind,
         act: 'take',
       })
-      s.phase = 'play'
+      afterDraw(s)
       return s
     }
     if (s.deck.length > 0) {
@@ -599,7 +629,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       }
       me.hand.push(s.deck.pop()!)
     }
-    s.phase = 'play'
+    afterDraw(s)
     return s
   }
 
@@ -626,7 +656,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       // straight off the deck into a hand: private to the mover (see `hidden`)
       { card: picked.kind, act: 'take', hidden: true },
     )
-    s.phase = 'play'
+    afterDraw(s)
     return s
   }
 
@@ -650,7 +680,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     me.hand.splice(idx, 1)
     s.discard.push(card)
     pushLog(s, me.seat, `${me.name} discards ${def.title}.`, 'info', { card: def.kind, act: 'discard' })
-    endTurn(s)
+    endAction(s, me)
     return s
   }
 
@@ -678,7 +708,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       }
       // Otherwise a clean distance play BANKS +1 charge (capped), then the turn ends.
       if (s.rules.momentum && s.momentum[me.seat] < MOMENTUM_CAP) s.momentum[me.seat]++
-      endTurn(s)
+      endAction(s, me)
       return s
     }
 
@@ -698,7 +728,7 @@ export function applyMove(state: GameState, move: Move): GameState {
       } else {
         pushLog(s, me.seat, `${me.name} plays ${def.title}.`, 'remedy', { card: def.kind })
       }
-      endTurn(s)
+      endAction(s, me)
       return s
     }
 
@@ -726,7 +756,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         winRound(s, me.seat)
         return s
       }
-      endTurn(s)
+      endAction(s, me)
       return s
     }
 
@@ -773,6 +803,13 @@ export function applyMove(state: GameState, move: Move): GameState {
           winRound(s, target.seat)
           return s
         }
+        // DRAW TWO, PLAY TWO: a Slingshot on the attacker's FIRST action resolves in
+        // full (reveal, bonus, replacement draw above), then the attacker takes
+        // their second action. Otherwise the initiative swings to the defender.
+        if ((s.actionsLeft ?? 1) > 1 && me.hand.length > 0) {
+          s.actionsLeft = (s.actionsLeft ?? 1) - 1
+          return s
+        }
         s.turn = target.seat // initiative swings to the defender, who takes a turn
         s.phase = 'draw'
         beginTurnFor(s, target) // their lanes age as control reaches them
@@ -781,7 +818,7 @@ export function applyMove(state: GameState, move: Move): GameState {
 
       target.battle[def.lane!].push(card)
       pushLog(s, me.seat, `${me.name} hits ${target.name} with ${def.title}.`, 'hazard', { card: def.kind })
-      endTurn(s)
+      endAction(s, me)
       return s
     }
   }

@@ -20,6 +20,7 @@ import * as haptics from '../../native/haptics'
 import { GameLog } from '../GameLog'
 import { Icon } from '../Icon'
 import { MomentumMeter } from '../MomentumMeter'
+import { TurnPips } from '../TurnPips'
 import { RaceTrack } from '../RaceTrack'
 import { HEAL_BARS, HealCountdown, healHue } from '../PlayerBoard'
 import { Body, World } from './physics'
@@ -159,7 +160,7 @@ export interface SpacePlay {
 }
 
 // ── your area ──────────────────────────────────────────────────────────────
-function YourArea({ game, p, impact, active }: { game: GameState; p: PlayerState; impact: string; active: boolean }) {
+function YourArea({ game, p, impact, active, children }: { game: GameState; p: PlayerState; impact: string; active: boolean; children?: React.ReactNode }) {
   const s = situation(p)
   const hz = activeHazard(p)
   const healLeft = hz ? hazardTurnsLeft(game.rules.selfHeal, p, CARD_DEFS[hz].lane!) : null
@@ -201,6 +202,7 @@ function YourArea({ game, p, impact, active }: { game: GameState; p: PlayerState
           ))}
           <span className="sp-safety sp-safety--next" data-slot="next" />
         </div>
+        {children && <div className="sp-you__pips">{children}</div>}
       </div>
     </section>
   )
@@ -512,9 +514,16 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
             ))}
             {!top && <span className="sp-discard__ring" />}
           </div>
+          {game.rules.drawTwo && play.drawPhaseHuman && (
+            <span className="sp-piles__pips">
+              <TurnPips kind="draw" left={game.drawsLeft ?? 1} />
+            </span>
+          )}
         </div>
 
-        <YourArea game={game} p={human} impact={`${fxFor(human.seat)} ${dropState('self')}`} active={game.turn === human.seat && !over} />
+        <YourArea game={game} p={human} impact={`${fxFor(human.seat)} ${dropState('self')}`} active={game.turn === human.seat && !over}>
+          {game.rules.drawTwo && play.yourTurn && <TurnPips kind="play" left={game.actionsLeft ?? 1} />}
+        </YourArea>
 
         {game.rules.momentum && (
           <div className="sp-momentum">

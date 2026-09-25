@@ -838,3 +838,7 @@
 @media (prefers-reduced-motion: reduce) {
   .scry, .scry__badge, .scry__pick { animation: none; }
 }
+
+/* DRAW TWO, PLAY TWO markers, on the classic board */
+.table__center { position: relative; }
+.table__pips { position: absolute; left: 50%; bottom: -8px; translate: -50% 100%; z-index: 4; }

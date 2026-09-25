@@ -373,3 +373,10 @@
   .sp-status__card, .sp-status__go, .body--hint .sp-body__face, .sp-safety .sp-card, .sp-you--blocked .sp-status::before,
   .sp-you--blocked .sp-status__card, .sp-rival--blocked .sp-rival__status .sp-card, .sp-discard--invite::after, .space-comet::before { animation: none; }
 }
+
+/* DRAW TWO, PLAY TWO markers */
+.sp-piles { position: relative; }
+/* the piles sit centred in their row: tuck the marker just under the cards */
+.sp-piles__pips { position: absolute; left: 50%; top: calc(50% + var(--pile-w) * 0.7 + 16px); translate: -50% 0; }
+.sp--land .sp-piles__pips { top: 50%; left: calc(50% + var(--pile-w) / 2 + 14px); translate: 0 -50%; }
+.sp-you__pips { margin-left: auto; align-self: flex-start; }

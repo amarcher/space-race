@@ -7,6 +7,7 @@ import { GameLog } from './GameLog'
 import { Hand } from './Hand'
 import { Icon } from './Icon'
 import { PlayerBoard } from './PlayerBoard'
+import { TurnPips } from './TurnPips'
 
 // The REAL table presentation, lifted out of Table.tsx verbatim so it has ONE
 // implementation. It is a PURE PRESENTER of `game` (the single source of truth):
@@ -93,6 +94,11 @@ export function TableView({ game, play, showLog }: { game: GameState; play?: Tab
           </div>
 
           <div className="table__center">
+            {game.rules.drawTwo && game.turn === 0 && (game.phase === 'draw' || game.phase === 'play') && (
+              <span className="table__pips">
+                {game.phase === 'draw' ? <TurnPips kind="draw" left={game.drawsLeft ?? 1} /> : <TurnPips kind="play" left={game.actionsLeft ?? 1} />}
+              </span>
+            )}
             <div
               ref={play?.deckRef}
               className={`pile ${play?.canDrawDeck ? 'pile--draw' : ''} ${play?.drawNudge ? 'pile--nudge' : ''}`}
