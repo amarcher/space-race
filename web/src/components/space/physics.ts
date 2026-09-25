@@ -68,6 +68,23 @@ export class Body {
     this.flip = this.tflip = o.faceUp ? 1 : 0
   }
 
+  /** Send the card somewhere; `onArrive` fires once it has settled there. A
+   *  flight that commits a move must ALWAYS land, so `deadlineMs` forces the
+   *  arrival if the springs never settle (the world stopped, or this body was
+   *  dropped from it): a card stuck in the air would otherwise hold the whole
+   *  turn loop forever. */
+  flyTo(t: { x: number; y: number; r?: number; s?: number; flip?: number }, onArrive: () => void, deadlineMs = 3500) {
+    let done = false
+    const land = () => {
+      if (done) return
+      done = true
+      window.clearTimeout(timer)
+      onArrive()
+    }
+    const timer = window.setTimeout(land, deadlineMs)
+    this.goTo(t, land)
+  }
+
   /** send the card somewhere; `onArrive` fires once it has settled there */
   goTo(t: { x: number; y: number; r?: number; s?: number; flip?: number }, onArrive?: () => void) {
     this.tx = t.x

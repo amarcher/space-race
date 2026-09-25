@@ -317,7 +317,9 @@ export function Table({
 
   const { flights, fly } = useFlights()
   // SPACE TABLE: one physics world for every card that moves
-  const world = useMemo(() => new World(), [])
+  // useState, not useMemo: the world must outlive a dev hot-reload, or the
+  // cards already in flight (and the moves they carry) are orphaned
+  const [world] = useState(() => new World())
   useEffect(() => {
     if (!SPACE_TABLE) return
     world.start()
@@ -494,7 +496,7 @@ export function Table({
       b.z = 200
       setAnimating(true)
       if (source === 'discard') setHideDiscardTop(true)
-      b.goTo({ x: to.x, y: to.y, s: (sizes.rivalW * 0.7) / sizes.handW, r: 180, flip: 0 }, () => {
+      b.flyTo({ x: to.x, y: to.y, s: (sizes.rivalW * 0.7) / sizes.handW, r: 180, flip: 0 }, () => {
         world.remove(b.id)
         setState((s) => applyMove(s, move))
         setHideDiscardTop(false)
@@ -536,7 +538,7 @@ export function Table({
       b.inspecting = false
       b.hold = 0
       setAnimating(true)
-      b.goTo({ x: dest.x, y: dest.y, r: move.type === 'discard' ? 4 : 0, s: scale, flip: 1 }, () => {
+      b.flyTo({ x: dest.x, y: dest.y, r: move.type === 'discard' ? 4 : 0, s: scale, flip: 1 }, () => {
         playSfx('card-flick', { gain: 0.5, rate: 0.9 + Math.random() * 0.2 })
         if (move.type === 'play') firePlayEffect(move)
         setState((s) => applyMove(s, move))
