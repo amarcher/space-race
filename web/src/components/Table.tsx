@@ -37,6 +37,9 @@ import { SlingshotOverlay } from './SlingshotOverlay'
 import { TableView } from './TableView'
 import { WinTakeover } from './WinTakeover'
 import { prefersReducedMotion, type Rect } from '../motion'
+import { Body, World } from './space/physics'
+import { centreOf, landingPoint, SpaceTable, useSpaceSizes } from './space/SpaceTable'
+import { SPACE_TABLE } from './space/flag'
 import './Table.css'
 
 const DRAW_DELAY = 480
@@ -313,6 +316,15 @@ export function Table({
   const oppHandRef = useRef<HTMLDivElement>(null)
 
   const { flights, fly } = useFlights()
+  // SPACE TABLE: one physics world for every card that moves
+  const world = useMemo(() => new World(), [])
+  useEffect(() => {
+    if (!SPACE_TABLE) return
+    world.start()
+    return () => world.stop()
+  }, [world])
+  const spawnFrom = useRef<'deck' | 'discard'>('deck')
+  const sizes = useSpaceSizes()
   const { ref: burstRef, fire: fireBurst } = useBurstLayer()
 
   const human = state.players[0]
@@ -451,7 +463,93 @@ export function Table({
     state.deck.length > 1 &&
     drawReveal(state, state.turn) > 1
 
+  // SPACE TABLE: every draw, play and discard is a physics flight in `world`,
+  // and a play's effects (takeover, shake, burst, warp) fire as it LANDS.
+  const spaceAnimateAndCommit = (move: Move) => {
+    if (isScryDeckDraw(move)) {
+      playSfx('card-flick')
+      commit(move)
+      return
+    }
+    const actor = state.turn
+    if (move.type === 'draw') {
+      playSfx('card-flick')
+      const source = move.source ?? 'deck'
+      if (actor === 0) {
+        // your draw commits now; the new hand card flies in off the pile (SpaceTable)
+        spawnFrom.current = source
+        setState((s) => applyMove(s, move))
+        return
+      }
+      const from = centreOf(source === 'discard' ? discardRef.current : deckRef.current)
+      const to = centreOf(oppHandRef.current)
+      if (!from || !to) {
+        setState((s) => applyMove(s, move))
+        return
+      }
+      const kind = source === 'discard' ? state.discard[state.discard.length - 1]?.kind : undefined
+      const b = world.add(
+        new Body({ id: `fly:draw${state.deck.length}-${state.discard.length}`, kind, w: sizes.handW, x: from.x, y: from.y, s: sizes.pileW / sizes.handW, faceUp: !!kind }),
+      )
+      b.z = 200
+      setAnimating(true)
+      if (source === 'discard') setHideDiscardTop(true)
+      b.goTo({ x: to.x, y: to.y, s: (sizes.rivalW * 0.7) / sizes.handW, r: 180, flip: 0 }, () => {
+        world.remove(b.id)
+        setState((s) => applyMove(s, move))
+        setHideDiscardTop(false)
+        setAnimating(false)
+      })
+      return
+    }
+    if (move.type === 'play' || move.type === 'discard') {
+      const kind = state.players[actor].hand.find((c) => c.uid === move.uid)?.kind
+      let body = actor === 0 ? world.bodies.get(move.uid) : undefined
+      if (!body) {
+        // the rival's card leaves its hand face-down and turns over in flight
+        const from = centreOf(oppHandRef.current) ?? { x: sizes.vw / 2, y: 0 }
+        body = world.add(
+          new Body({ id: `fly:${move.uid}`, kind, w: sizes.handW, x: from.x, y: from.y, r: 180, s: (sizes.rivalW * 0.7) / sizes.handW, faceUp: false }),
+        )
+        body.z = 200
+      }
+      let dest = centreOf(discardRef.current)
+      let scale = sizes.pileW / sizes.handW
+      if (move.type === 'play' && kind) {
+        const land = landingPoint(move.targetSeat ?? actor, kind)
+        if (land) {
+          dest = land
+          // a distance card dives into the ship on the track
+          scale = land.w ? land.w / body.w : 0.24
+        }
+      }
+      const b = body
+      if (!dest) {
+        if (move.type === 'play') firePlayEffect(move)
+        world.remove(b.id)
+        setState((s) => applyMove(s, move))
+        return
+      }
+      if (move.type === 'discard') playSfx('card-flick', { rate: 0.9 })
+      b.committing = true
+      b.dragging = false
+      b.inspecting = false
+      b.hold = 0
+      setAnimating(true)
+      b.goTo({ x: dest.x, y: dest.y, r: move.type === 'discard' ? 4 : 0, s: scale, flip: 1 }, () => {
+        playSfx('card-flick', { gain: 0.5, rate: 0.9 + Math.random() * 0.2 })
+        if (move.type === 'play') firePlayEffect(move)
+        setState((s) => applyMove(s, move))
+        world.remove(b.id)
+        setAnimating(false)
+      })
+      return
+    }
+    setState((s) => applyMove(s, move))
+  }
+
   const animateAndCommit = (move: Move, fromOverride?: Rect) => {
+    if (SPACE_TABLE) return spaceAnimateAndCommit(move)
     if (isScryDeckDraw(move)) {
       playSfx('card-flick')
       commit(move)
@@ -792,7 +890,24 @@ export function Table({
     // an invalid release just lets the ghosted card fade back into the hand
     setSelectedUid(null)
   }
-  const cardDrag = useCardDrag({ zoneAt, onDrop: handleDrop, enabled: yourTurn && !animating })
+  const cardDrag = useCardDrag({ zoneAt, onDrop: handleDrop, enabled: !SPACE_TABLE && yourTurn && !animating })
+  // SPACE TABLE: a card released (or flicked) over a zone
+  const spaceDrop = (uid: string, zone: 'self' | 'opp' | 'discard'): boolean => {
+    if (!yourTurn || animating) return false
+    const mv = moves.find((m): m is Extract<Move, { type: 'play' }> => m.type === 'play' && m.uid === uid)
+    setSelectedUid(null)
+    if (zone === 'discard') {
+      haptics.cardDrop()
+      animateAndCommit({ type: 'discard', uid })
+      return true
+    }
+    if ((zone === 'self' && mv && mv.targetSeat === undefined) || (zone === 'opp' && mv && mv.targetSeat === opp.seat)) {
+      haptics.cardDrop()
+      animateAndCommit(mv)
+      return true
+    }
+    return false
+  }
 
   const drag = cardDrag.drag
   const dragUid = drag?.uid ?? null
@@ -953,9 +1068,71 @@ export function Table({
     }
   }
 
+  const restart = () => {
+    playSfx('ui-click')
+    // mid-game a restart throws away real progress — ask first; an
+    // untouched deal (or a finished round) restarts instantly
+    if (restartNeedsConfirm) setRestartConfirm(true)
+    else newRound()
+  }
+
   return (
-    <div className={`table ${shaking ? 'table--shake' : ''}`}>
+    <div className={SPACE_TABLE ? 'space-root' : `table ${shaking ? 'table--shake' : ''}`}>
       {audioDebugOpen && <AudioDebug onClose={() => setAudioDebugOpen(false)} />}
+      {SPACE_TABLE ? (
+        <SpaceTable
+          game={state}
+          shaking={shaking}
+          play={{
+            world,
+            spawnFrom,
+            deckRef,
+            discardRef,
+            oppHandRef,
+            moves,
+            yourTurn,
+            animating,
+            drawPhaseHuman,
+            canDrawDeck,
+            canDrawDiscard,
+            drawFrom,
+            drawNudge,
+            nudgeToDraw,
+            mustDiscard,
+            hideDiscardTop,
+            impact,
+            selectedUid,
+            setSelectedUid,
+            selectedPlay,
+            playLabel,
+            doPlay,
+            doDiscard,
+            onDrop: spaceDrop,
+            humanCanBurst,
+            doBurst,
+            muted,
+            onToggleMute: () => toggleMuted(),
+            logOpen,
+            onToggleLog: () => {
+              playSfx('ui-click')
+              setLogOpen((o) => !o)
+            },
+            onSettings: () => {
+              playSfx('ui-click')
+              setSettingsOpen(true)
+            },
+            onRestart: restart,
+            onGallery: onExit
+              ? () => {
+                  playSfx('ui-click')
+                  onExit()
+                }
+              : undefined,
+            onTitleTap,
+          }}
+        />
+      ) : (
+      <>
       <header className="table__bar">
         <h1 onClick={onTitleTap}>Space Race</h1>
         <div className="table__bar-actions">
@@ -994,13 +1171,7 @@ export function Table({
           </button>
           <button
             className="btn btn--icon"
-            onClick={() => {
-              playSfx('ui-click')
-              // mid-game a restart throws away real progress — ask first; an
-              // untouched deal (or a finished round) restarts instantly
-              if (restartNeedsConfirm) setRestartConfirm(true)
-              else newRound()
-            }}
+            onClick={restart}
             title="New round"
             aria-label="New round"
           >
@@ -1062,6 +1233,8 @@ export function Table({
 
       <FlightLayer flights={flights} />
       <DragLayer drag={drag} />
+      </>
+      )}
       <canvas ref={burstRef} className="burst-layer" aria-hidden />
       {flash && <div key={flash.key} className={`impact-flash impact-flash--${flash.tone}`} aria-hidden />}
       {takeover && (
