@@ -17,9 +17,9 @@ render() { # $1 slide  $2 size  $3 WxH
   echo "rendered $out"
 }
 
-for slide in marquee slingshot scry race table rules; do
+for slide in marquee race drag drawtwo slingshot blocked rules; do
   render "$slide" iphone 1284x2778
 done
-for slide in table rules; do
+for slide in race rules; do
   render "$slide" ipad 2064x2752
 done

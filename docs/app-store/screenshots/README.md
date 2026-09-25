@@ -1,5 +1,14 @@
 # App Store screenshots
 
+**1.4.0 refresh (2026-09-25):** the space-table shots (07–10, iPad 03) and the
+app preview were captured in headless Chrome from a THROWAWAY staging build
+(`web/src/stage.ts` seeding `?stage=race|drag|blocked|drawtwo|warp`, reverted,
+never committed), with a drawn 9:41 status bar and iPhone safe-area insets.
+The preview is a CDP screencast of `?stage=warp`: drag a 75, the rival
+discards, draw, flick the 200 into the hyperwarp takeover (16.2s, 886×1920).
+Play phone shots (1080×1920) live in `docs/play-store/screenshots/`, Amazon
+Fire shots (1920×1200) in `docs/amazon-appstore/screenshots/`.
+
 RAW captures from the iOS Simulator (`xcrun simctl io <udid> screenshot`) — the
 inputs to the marketing compositor in `../compose/` (edit SLIDES in
 compose.html, run render.sh; the composed `../compose/out/*.png` are what get
@@ -8,13 +17,14 @@ content (slingshot cinematic, portrait 💫 safeties, compact iPad layout).
 
 | File | Device | Pixels | Shows |
 |------|--------|--------|-------|
-| `iphone-6.9-01-table.png` | iPhone 17 Pro Max | 1320×2868 | Freshly dealt table |
 | `iphone-6.9-02-rules.png` | iPhone 17 Pro Max | 1320×2868 | How-to-Play / card reference |
 | `iphone-6.9-03-slingshot.png` | iPhone 17 Pro Max | 1320×2868 | Slingshot cinematic mid-clip — cockpit asteroid field + SLINGSHOT! +200 ly caption |
-| `iphone-6.9-04-scry.png` | iPhone 17 Pro Max | 1320×2868 | Two-card scry reveal |
-| `iphone-6.9-05-board-race.png` | iPhone 17 Pro Max | 1320×2868 | Staged mid-race board — AI 575 (blocked, red) vs you 525, 💫 slingshot safety |
+| `iphone-6.9-07-space-race.png` | 440×956 @3x | 1320×2868 | 1.4 space table mid-race: rival stuck in a Black Hole, gold +100 bonus hop |
+| `iphone-6.9-08-drag.png` | 440×956 @3x | 1320×2868 | A card held above your area, drop glow on |
+| `iphone-6.9-09-draw-two.png` | 440×956 @3x | 1320×2868 | Draw Two, Play Two: two move markers, Busted Thruster blocking, fixer glowing |
+| `iphone-6.9-10-blocked.png` | 440×956 @3x | 1320×2868 | Stuck in a Black Hole, Ignition glowing in hand |
 | `iphone-6.9-06-ace-hero.png` | iPhone 17 Pro Max | 1320×2868 | Golden Ace Pilot hero frame (dodge-clip opening) — the MARQUEE slide art, echoes the app icon |
-| `ipad-13-01-table.png` | iPad Pro 13" (M5) | 2064×2752 | Mid-race table, compact iPad layout |
+| `ipad-13-03-space-race.png` | 1032×1376 @2x | 2064×2752 | 1.4 space table mid-race |
 | `ipad-13-02-rules.png` | iPad Pro 13" (M5) | 2064×2752 | How-to-Play on iPad |
 
 ## How the staged shots were made
