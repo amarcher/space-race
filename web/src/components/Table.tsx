@@ -36,6 +36,7 @@ import { whoFor } from './GameLog'
 import { SlingshotOverlay } from './SlingshotOverlay'
 import { TableView } from './TableView'
 import { WinTakeover } from './WinTakeover'
+import { warmEndClips } from './endClips'
 import { prefersReducedMotion, type Rect } from '../motion'
 import { Body, World } from './space/physics'
 import { centreOf, landingPoint, SpaceTable, useSpaceSizes } from './space/SpaceTable'
@@ -638,6 +639,13 @@ export function Table({
       setAnimating(false)
     })
   }
+
+  // the finish is in sight: pull both outcome clips fully into memory now, so
+  // the win/loss moment plays instantly even on a slow connection
+  const nearFinish = state.players.some((p) => p.distance >= 400)
+  useEffect(() => {
+    if (nearFinish) warmEndClips()
+  }, [nearFinish])
 
   // count each finished round exactly once — drives the card-label auto-hide
   const roundCounted = useRef(false)
