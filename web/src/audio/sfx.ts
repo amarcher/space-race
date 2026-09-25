@@ -76,11 +76,10 @@ let nativePlays = 0
 let lastNativeError = ''
 
 async function preloadNative(): Promise<void> {
-  try {
-    await NativeAudio.configure({ focus: false }) // keep mixing with the user's own music
-  } catch {
-    /* configure is best-effort */
-  }
+  // NO NativeAudio.configure(): { focus: false } sets the session to .ambient,
+  // which the ring/silent switch MUTES (every play "succeeded" in silence).
+  // AppDelegate owns the session: .playback + .mixWithOthers, re-asserted on
+  // every activation.
   await Promise.all(
     (Object.keys(FILES) as SfxName[]).map(async (name) => {
       try {
