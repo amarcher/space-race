@@ -173,7 +173,7 @@ else
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  echo "==> [dry-run] would upload $APK to $API/edits/$EDIT_ID/apks/large/upload"
+  echo "==> [dry-run] would replace the edit's APK with $APK via $API/edits/$EDIT_ID/apks/{apkId}/replace"
   echo "==> [dry-run] would PUT release notes to .../listings/$LANG_CODE"
   [[ "$COMMIT" -eq 1 ]] && echo "==> [dry-run] would COMMIT edit $EDIT_ID (submits for review)"
   echo "==> Dry run complete — nothing was changed."
@@ -183,15 +183,25 @@ fi
 # ---------------------------------------------------------------------------
 # Upload. /large/upload is the one that survives an ~85 MB body.
 # ---------------------------------------------------------------------------
-echo "==> Uploading $(basename "$APK") ($(du -h "$APK" | cut -f1))"
-UPLOAD="$(curl -sS --fail-with-body -X POST "${auth[@]}" \
+# A new edit carries the PREVIOUS version's APK forward. Replace it in place
+# (Amazon's recommended flow: it keeps that APK's device targeting) rather than
+# uploading alongside it. Since 2026-09 the /apks/large/upload endpoint only
+# stores the file and returns a fileId that still has to be attached, which is
+# how the 1.4.0 run ended up with the old APK still on the edit.
+echo "==> Replacing the edit's APK with $(basename "$APK") ($(du -h "$APK" | cut -f1))"
+APKS="$(curl -sS --fail-with-body "${auth[@]}" "$API/edits/$EDIT_ID/apks")"
+[[ "$(jq 'length' <<<"$APKS")" -eq 1 ]] || { echo "!! expected exactly one APK on the edit, found: $APKS" >&2; exit 1; }
+APK_ID="$(jq -r '.[0].id' <<<"$APKS")"
+APK_ETAG="$(etag_of "$API/edits/$EDIT_ID/apks/$APK_ID")"
+[[ -n "$APK_ETAG" ]] || { echo "!! no ETag for apk $APK_ID" >&2; exit 1; }
+REPLACED="$(curl -sS --fail-with-body -X PUT "${auth[@]}" \
   -H 'Content-Type: application/octet-stream' \
   -H "fileName: $(basename "$APK")" \
+  -H "If-Match: $APK_ETAG" \
   --data-binary "@$APK" \
-  "$API/edits/$EDIT_ID/apks/large/upload")"
-APK_ID="$(jq -r '.id // .apkId // empty' <<<"$UPLOAD")"
-[[ -n "$APK_ID" ]] || { echo "!! upload returned no apk id: $UPLOAD" >&2; exit 1; }
-echo "    uploaded as apk id $APK_ID"
+  "$API/edits/$EDIT_ID/apks/$APK_ID/replace")"
+[[ "$(jq -r '.versionCode' <<<"$REPLACED")" == "$APK_VC" ]] || { echo "!! replace did not land versionCode $APK_VC: $REPLACED" >&2; exit 1; }
+echo "    apk $APK_ID now carries versionCode $APK_VC"
 
 # ---------------------------------------------------------------------------
 # Release notes. Amazon has no PATCH: GET the listing, edit it, PUT it back.
@@ -232,6 +242,10 @@ fi
 # ---------------------------------------------------------------------------
 # Commit == submit for review. This is the irreversible one.
 # ---------------------------------------------------------------------------
+# Never submit a stale binary under new release notes: the edit must carry
+# exactly this build and nothing else.
+ON_EDIT="$(curl -sS --fail-with-body "${auth[@]}" "$API/edits/$EDIT_ID/apks" | jq -r '[.[].versionCode] | join(",")')"
+[[ "$ON_EDIT" == "$APK_VC" ]] || { echo "!! refusing to commit: edit carries versionCode(s) $ON_EDIT, expected $APK_VC" >&2; exit 1; }
 echo "==> Committing edit $EDIT_ID (submits $APK_VN / $APK_VC for review)"
 EDIT_ETAG="$(etag_of "$API/edits")"
 [[ -n "$EDIT_ETAG" ]] || { echo "!! no ETag for the edit" >&2; exit 1; }
