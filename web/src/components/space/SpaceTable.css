@@ -389,3 +389,29 @@
 .sp-rival__limit { position: relative; flex: none; width: calc(var(--rival-w) * 0.62); }
 .sp-rival__limit .sp-card { box-shadow: 0 0 0 2px rgba(255, 190, 90, 0.85), 0 0 14px rgba(255, 170, 60, 0.5); }
 .sp-rival__limit span { position: absolute; left: 50%; bottom: -8px; translate: -50% 0; padding: 2px 5px; border-radius: 999px; background: #1f1406; border: 1px solid rgba(255, 190, 90, 0.8); font: 800 9px/1 var(--font-display); color: #ffcf7a; white-space: nowrap; }
+
+/* discarding a card you could play: ask, almost without words */
+.sp-ask {
+  position: fixed;
+  inset: 0;
+  z-index: 480;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 3, 12, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: spAskIn 220ms ease both;
+}
+@keyframes spAskIn { from { opacity: 0; } }
+.sp-ask__panel { display: grid; justify-items: center; gap: 16px; animation: spAskPop 320ms cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+@keyframes spAskPop { from { transform: scale(0.85); } }
+.sp-ask__card { width: min(46vw, 34vh, 220px); box-shadow: 0 0 0 3px var(--sp-gold, #ffd76a), 0 0 40px rgba(255, 210, 90, 0.5), 0 18px 40px rgba(0, 0, 0, 0.6); }
+.sp-ask__q { margin: 0; font: 800 clamp(20px, 6vw, 28px)/1.1 var(--font-display); color: #ffd76a; text-align: center; }
+.sp-ask__actions { display: flex; gap: 22px; align-items: center; }
+.sp-ask__actions button { display: grid; place-items: center; border-radius: 50%; border: 0; cursor: pointer; }
+.sp-ask__actions svg { width: 1em; height: 1em; }
+.sp-ask__play { width: 84px; height: 84px; font-size: 38px; color: #1a1205; background: linear-gradient(180deg, #ffe79a, #ffc54a); box-shadow: 0 10px 30px rgba(255, 190, 70, 0.45); }
+.sp-ask__bin { width: 60px; height: 60px; font-size: 26px; color: #f5ecd9; background: rgba(20, 18, 34, 0.92); box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.3); }
+.sp-ask__actions button:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .sp-ask, .sp-ask__panel { animation: none; } }

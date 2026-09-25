@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   CARD_DEFS,
   DECK_COUNTS,
-  DECK_TOTAL,
   GALLERY_ORDER,
   LANES,
   SAFETY_MILEAGE,
@@ -17,7 +16,8 @@ import {
   WIN_DISTANCE,
   type CardType,
 } from '../game/cards'
-import { Card } from './Card'
+import { cardPoster, cardVideo } from '../game/cardArt'
+import { printedFace } from './space/SpaceTable'
 import { useCardPreview } from './useCardPreview'
 import './Gallery.css'
 
@@ -85,10 +85,20 @@ const TrackCell = ({ refData, tone, label }: { refData: TrackRef | null; tone: T
   </span>
 )
 
+/** A card from the physical deck; tap it to watch its animation play on the face. */
+function PrintedCard({ kind, playing, onToggle }: { kind: string; playing: boolean; onToggle: () => void }) {
+  const clip = cardVideo(kind, ['hover', 'idle'])
+  return (
+    <button type="button" className={`pcard-ref ${playing ? 'pcard-ref--on' : ''}`} onClick={onToggle} aria-label={`${CARD_DEFS[kind].title}: ${CARD_DEFS[kind].subtitle}`} aria-pressed={playing}>
+      <img src={printedFace(kind)} alt="" draggable={false} loading="lazy" />
+      {playing && clip && <video src={clip} poster={cardPoster(kind)} autoPlay muted loop playsInline aria-hidden />}
+    </button>
+  )
+}
+
 /** "How to Play" rules/NUX screen + a full reference of every card in the deck. */
 export function Gallery() {
   const [selected, setSelected] = useState<string | null>(null)
-  const [showBacks, setShowBacks] = useState(false)
 
   return (
     <div className="gallery">
@@ -96,10 +106,7 @@ export function Gallery() {
         <div>
           <h1>Space Race</h1>
         </div>
-        <label className="gallery__toggle">
-          <input type="checkbox" checked={showBacks} onChange={(e) => setShowBacks(e.target.checked)} />
-          Show card back
-        </label>
+
       </header>
 
       {/* ---- How to Play (words are fine here — this is not the play surface) ---- */}
@@ -257,17 +264,6 @@ export function Gallery() {
       {/* ---- Card reference (every card, with its animation + ×quantity) ---- */}
       <h2 className="rules__heading rules__heading--ref">Card reference</h2>
 
-      {showBacks && (
-        <section className="gallery__group">
-          <h2>Card back</h2>
-          <div className="gallery__row">
-            <figure className="gallery__cell">
-              <Card faceDown size="md" />
-              <figcaption>×{DECK_TOTAL}</figcaption>
-            </figure>
-          </div>
-        </section>
-      )}
 
       {GROUPS.map((group) => {
         const kinds = GALLERY_ORDER.filter((k) => CARD_DEFS[k].type === group.type)
@@ -279,12 +275,7 @@ export function Gallery() {
             <div className="gallery__row">
               {kinds.map((kind) => (
                 <figure className="gallery__cell" key={kind}>
-                  <Card
-                    kind={kind}
-                    size="md"
-                    selected={selected === kind}
-                    onClick={() => setSelected(selected === kind ? null : kind)}
-                  />
+                  <PrintedCard kind={kind} playing={selected === kind} onToggle={() => setSelected(selected === kind ? null : kind)} />
                   <figcaption>×{DECK_COUNTS[kind]}</figcaption>
                 </figure>
               ))}

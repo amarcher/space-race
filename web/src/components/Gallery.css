@@ -18,10 +18,8 @@
   margin: 0;
   font-size: clamp(26px, 4vw, 40px);
   letter-spacing: 0.5px;
-  background: linear-gradient(120deg, #fff, #b9a8ff 60%, #6fb7ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-family: var(--font-display);
+  color: #f5ecd9;
 }
 /* ---- How to Play -------------------------------------------------------- */
 .rules { margin-top: 8px; }
@@ -65,8 +63,6 @@
 .rules__card strong { color: #fff; font-weight: 700; }
 .rules__card em { font-style: normal; color: #ffd76a; font-weight: 600; }
 /* accent the two "special" cards with a left edge in their type colour */
-.rules__card--goal { border-left: 3px solid #6fb7ff; }
-.rules__card--slingshot { border-left: 3px solid #ffd76a; }
 
 .rules__hint {
   font-weight: 400;
@@ -154,7 +150,7 @@
 
 /* Advanced play — the two Mille Bornes modes. Marked off with the safety-gold
    rule so it reads as an optional layer on top of the base rules above it. */
-.rules__advanced { margin-top: 14px; border-left: 3px solid #ffd76a; }
+.rules__advanced { margin-top: 14px; }
 .rules__advanced h4 {
   margin: 18px 0 6px;
   font-size: 14px;
@@ -233,3 +229,33 @@
   color: rgba(255, 255, 255, 0.45);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── the space table's look: nebula backdrop, printed cards ── */
+.gallery-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(rgba(4, 4, 14, 0.55), rgba(4, 4, 14, 0.78)), url('/space/space-port-4k.webp') center / cover no-repeat, #05050d;
+}
+@media (min-aspect-ratio: 1 / 1) {
+  .gallery-sky { background-image: linear-gradient(rgba(4, 4, 14, 0.55), rgba(4, 4, 14, 0.78)), url('/space/space-land-4k.webp'); }
+}
+.rules__card { background: rgba(8, 9, 24, 0.62); border-color: rgba(255, 214, 120, 0.14); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.pcard-ref {
+  position: relative;
+  display: block;
+  width: clamp(104px, 22vw, 150px);
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  border-radius: 6% / 4.3%;
+  overflow: hidden;
+  background: #05050d;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.45), 0 10px 24px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.pcard-ref img, .pcard-ref video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.pcard-ref:hover { transform: translateY(-3px); }
+.pcard-ref--on { box-shadow: 0 0 0 2px #ffd76a, 0 0 26px rgba(255, 210, 90, 0.5); }
+.pcard-ref:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
