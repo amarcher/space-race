@@ -14,7 +14,7 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
-## 1.4.0 · build 19 — The space table, and Draw Two, Play Two
+## 1.4.0 · build 20 — The space table, and Draw Two, Play Two
 
 **Status:** cut 2026-09-25 for all three stores (App Store, Google Play,
 Amazon Appstore). Web has had both features since 2026-09-24/25 (PRs #227,
