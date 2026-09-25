@@ -37,6 +37,7 @@ import { SlingshotOverlay } from './SlingshotOverlay'
 import { TableView } from './TableView'
 import { WinTakeover } from './WinTakeover'
 import { warmEndClips } from './endClips'
+import { loadTabGame, saveTabGame } from './tabSave'
 import { prefersReducedMotion, type Rect } from '../motion'
 import { Body, World } from './space/physics'
 import { centreOf, landingPoint, SpaceTable, useSpaceSizes } from './space/SpaceTable'
@@ -233,6 +234,10 @@ function buildTractorDemoGame(): GameState {
 /** Build the initial game state, honoring any dev-preview URL param (momentum
  * meter / catch-up valve / self-heal / tractor demos), else a normal new game
  * from saved rules. */
+/** any dev-preview URL param: those build their own game and are never saved/restored */
+const DEV_PARAMS =
+  typeof window !== 'undefined' && /[?&](win|tractor|catchup|selfheal|momentum|stage)=/.test(window.location.search)
+
 function buildInitialGame(): GameState {
   if (MOMENTUM_PREVIEW_PARAM != null)
     return seedMomentumPreview(Number(MOMENTUM_PREVIEW_PARAM) || MOMENTUM_CAP)
@@ -256,7 +261,11 @@ export function Table({
   // the persisted gameplay-mode preference; applied to NEW games (never mutated
   // mid-game — flipping a toggle takes effect on the next new round).
   const [rules, setRules] = useState<GameRules>(() => loadRules())
-  const [state, setState] = useState<GameState>(() => buildInitialGame())
+  // a game in progress in THIS tab survives a reload (dev preview params win)
+  const [state, setState] = useState<GameState>(() => (DEV_PARAMS ? null : loadTabGame()) ?? buildInitialGame())
+  useEffect(() => {
+    if (!DEV_PARAMS) saveTabGame(state)
+  }, [state])
   // interface prefs (label auto-hide, auto-draw) — unlike rules these apply
   // immediately; Settings persists + lifts them here.
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs())
@@ -300,8 +309,9 @@ export function Table({
   const impactSeq = useRef(0)
   // full-screen hero takeover for headline plays (warp-200 + hazard/remedy/safety)
   const [takeover, setTakeover] = useState<Takeover | null>(null)
-  const lastSlingId = useRef<number>(-1)
-  const lastHealId = useRef<number>(-1)
+  // start from the (possibly restored) state's last events so a reload never replays them
+  const lastSlingId = useRef<number>(state.lastSlingshot?.id ?? -1)
+  const lastHealId = useRef<number>(state.lastHeal?.id ?? -1)
   // the deck size of a brand-fresh deal (captured on mount) — used to tell an
   // untouched deal from a game actually in progress for the unload guard
   const freshDeckLen = useRef(state.deck.length)
