@@ -260,7 +260,7 @@
   transform: translate(calc(var(--lift) * 10px), calc(3px + var(--lift) * 30px));
   opacity: calc(0.85 - var(--lift) * 0.35);
 }
-.sp-body__card { position: relative; display: block; transform-style: preserve-3d; transform: perspective(900px) rotateY(calc(var(--flip) * 180deg)); transition: filter 200ms ease; }
+.sp-body__card { position: relative; display: block; transform-style: preserve-3d; transform: perspective(900px) rotateY(calc(var(--flip) * 180deg)); }
 .sp-body__face, .sp-body__back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .sp-body__back { position: absolute; inset: 0; transform: rotateY(180deg); }
 /* UV-coated stock: a sheen that slides as the card tilts */
@@ -275,7 +275,11 @@
   opacity: calc(0.25 + var(--lift) * 0.55);
   pointer-events: none;
 }
-.body--dim .sp-body__card { filter: brightness(0.5) saturate(0.55); }
+/* dimming is a shade layer's OPACITY, not a filter: iOS Safari does not repaint
+   a filter change on children of the 3D (preserve-3d) card layer, so cards
+   already in hand never visibly dimmed or undimmed there */
+.sp-body__shade { position: absolute; inset: 0; border-radius: 6% / 4.3%; background: rgba(4, 4, 14, 0.55); opacity: 0; transition: opacity 200ms ease; pointer-events: none; }
+.body--dim .sp-body__shade { opacity: 1; }
 /* the card that would get you moving again calls for your thumb */
 .body--hint .sp-body__face { box-shadow: 0 0 0 3px var(--sp-gold), 0 0 26px rgba(255, 210, 90, 0.85); animation: spHint 1.2s ease-in-out infinite; }
 @keyframes spHint { 50% { box-shadow: 0 0 0 3px #fff0b8, 0 0 40px rgba(255, 220, 110, 1); } }
@@ -380,3 +384,8 @@
 .sp-piles__pips { position: absolute; left: 50%; top: calc(50% + var(--pile-w) * 0.7 + 16px); translate: -50% 0; }
 .sp--land .sp-piles__pips { top: 50%; left: calc(50% + var(--pile-w) / 2 + 14px); translate: 0 -50%; }
 .sp-you__pips { margin-left: auto; align-self: flex-start; }
+
+/* the rival's Tractor Beam, shown beside a blocking hazard */
+.sp-rival__limit { position: relative; flex: none; width: calc(var(--rival-w) * 0.62); }
+.sp-rival__limit .sp-card { box-shadow: 0 0 0 2px rgba(255, 190, 90, 0.85), 0 0 14px rgba(255, 170, 60, 0.5); }
+.sp-rival__limit span { position: absolute; left: 50%; bottom: -8px; translate: -50% 0; padding: 2px 5px; border-radius: 999px; background: #1f1406; border: 1px solid rgba(255, 190, 90, 0.8); font: 800 9px/1 var(--font-display); color: #ffcf7a; white-space: nowrap; }
