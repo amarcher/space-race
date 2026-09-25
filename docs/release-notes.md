@@ -14,6 +14,51 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
+## 1.4.0 · build 17 — The space table, and Draw Two, Play Two
+
+**Status:** cut 2026-09-25 for all three stores (App Store, Google Play,
+Amazon Appstore). Web has had both features since 2026-09-24/25 (PRs #227,
+#228).
+
+### What's New (paste-ready, ~450 chars — under every store's limit)
+
+```
+A WHOLE NEW LOOK. Race through deep space with the real printed cards: stars
+rush past as you fly, and a 200 jump sends you into hyperwarp. Drag a card to
+play it, flick it up, or tap it to take a closer look.
+
+NEW: DRAW TWO, PLAY TWO. Draw two cards and make two moves every turn. Mix the
+deck and the discard pile, fix a hazard and fly in the same turn, and watch out
+for mid-turn Slingshots. Turn it on in Settings.
+
+Also: sharper 4K space backdrops.
+```
+
+### Shipped in this build
+
+- **The space table** (#227) — photographic nebula + live 3D starfield driven
+  by distance plays; printed 5:7 card faces; spring physics for every card
+  move (drag, flick, tap-to-read with Play/Discard); the blocking hazard is
+  the loudest thing on screen and the card that frees you glows; compact
+  rival strip; one icon menu. All rule modes, takeovers and the Slingshot
+  cinematic unchanged. `?table=classic` keeps the old board on web.
+- **Draw Two, Play Two** (`drawTwo`, #228) — two draws in any mix of deck and
+  discard, then two actions; a Slingshot on the first action resolves and
+  hands the turn back for the second. Off by default (Settings ▸ Gameplay).
+- **4K backdrops** (#228) — Topaz 2x upscale of the nebula plates.
+- **Race track** (#226) and the **printed card back** — new to every store in
+  this build.
+
+### Submission checklist
+
+- [ ] iOS: `TEAM_ID=J39B2498YF ./scripts/ios-release.sh --upload` → attach
+      build 17 to a 1.4.0 record, paste What's New, submit.
+- [ ] Amazon: `npm run amazon:release` → `./scripts/amazon-submit.sh`.
+- [ ] Play: `npm run android:release` → upload the AAB in Play Console
+      (human file pick) → paste What's New → send for review.
+
+---
+
 ## 1.3.0 · build 16 — Advanced play
 
 **Status (re-verified 2026-08-28):**
