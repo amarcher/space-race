@@ -65,7 +65,9 @@ function NormalApp({ onStateChange }: { onStateChange?: (game: GameState) => voi
       {/* "get the app" bar pointing at whichever store matches the device (no-op in the native apps and in Safari, which has its own) */}
       <StoreBanner />
       {/* the space table brings its own sky; the starfield still backs the gallery */}
-      {(!SPACE_TABLE || view === 'gallery') && <Starfield />}
+      {/* the space table brings its own sky, and the gallery wears the same nebula */}
+      {!SPACE_TABLE && <Starfield />}
+      {SPACE_TABLE && view === 'gallery' && <div className="gallery-sky" aria-hidden />}
       {/* passive observability — Vercel Web Analytics (traffic) + Speed Insights
           (Core Web Vitals). No-op off Vercel; no PII, no config. Skipped in the
           native apps: they're served offline from localhost (iOS capacitor://,

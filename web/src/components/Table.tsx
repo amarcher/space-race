@@ -40,7 +40,7 @@ import { warmForState } from './clipWarm'
 import { loadTabGame, saveTabGame } from './tabSave'
 import { prefersReducedMotion, type Rect } from '../motion'
 import { Body, World } from './space/physics'
-import { centreOf, landingPoint, SpaceTable, useSpaceSizes } from './space/SpaceTable'
+import { centreOf, landingPoint, printedFace, SpaceTable, useSpaceSizes } from './space/SpaceTable'
 import { SPACE_TABLE } from './space/flag'
 import './Table.css'
 
@@ -867,12 +867,25 @@ export function Table({
     animateAndCommit(selectedPlay)
     setSelectedUid(null)
   }
+  // Discarding a card you could have PLAYED asks first (space table): the card,
+  // big, with Play and Discard. Almost no words, so a pre-reader gets it.
+  const [discardAsk, setDiscardAsk] = useState<string | null>(null)
+  const playFor = (uid: string) =>
+    moves.find((m): m is Extract<Move, { type: 'play' }> => m.type === 'play' && m.uid === uid)
+  const discardNow = (uid: string) => {
+    haptics.cardDrop()
+    animateAndCommit({ type: 'discard', uid })
+  }
   const doDiscard = () => {
     if (!selectedUid) return
-    haptics.cardDrop()
-    animateAndCommit({ type: 'discard', uid: selectedUid })
+    const uid = selectedUid
     setSelectedUid(null)
+    if (SPACE_TABLE && playFor(uid)) return setDiscardAsk(uid)
+    discardNow(uid)
   }
+  useEffect(() => {
+    if (!yourTurn) setDiscardAsk(null)
+  }, [yourTurn])
   // MOMENTUM: spend the full meter for a BREAKAWAY. Fire a gold burst over the
   // player's board + a sound so the spend is visceral, then commit — the turn
   // stays open and the next distance hop is the free one.
@@ -922,8 +935,11 @@ export function Table({
     const mv = moves.find((m): m is Extract<Move, { type: 'play' }> => m.type === 'play' && m.uid === uid)
     setSelectedUid(null)
     if (zone === 'discard') {
-      haptics.cardDrop()
-      animateAndCommit({ type: 'discard', uid })
+      if (mv) {
+        setDiscardAsk(uid) // the card goes home while we ask
+        return false
+      }
+      discardNow(uid)
       return true
     }
     if ((zone === 'self' && mv && mv.targetSeat === undefined) || (zone === 'opp' && mv && mv.targetSeat === opp.seat)) {
@@ -1107,7 +1123,29 @@ export function Table({
             onTitleTap,
           }}
         />
-      ) : (
+      ) : null}
+      {SPACE_TABLE && discardAsk && (() => {
+        const kind = human.hand.find((c) => c.uid === discardAsk)?.kind
+        const mv = playFor(discardAsk)
+        if (!kind) return null
+        return (
+          <div className="sp-ask" role="alertdialog" aria-label={`Discard ${CARD_DEFS[kind].title}? You could play it.`} onClick={() => setDiscardAsk(null)}>
+            <div className="sp-ask__panel" onClick={(e) => e.stopPropagation()}>
+              <img className="sp-card sp-ask__card" src={printedFace(kind)} alt={CARD_DEFS[kind].title} draggable={false} />
+              <p className="sp-ask__q">You can play this!</p>
+              <div className="sp-ask__actions">
+                <button className="sp-ask__play" autoFocus aria-label="Play it" title="Play it" onClick={() => { setDiscardAsk(null); if (mv) { haptics.cardDrop(); animateAndCommit(mv) } }}>
+                  <Icon name={CARD_DEFS[kind].type === 'hazard' ? 'burst' : 'play'} />
+                </button>
+                <button className="sp-ask__bin" aria-label="Discard it anyway" title="Discard it anyway" onClick={() => { const u = discardAsk; setDiscardAsk(null); discardNow(u) }}>
+                  <Icon name="bin" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+      {SPACE_TABLE ? null : (
       <>
       <header className="table__bar">
         <h1 onClick={onTitleTap}>Space Race</h1>
