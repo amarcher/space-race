@@ -14,6 +14,62 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
+## 1.4.1 · build 21 — Polish on the space table
+
+**Status:** cut 2026-09-25. Amazon has 1.4.0 (build 17) live since its
+Sept 24 submission; iOS and Play jump from 1.3.0 straight to 1.4.1 (the
+code tested on TestFlight as build 20). Paragraphs below are UNWRAPPED on
+purpose: Amazon showed 1.4.0's hard-wrapped notes with mid-sentence breaks.
+
+### What's New — App Store (paste-ready)
+
+```
+A WHOLE NEW LOOK. Race through deep space with the real printed cards: stars rush past as you fly, and a 200 jump sends you into hyperwarp. Drag a card to play it, flick it up, or tap it for a closer look.
+
+NEW: DRAW TWO, PLAY TWO. Draw two cards and make two moves every turn. Mix the deck and the discard pile, fix a hazard and fly in the same turn, and watch out for mid-turn Slingshots. Turn it on in Settings.
+
+ALSO NEW
+• A victory screen worth winning for
+• The card that gets you moving again glows in your hand
+• A quick check before you throw away a card you could play
+• Sound plays even with your ringer switch off
+• Sharper 4K space backdrops
+```
+
+### What's New — Google Play (paste-ready)
+
+```
+A WHOLE NEW LOOK. Race through deep space with the real printed cards: stars rush past as you fly, and a 200 jump sends you into hyperwarp. Drag a card to play it, flick it up, or tap it for a closer look.
+
+NEW: DRAW TWO, PLAY TWO. Draw two cards and make two moves every turn. Mix the deck and the discard pile, fix a hazard and fly in the same turn, and watch out for mid-turn Slingshots. Turn it on in Settings.
+
+ALSO NEW
+• A victory screen worth winning for
+• The card that gets you moving again glows in your hand
+• A quick check before you throw away a card you could play
+• Sharper 4K space backdrops
+```
+
+### What's New — Amazon (already has 1.4.0's features)
+
+```
+Polish on the new space table:
+• A victory screen worth winning for
+• The card that gets you moving again glows in your hand
+• A quick check before you throw away a card you could play
+• Smoother card animations, and videos that are ready the moment you play
+```
+
+### Listing text approved 2026-09-25
+
+App Store promotional text:
+
+```
+Race across deep space with the real printed cards. Drag, flick and fly your ship to 1,000 light-years. Free, offline, no ads.
+```
+
+---
+
 ## 1.4.0 · build 20 — The space table, and Draw Two, Play Two
 
 **Status:** cut 2026-09-25 for all three stores (App Store, Google Play,
