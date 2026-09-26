@@ -39,15 +39,14 @@ It's the classic "hazards and remedies" race, reimagined among the stars — eas
 to learn in one hand, with just enough strategy to keep every game close.
 
 FEATURES
-• Single-player against a sharp AI rival — no account, no sign-up.
-• Fully offline. Every card, animation, and sound ships in the app. Play on a
-  plane, a subway, or anywhere with no signal.
-• Beautiful, tactile cards with real haptics — feel every engine burn, hazard
-  hit, and last-second reversal.
-• A "scry" peek at what's coming, so the smart play is always in reach.
-• Slingshot! Slap down the perfect counter the instant a hazard hits and
-  leap ahead.
-• Quick games — a full race takes just a few minutes.
+• The real cards from the printed First Edition deck, racing through deep space. Stars rush past as you fly.
+• Drag a card to play it, flick it up, or tap it for a closer look. Every card moves like a real one.
+• Single-player against a sharp AI rival. No account, no sign-up.
+• Pick-one draws: peek at the top two cards and take the one you need.
+• Slingshot! Slap down the perfect counter the instant a hazard hits and leap ahead.
+• More ways to play: Draw Two, Play Two, Momentum, Precision Approach and more, all in Settings.
+• Fully offline. Every card, animation, and sound ships in the app.
+• Quick games: a full race takes just a few minutes.
 • No ads. No in-app purchases. No tracking.
 
 Whether you've got two minutes in a waiting room or a long flight ahead, Space
