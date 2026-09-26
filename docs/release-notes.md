@@ -65,7 +65,7 @@ Polish on the new space table:
 App Store promotional text:
 
 ```
-Race across deep space with the real printed cards. Drag, flick and fly your ship to 1,000 light-years. Free, offline, no ads.
+Race across deep space with the real printed cards. Dodge black holes and asteroids, fire your engines, and race a rival to 1,000 light-years. Free, offline, no ads.
 ```
 
 ---

@@ -37,7 +37,7 @@ Guideline 1.3. Positioning is "a free space card game," per the Phase 0 rebrand.
 ## Promotional text (170 chars, editable without review)
 
 ```
-Race across deep space with the real printed cards. Drag, flick and fly your ship to 1,000 light-years. Free, offline, no ads.
+Race across deep space with the real printed cards. Dodge black holes and asteroids, fire your engines, and race a rival to 1,000 light-years. Free, offline, no ads.
 ```
 
 ## Description (4000 chars)
