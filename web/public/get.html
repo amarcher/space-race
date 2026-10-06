@@ -48,6 +48,25 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="preload" as="image" href="/og-poster.jpg" fetchpriority="high" />
 
+    <!-- Google Analytics 4, the same property as the game (web/index.html).
+         Without it this page is a blind spot: ads and printed links land here,
+         and nothing recorded the visit or which way the visitor left. Skipped
+         inside the native Android ships for the reason given in index.html:
+         both are child-directed and must not load gtag at all. -->
+    <script>
+      if (!/SpaceRaceAmazon|SpaceRaceAndroid/.test(navigator.userAgent)) {
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        gtag('js', new Date());
+        gtag('set', 'user_properties', { platform: 'web' });
+        gtag('config', 'G-GS8HYJ69C3');
+        var ga = document.createElement('script');
+        ga.async = true;
+        ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-GS8HYJ69C3';
+        document.head.appendChild(ga);
+      }
+    </script>
+
     <style>
       :root {
         color-scheme: dark;
@@ -383,6 +402,21 @@
         link.setAttribute('aria-label', label + ' — your device');
         row.insertBefore(link, row.firstChild);
       })();
+    </script>
+    <script>
+      /* Which way out did the visitor take: the shop, the web game, or a store?
+         select_content with GA4's built-in content_type / content_id, so the
+         split shows up in reports without registering a custom dimension. The
+         beacon transport lets the event survive the navigation it reports. */
+      document.addEventListener('click', function (e) {
+        var link = e.target.closest && e.target.closest('a[data-platform]');
+        if (!link || typeof window.gtag !== 'function') return;
+        window.gtag('event', 'select_content', {
+          content_type: 'get_link',
+          content_id: link.getAttribute('data-platform'),
+          transport_type: 'beacon',
+        });
+      });
     </script>
   </body>
 </html>
