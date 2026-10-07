@@ -23,6 +23,7 @@ export function ScrollStore({
   onQuantity,
   maxQuantity,
   soldOut,
+  preorder,
   availability,
   checkoutConfigured,
   metaCart,
@@ -34,6 +35,7 @@ export function ScrollStore({
   onQuantity: (n: number) => void
   maxQuantity: number
   soldOut: boolean
+  preorder: boolean
   availability: string
   checkoutConfigured: boolean
   metaCart: number | null
@@ -292,11 +294,26 @@ export function ScrollStore({
                     </select>
                   </label>
                   <button ref={buyRef} className="buy" disabled={soldOut || !checkoutConfigured} onClick={onBuy}>
-                    {soldOut ? 'Sold out' : 'Buy the deck'}
+                    {soldOut ? 'Sold out' : preorder ? 'Preorder the deck' : 'Buy the deck'}
                   </button>
                 </div>
                 {!checkoutConfigured && <p className="order__error">The store isn't open yet. Check back soon.</p>}
-                <p className="order__small">{soldOut ? 'This edition is currently sold out.' : `${availability}. Secure checkout. Up to 3 copies per order.`}</p>
+                <p className="order__small">
+                  {soldOut
+                    ? 'This edition is currently sold out.'
+                    : preorder
+                    ? `${availability}. The copies on hand are sold out. You're charged today, with a full refund anytime before it ships. Up to 3 copies per order.`
+                    : `${availability}. Secure checkout. Up to 3 copies per order.`}
+                </p>
+                {(soldOut || preorder) && (
+                  <p className="order__play">
+                    <span>{soldOut ? 'Play free now:' : 'Play free while you wait:'}</span>
+                    <a href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058">iPhone</a>
+                    <a href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace">Android</a>
+                    <a href="https://www.amazon.com/dp/B0GXHBHD78">Fire tablet</a>
+                    <a href="/">Web</a>
+                  </p>
+                )}
               </div>
             </div>
             <footer className="foot">

@@ -769,3 +769,14 @@ Fill in as each is created:
   verified 2026-08-13
 - Live shop URL: `https://game.spaceexplorer.tech/shop` — merged and deployed
   2026-08-12 (PR #147)
+
+## Preorder fallback (2026-10-07)
+
+The store went in-stock-only on 2026-09-11 (#204). With a paid ad pointed at `/shop` and six copies on hand, it now falls back to a preorder instead of a dead "Sold out":
+
+- While copies are on hand, nothing changes: orders are `in_stock`, limited to what is on hand.
+- When they are gone and the run still has unsold copies (`SELLABLE_INVENTORY` minus everything sold), the button becomes "Preorder the deck", the page says "Ships January 2027", and the order is recorded as `january`. The buyer is charged at order time and can cancel for a full refund any time before it ships (Andrew's decision, 2026-10-07; the date is deliberately a month, not a day).
+- The server decides the window (`shipWindowForOrder` in `web/src/shop/constants.ts`) and only starts a January order when the page sent `preorder: true`, meaning the buyer was shown the date. An older open tab gets a 409 and a message instead.
+- The Stripe line item carries "Preorder. Ships in January 2027.", and the confirmation email says the same.
+- Sold-out and preorder states show a "Play free" row linking to the App Store, Google Play, Amazon and the web game.
+- Only when the whole run is sold through does the page say "Sold out".

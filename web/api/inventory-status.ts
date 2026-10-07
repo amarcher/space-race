@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql } from './_lib/db.js'
-import { availableInventory } from '../src/shop/constants.js'
+import { availableInventory, preorderInventory } from '../src/shop/constants.js'
 
 // Live counts for the shop page's available stock — read-only, no auth
 // needed (the numbers are already implied by whether checkout succeeds).
@@ -21,9 +21,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sellableRemaining = availableInventory(sold, inStockSold)
 
   res.status(200).json({
-    // Retain these fields for already-open older clients.
+    // Retain these fields for already-open older clients. They keep meaning
+    // "on hand", so an old page shows Sold out instead of taking a preorder
+    // it cannot describe.
     earlyRemaining: sellableRemaining,
     sellableRemaining,
     earlySoldOut: sellableRemaining === 0,
+    // Copies still unsold from the whole run; what a preorder draws on once
+    // sellableRemaining reaches zero.
+    preorderRemaining: preorderInventory(sold),
   })
 }

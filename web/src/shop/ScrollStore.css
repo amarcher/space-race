@@ -224,6 +224,14 @@
   @media (hover: hover) and (pointer: fine) { .buy:hover { background: #ffdd6b; } }
   .buy:active { transform: scale(0.97); }
   .order__small { margin: 1.1rem 0 0; font-size: var(--sc-t-sm); color: var(--sc-ink-soft); line-height: 1.5; }
+  /* Shown only when the deck can't ship today: the free game is the way out.
+     Links are padded to a comfortable thumb target without growing the row. */
+  .order__play { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.35rem; margin: 0.8rem 0 0; font-size: var(--sc-t-sm); color: var(--sc-ink-soft); }
+  .order__play span { flex-basis: 100%; }
+  .order__play a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 0.45rem; color: var(--sc-accent); font-weight: 600;
+                   text-decoration: underline; text-underline-offset: 0.2em; }
+  .order__play a:first-of-type { padding-left: 0; }
+  .order__play a:active { opacity: 0.7; }
   .foot { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: space-between; padding: 1.2rem var(--sc-gutter) max(1.2rem, env(safe-area-inset-bottom));
           font-size: var(--sc-t-xs); color: var(--sc-ink-soft); border-top: 1px solid var(--sc-hairline); }
   .foot a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }

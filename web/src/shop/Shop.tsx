@@ -3,6 +3,7 @@ import { Brand, StoreFooter } from './StoreExperience'
 import { ScrollStore } from './ScrollStore'
 import { trackBeginCheckout, trackPurchase } from './analytics'
 import {
+  MAIN_SHIP_DATE_LABEL,
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
   quantityFromMetaCart,
@@ -13,6 +14,7 @@ type InventoryStatus = {
   earlyRemaining: number
   sellableRemaining: number
   earlySoldOut: boolean
+  preorderRemaining?: number
 }
 const CHECKOUT_CONFIGURED = Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 const CHECKOUT_PHOTO_ALT =
@@ -69,13 +71,12 @@ function ProductPage() {
   const purchaseButton = useRef<HTMLButtonElement>(null)
   const checkoutHeading = useRef<HTMLHeadingElement>(null)
   const productScroll = useRef(0)
-  useEffect(() => {
-    let cancelled = false
+  const loadInventory = useCallback((isCurrent: () => boolean = () => true) => {
     fetch('/api/inventory-status', { signal: AbortSignal.timeout(10000) })
       .then((res) => (res.ok ? res.json() : null))
       .then((body: InventoryStatus | null) => {
         if (
-          !cancelled &&
+          isCurrent() &&
           body &&
           Number.isInteger(body.earlyRemaining) &&
           Number.isInteger(body.sellableRemaining)
@@ -85,13 +86,29 @@ function ProductPage() {
       .catch(() => {
         /* Unknown inventory never becomes a claim of availability. */
       })
+  }, [])
+  useEffect(() => {
+    let cancelled = false
+    loadInventory(() => !cancelled)
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadInventory])
 
+  // Copies on hand sell first. When they are gone the rest of the run is a
+  // preorder for the January batch; only when that is gone too is it sold out.
+  const preorder =
+    inventory != null &&
+    inventory.sellableRemaining === 0 &&
+    (inventory.preorderRemaining ?? 0) > 0
   const maxQuantity = inventory
-    ? Math.max(0, Math.min(MAX_QTY_PER_ORDER, inventory.sellableRemaining))
+    ? Math.max(
+        0,
+        Math.min(
+          MAX_QTY_PER_ORDER,
+          preorder ? inventory.preorderRemaining ?? 0 : inventory.sellableRemaining
+        )
+      )
     : MAX_QTY_PER_ORDER
   const soldOut = maxQuantity === 0
   const availability =
@@ -99,6 +116,8 @@ function ProductPage() {
       ? 'Availability confirmed at checkout'
       : soldOut
       ? 'Currently sold out'
+      : preorder
+      ? `Preorder · Ships ${MAIN_SHIP_DATE_LABEL}`
       : 'In stock · Available now'
   useEffect(() => {
     if (maxQuantity > 0)
@@ -122,10 +141,13 @@ function ProductPage() {
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity }),
+        body: JSON.stringify({ quantity, preorder }),
         signal: AbortSignal.timeout(20000),
       })
       const body = await res.json().catch(() => ({}))
+      // The last copy on hand sold while this page was open. Pick up the new
+      // state so the retry below is offered, and described, as a preorder.
+      if (res.status === 409 && body.preorderOnly === true) loadInventory()
       if (
         !res.ok ||
         typeof body.clientSecret !== 'string' ||
@@ -147,7 +169,7 @@ function ProductPage() {
             : 'Checkout could not start right now. Please try again.'
         )
     }
-  }, [checkingOut, quantity, soldOut])
+  }, [checkingOut, loadInventory, preorder, quantity, soldOut])
 
   useEffect(() => {
     if (checkingOut) {
@@ -206,9 +228,17 @@ function ProductPage() {
           <h2>Space Race: 1,000 Light-Years</h2>
           <p>
             First Edition · {quantity} {quantity === 1 ? 'copy' : 'copies'}
+            {preorder && (
+              <>
+                <br />
+                <strong>Preorder · ships {MAIN_SHIP_DATE_LABEL}</strong>
+              </>
+            )}
           </p>
           <p className="checkout-summary__promise">
-            Cancel anytime before it ships. 30-day returns after it arrives.
+            {preorder
+              ? `You're charged today and it ships in ${MAIN_SHIP_DATE_LABEL}. Cancel for a full refund anytime before it ships. 30-day returns after it arrives.`
+              : 'Cancel anytime before it ships. 30-day returns after it arrives.'}
           </p>
         </aside>
         <section
@@ -264,6 +294,7 @@ function ProductPage() {
         onQuantity={setQuantity}
         maxQuantity={maxQuantity}
         soldOut={soldOut}
+        preorder={preorder}
         availability={availability}
         checkoutConfigured={CHECKOUT_CONFIGURED}
         metaCart={metaCart}
