@@ -251,7 +251,6 @@ export function ScrollStore({
                 <dt>Time</dt><dd>15–30 minutes</dd>
                 <dt>Ages</dt><dd>4 and up</dd>
               </dl>
-              <p className="promise">Shipped to US addresses, with tracking emailed when it goes out. Return it within 30 days for a refund. If it's damaged or lost on the way, you choose a free replacement or a full refund.</p>
             </div>
           </div>
         </section>
