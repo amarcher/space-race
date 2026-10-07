@@ -197,7 +197,6 @@
   .facts dt, .facts dd { padding: 0.9rem 0; border-bottom: 1px solid var(--sc-hairline); margin: 0; }
   .facts dt { color: var(--sc-ink-soft); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; padding-top: 1.1rem; }
   .facts dd { font-size: var(--sc-t-base); }
-  .promise { margin: 2rem 0 0; color: var(--sc-ink-soft); font-size: var(--sc-t-base); line-height: 1.6; max-width: 34rem; }
 
   /* ========================================================= 8 · FINISH */
   .fin__stage { background: radial-gradient(60% 55% at 50% 30%, hsl(40 85% 22% / .55), transparent 70%), #0d0a08;
