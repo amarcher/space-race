@@ -46,13 +46,29 @@ export function availableInventory(sold: number, inStockSold: number): number {
   return Math.max(0, Math.min(SELLABLE_INVENTORY - sold, IN_STOCK_INVENTORY - inStockSold))
 }
 
-export const EARLY_SHIP_DATE_LABEL = 'September 10th'
-export const MAIN_SHIP_DATE_LABEL = 'mid-January 2027'
+// Everything not yet sold from the whole run, in stock or not. Once the copies
+// on hand are gone, the rest of this pool is sold as a preorder against the
+// January batch.
+export function preorderInventory(sold: number): number {
+  return Math.max(0, SELLABLE_INVENTORY - sold)
+}
 
-// New orders are available now. Keep the historical windows for existing
-// Stripe sessions and order records; their original promises must not change.
+// Which window an order of this size lands in, or null when the run is sold
+// through. A whole order ships together: it is 'in_stock' only when every copy
+// is on hand, and otherwise waits for January. See docs/store-wayfinder.md.
+export function shipWindowForOrder(quantity: number, sold: number, inStockSold: number): ShipWindow | null {
+  if (quantity <= availableInventory(sold, inStockSold)) return 'in_stock'
+  return quantity <= preorderInventory(sold) ? 'january' : null
+}
+
+export const EARLY_SHIP_DATE_LABEL = 'September 10th'
+// Deliberately a month, not a day: it is a promise to preorder buyers.
+export const MAIN_SHIP_DATE_LABEL = 'January 2027'
+
+// New orders are 'in_stock' while copies are on hand and 'january' (a preorder)
+// after that. 'early' is historical. Keep all three for existing Stripe
+// sessions and order records; their original promises must not change.
 export type ShipWindow = 'in_stock' | 'early' | 'january'
-export const CURRENT_SHIP_WINDOW: ShipWindow = 'in_stock'
 
 export function resolveShipWindow(value: string | undefined): ShipWindow {
   return value === 'in_stock' || value === 'early' ? value : 'january'
@@ -62,7 +78,7 @@ export function shippingConfirmationLine(window: ShipWindow): string {
   if (window === 'in_stock') return "We'll email tracking info when your order ships."
   return window === 'early'
     ? `We'll email tracking info once your copy ships — expected around ${EARLY_SHIP_DATE_LABEL}.`
-    : `We'll email tracking info once your copy ships — expected ${MAIN_SHIP_DATE_LABEL}.`
+    : `This is a preorder: your copy ships in ${MAIN_SHIP_DATE_LABEL}, and we'll email tracking info when it does. You can cancel for a full refund any time before then.`
 }
 
 export const ALLOWED_SHIP_COUNTRIES = ['US']

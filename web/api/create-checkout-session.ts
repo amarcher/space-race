@@ -4,10 +4,10 @@ import { sql } from './_lib/db.js'
 import {
   ALLOWED_SHIP_COUNTRIES,
   CURRENCY,
-  CURRENT_SHIP_WINDOW,
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
-  availableInventory,
+  MAIN_SHIP_DATE_LABEL,
+  shipWindowForOrder,
   UNIT_PRICE_CENTS,
 } from '../src/shop/constants.js'
 
@@ -33,8 +33,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       from orders
       where status != 'cancelled'
     `
-    if (quantity > availableInventory(sold, inStockSold)) {
-      res.status(409).json({ error: "Sorry — we don't have enough copies left in stock." })
+    const shipWindow = shipWindowForOrder(quantity, sold, inStockSold)
+    if (shipWindow === null) {
+      res.status(409).json({ error: "Sorry — we don't have enough copies left." })
+      return
+    }
+    // A preorder is only ever started by a buyer who was shown the January
+    // date. A page that still believes copies are on hand (an older tab, or
+    // the last one selling a moment ago) sends no acknowledgement and is told
+    // to look again instead of being charged for something that ships later.
+    if (shipWindow === 'january' && req.body?.preorder !== true) {
+      res.status(409).json({
+        error: `The copies on hand just sold out. You can still preorder: it ships in ${MAIN_SHIP_DATE_LABEL}. Try again to continue as a preorder.`,
+        preorderOnly: true,
+      })
       return
     }
 
@@ -49,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'form',
       mode: 'payment',
-      metadata: { ship_window: CURRENT_SHIP_WINDOW },
+      metadata: { ship_window: shipWindow },
       // Zero tax anywhere without an active Stripe Tax registration — safe to
       // leave on ahead of actually registering. See docs/store-wayfinder.md
       // "Sales tax" for the MA-registration follow-up this depends on.
@@ -63,7 +75,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             unit_amount: UNIT_PRICE_CENTS,
             // General tangible goods — the card game itself is ordinary taxable
             // merchandise in every US state, no special-case tax code needed.
-            product_data: { name: PRODUCT_NAME, tax_code: 'txcd_99999999' },
+            product_data: {
+              name: PRODUCT_NAME,
+              tax_code: 'txcd_99999999',
+              // Shown on the Stripe form and receipt, so the date is in front
+              // of the buyer at the moment they pay.
+              ...(shipWindow === 'january'
+                ? { description: `Preorder. Ships in ${MAIN_SHIP_DATE_LABEL}.` }
+                : {}),
+            },
             tax_behavior: 'exclusive',
           },
         },
