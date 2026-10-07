@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Brand, StoreFooter } from './StoreExperience'
 import { ScrollStore } from './ScrollStore'
+import { trackBeginCheckout, trackPurchase } from './analytics'
 import {
   MAX_QTY_PER_ORDER,
   PRODUCT_NAME,
@@ -21,10 +22,13 @@ export function Shop() {
   const sessionId = new URLSearchParams(window.location.search).get(
     'session_id'
   )
-  return sessionId ? <Confirmation /> : <ProductPage />
+  return sessionId ? <Confirmation sessionId={sessionId} /> : <ProductPage />
 }
 
-function Confirmation() {
+function Confirmation({ sessionId }: { sessionId: string }) {
+  useEffect(() => {
+    trackPurchase(sessionId)
+  }, [sessionId])
   return (
     <>
       <header className="store-header">
@@ -109,6 +113,7 @@ function ProductPage() {
     if (!checkingOut) {
       productScroll.current = window.scrollY
       window.history.pushState({ shopCheckout: true }, '')
+      trackBeginCheckout(quantity)
     }
     setCheckingOut(true)
     setClientSecret(null)

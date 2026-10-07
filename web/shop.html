@@ -56,6 +56,32 @@
     />
 
     <!-- Fonts are self-hosted (see src/shop/Shop.css) — no Google Fonts request. -->
+
+    <!-- Google Analytics 4, the same property as the game (index.html) and /get.
+         Ads link straight here, and without it a visit is invisible until it
+         becomes an order. Skipped inside the native Android ships for the reason
+         given in index.html: both are child-directed and must not load gtag.
+         The order confirmation URL carries the Stripe session id, so that one
+         page reports a location without its query string. -->
+    <script>
+      if (!/SpaceRaceAmazon|SpaceRaceAndroid/.test(navigator.userAgent)) {
+        window.dataLayer = window.dataLayer || []
+        window.gtag = function () { window.dataLayer.push(arguments) }
+        gtag('js', new Date())
+        gtag('set', 'user_properties', { platform: 'web' })
+        gtag(
+          'config',
+          'G-GS8HYJ69C3',
+          /[?&]session_id=/.test(location.search)
+            ? { page_location: location.origin + location.pathname + '?order=confirmed' }
+            : {}
+        )
+        var ga = document.createElement('script')
+        ga.async = true
+        ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-GS8HYJ69C3'
+        document.head.appendChild(ga)
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
