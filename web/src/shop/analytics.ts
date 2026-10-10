@@ -1,9 +1,10 @@
 import { CURRENCY, META_CATALOG_CONTENT_ID, PRODUCT_NAME, UNIT_PRICE_CENTS } from './constants'
 
-// GA4 ecommerce events for the storefront. gtag is injected by shop.html and is
-// absent in the native Android ships and for anyone blocking it, so every call
-// here is a no-op when it is missing. Values are merchandise only: shipping and
-// tax are settled inside Stripe and never reach this page.
+// GA4 and Meta Pixel events for the storefront. gtag and fbq are injected by
+// shop.html and are absent in the native Android ships and for anyone blocking
+// them, so every call here is a no-op when they are missing. Values are
+// merchandise only: shipping and tax are settled inside Stripe and never reach
+// this page.
 
 type Gtag = (...args: unknown[]) => void
 
@@ -13,6 +14,26 @@ const SENT_KEY = 'shop:purchase-sent'
 function send(event: string, params: Record<string, unknown>) {
   const gtag = (window as { gtag?: Gtag }).gtag
   if (typeof gtag === 'function') gtag('event', event, params)
+}
+
+function pixel(method: 'track' | 'trackCustom', event: string, params: Record<string, unknown>) {
+  const fbq = (window as { fbq?: Gtag }).fbq
+  if (typeof fbq === 'function') fbq(method, event, params)
+}
+
+// The catalog id ties these to the First Edition in the Meta Commerce catalog.
+function pixelCart(quantity: number) {
+  return {
+    content_ids: [META_CATALOG_CONTENT_ID],
+    content_type: 'product',
+    num_items: quantity,
+    value: (UNIT_PRICE_CENTS * quantity) / 100,
+    currency: CURRENCY.toUpperCase(),
+  }
+}
+
+export function trackViewProduct() {
+  pixel('track', 'ViewContent', pixelCart(1))
 }
 
 function cart(quantity: number) {
@@ -37,9 +58,11 @@ export function trackBeginCheckout(quantity: number) {
     /* The purchase event falls back to one copy. */
   }
   send('begin_checkout', cart(quantity))
+  pixel('track', 'InitiateCheckout', pixelCart(quantity))
 }
 
-// Called on the confirmation page. The Stripe session id stays out of GA4: only
+// Called on the confirmation page, where the Pixel is not loaded, so this goes
+// to GA4 alone. The Stripe session id stays out of GA4: only
 // its tail is used, as the transaction id GA4 de-duplicates on. A reload of the
 // confirmation page must not report a second order.
 export function trackPurchase(sessionId: string) {
@@ -59,6 +82,10 @@ export function trackPurchase(sessionId: string) {
 // dimensions, so these report without registering a custom one.
 export function trackCta(id: string) {
   send('select_content', { content_type: 'shop_cta', content_id: id })
+  // A tap that leads to the game itself. The hero link to /get is reported
+  // from that page, once a store is chosen.
+  const store = /_play_(ios|android|amazon|web)$/.exec(id)?.[1]
+  if (store) pixel('trackCustom', 'PlayFree', { store })
 }
 
 // GA4 only reports a scroll at 90% of the page, which here is the order panel,

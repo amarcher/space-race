@@ -3,7 +3,7 @@ import './scroll/scrollcraft.css'
 import './ScrollStore.css'
 import { runScrollStore, type ScrollStoreHandle } from './scroll/scrollStore'
 import { UNIT_PRICE_CENTS } from './constants'
-import { trackCta, trackScrollDepth } from './analytics'
+import { trackCta, trackScrollDepth, trackViewProduct } from './analytics'
 
 // The scroll-craft store: a race to 1,000 light-years played by scrolling,
 // ending on the order panel. Built with the scroll-craft skill.
@@ -64,6 +64,7 @@ export function ScrollStore({
     if (store.current) return
     store.current = runScrollStore(root.current!)
     trackScrollDepth(root.current!)
+    trackViewProduct()
     // A Meta Shops cart arrives ready to buy: land on the order panel.
     if (metaCart !== null) {
       const land = () => store.current!.jumpToOrder()
