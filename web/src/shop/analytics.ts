@@ -54,3 +54,34 @@ export function trackPurchase(sessionId: string) {
   }
   send('purchase', { transaction_id: transactionId, ...cart(quantity) })
 }
+
+// Which control a visitor used. content_type and content_id are built-in GA4
+// dimensions, so these report without registering a custom one.
+export function trackCta(id: string) {
+  send('select_content', { content_type: 'shop_cta', content_id: id })
+}
+
+// GA4 only reports a scroll at 90% of the page, which here is the order panel,
+// so a visitor who leaves at the hero looks the same as one who read most of
+// the story. Report the earlier depths too, measured the way GA4 measures its
+// own: by how far down the page the bottom of the viewport has been.
+const DEPTHS = [10, 25, 50, 75]
+
+export function trackScrollDepth(page: HTMLElement) {
+  let next = 0
+  let queued = false
+  const measure = () => {
+    queued = false
+    // Hidden behind checkout, the document is the checkout view's height.
+    if (page.hidden) return
+    const seen = ((scrollY + innerHeight) / document.documentElement.scrollHeight) * 100
+    while (next < DEPTHS.length && seen >= DEPTHS[next]) send('scroll', { percent_scrolled: DEPTHS[next++] })
+    if (next === DEPTHS.length) removeEventListener('scroll', onScroll)
+  }
+  const onScroll = () => {
+    if (queued) return
+    queued = true
+    requestAnimationFrame(measure)
+  }
+  addEventListener('scroll', onScroll, { passive: true })
+}

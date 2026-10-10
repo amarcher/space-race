@@ -106,10 +106,15 @@
   .hero-copy { position: absolute; z-index: var(--sc-z-copy); left: var(--sc-gutter); top: clamp(6rem, 19svh, 11rem); max-width: 38rem; }
   .hero-copy h1 { font-size: clamp(2.2rem, 1rem + 2.6vw, 3.5rem); line-height: 1.02; margin: 0; text-wrap: balance; }
   .hero-copy p { margin: 1.4rem 0 0; font-size: var(--sc-t-lg); line-height: 1.45; color: var(--sc-ink); max-width: 27rem; }
-  .hero-copy .go { display: inline-flex; margin-top: 1.9rem; min-height: 2.9rem; align-items: center; padding: 0 1.3rem; border-radius: var(--sc-r-pill);
+  .hero-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 1.3rem; margin-top: 1.9rem; }
+  .hero-copy .go { display: inline-flex; min-height: 2.9rem; align-items: center; padding: 0 1.3rem; border-radius: var(--sc-r-pill);
                    border: 1px solid color-mix(in oklab, var(--sc-accent) 60%, transparent); color: var(--sc-accent); font-weight: 650; text-decoration: none;
                    transition: background-color 160ms var(--sc-ease-out), color 160ms var(--sc-ease-out); }
   @media (hover: hover) and (pointer: fine) { .hero-copy .go:hover { background: var(--sc-accent); color: var(--sc-accent-ink); } }
+  .hero-copy .go:active { background: var(--sc-accent); color: var(--sc-accent-ink); }
+  .hero-copy .play { display: inline-flex; align-items: center; min-height: 2.9rem; color: var(--sc-ink); font-weight: 600;
+                     text-decoration: underline; text-underline-offset: 0.2em; }
+  .hero-copy .play:active { opacity: 0.7; }
 
   /* =========================================================== 2 · DEAL */
   .deal__stage { background: radial-gradient(70% 60% at 50% 100%, hsl(34 70% 22%), hsl(25 45% 7%) 62%, #0d0a08); }
@@ -260,7 +265,10 @@
     .hero-copy { top: calc(4.6rem + env(safe-area-inset-top)); right: var(--sc-gutter); }
     .hero-copy h1 { font-size: clamp(1.9rem, 1.1rem + 4.4vw, 2.6rem); }
     .hero-copy p { font-size: var(--sc-t-base); margin-top: 0.9rem; }
-    .hero-copy .go { margin-top: 1.1rem; }
+    .hero-cta { margin-top: 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.55rem; }
+    /* On a short phone the box stands behind this link, so it carries its own ground. */
+    .hero-copy .play { min-height: 2.75rem; padding: 0 0.95rem; border-radius: var(--sc-r-pill); text-decoration: none;
+                       background: hsl(25 40% 4% / .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
     .deal__copy { right: var(--sc-gutter); top: calc(4.6rem + env(safe-area-inset-top)); }
     .deal__copy h2 { font-size: var(--sc-t-2xl); }
