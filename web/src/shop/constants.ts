@@ -10,6 +10,10 @@ export const MAX_QTY_PER_ORDER = 3
 // Content ID of the First Edition in the Meta Commerce catalog "Space Race Store".
 export const META_CATALOG_CONTENT_ID = 'space-race-first-edition'
 
+// The "Space Race" dataset in Meta Events Manager. shop.html and get.html load
+// the Pixel with the same id, written out, because neither is bundled with this.
+export const META_PIXEL_ID = '1136433712146400'
+
 // Meta Shops send buyers to /shop?products=<content id>:<qty>,... (plus a coupon
 // and utm_*/cart_origin/fbclid params we ignore). Returns the requested quantity
 // of our product clamped to 1..MAX_QTY_PER_ORDER, or null when the URL carries no

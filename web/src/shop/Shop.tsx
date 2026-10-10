@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Brand, StoreFooter } from './StoreExperience'
 import { ScrollStore } from './ScrollStore'
-import { trackBeginCheckout, trackPurchase } from './analytics'
+import { metaBrowserIds, trackBeginCheckout, trackPurchase } from './analytics'
 import {
   MAIN_SHIP_DATE_LABEL,
   MAX_QTY_PER_ORDER,
@@ -141,7 +141,7 @@ function ProductPage() {
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity, preorder }),
+        body: JSON.stringify({ quantity, preorder, meta: metaBrowserIds() }),
         signal: AbortSignal.timeout(20000),
       })
       const body = await res.json().catch(() => ({}))
