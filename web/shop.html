@@ -82,6 +82,38 @@
         document.head.appendChild(ga)
       }
     </script>
+
+    <!-- Meta Pixel, so ads can be aimed at people who buy or go on to the app
+         rather than people who merely click. It lives on the two marketing
+         pages only (/shop and /get): never the game, and never inside the
+         native Android ships. It is not loaded on the
+         order confirmation page: every Pixel event carries the page URL, and
+         that one holds the Stripe session id. -->
+    <script>
+      if (!/SpaceRaceAmazon|SpaceRaceAndroid/.test(navigator.userAgent) && !/[?&]session_id=/.test(location.search)) {
+        !(function (f, b, e, v, n, t, s) {
+          if (f.fbq) return
+          n = f.fbq = function () {
+            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+          }
+          if (!f._fbq) f._fbq = n
+          n.push = n
+          n.loaded = !0
+          n.version = '2.0'
+          n.queue = []
+          t = b.createElement(e)
+          t.async = !0
+          t.src = v
+          s = b.getElementsByTagName(e)[0]
+          s.parentNode.insertBefore(t, s)
+        })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js')
+        // Only the events this page names. Left on, the Pixel also reports
+        // button text and page metadata on every tap.
+        fbq('set', 'autoConfig', false, '1136433712146400')
+        fbq('init', '1136433712146400')
+        fbq('track', 'PageView')
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
