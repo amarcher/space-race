@@ -5,6 +5,7 @@ import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
 import { renderOrderConfirmation } from './_lib/orderEmail.js'
 import { createShippoOrder, recipientName } from './_lib/shippo.js'
+import { metaBrowserFromMetadata, sendMetaPurchase } from './_lib/metaConversions.js'
 import {
   parcelForQuantity,
   resolveShipWindow,
@@ -118,6 +119,22 @@ async function recordOrder(session: Stripe.Checkout.Session) {
     const copies = `${quantity} ${quantity === 1 ? 'copy' : 'copies'}`
     const shipping = shippingService ?? 'no shipping method on file'
     await postOrderAlert(`🎲 New order — ${who} bought ${copies}, shipping via ${shipping}.`, inserted[0].id)
+  }
+
+  // Tell Meta an ad led to a sale, so it can look for more buyers. Merchandise
+  // value only, as in GA4. Like everything after the insert, never thrown.
+  if (inserted.length > 0) {
+    try {
+      await sendMetaPurchase({
+        eventId: String(inserted[0].id),
+        paidAt: new Date(),
+        quantity,
+        merchandiseCents: fullSession.amount_subtotal ?? UNIT_PRICE_CENTS * quantity,
+        browser: metaBrowserFromMetadata(fullSession.metadata),
+      })
+    } catch (err) {
+      console.error('Meta purchase event failed to send', { orderId: inserted[0].id, err })
+    }
   }
 
   // Put the order on Shippo's Orders page so the label is a few clicks, not

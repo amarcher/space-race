@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { stripe } from './_lib/stripe.js'
 import { sql } from './_lib/db.js'
+import { metaMetadata } from './_lib/metaConversions.js'
 import {
   ALLOWED_SHIP_COUNTRIES,
   CURRENCY,
@@ -61,7 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'form',
       mode: 'payment',
-      metadata: { ship_window: shipWindow },
+      // The Meta identifiers ride along so the webhook can report the purchase
+      // against the ad that led to it.
+      metadata: { ship_window: shipWindow, ...metaMetadata(req.body, req.headers['user-agent']) },
       // Zero tax anywhere without an active Stripe Tax registration — safe to
       // leave on ahead of actually registering. See docs/store-wayfinder.md
       // "Sales tax" for the MA-registration follow-up this depends on.

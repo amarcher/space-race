@@ -32,6 +32,16 @@ function pixelCart(quantity: number) {
   }
 }
 
+// The Pixel's own cookies, sent with the checkout request so the server can
+// report the purchase against the ad that led to it. Absent whenever the Pixel
+// is: blocked, or inside the native Android ships.
+export function metaBrowserIds(): { fbp?: string; fbc?: string } | undefined {
+  const cookie = (name: string) => new RegExp(`(?:^|; )${name}=([^;]+)`).exec(document.cookie)?.[1]
+  const fbp = cookie('_fbp')
+  const fbc = cookie('_fbc')
+  return fbp || fbc ? { fbp, fbc } : undefined
+}
+
 export function trackViewProduct() {
   pixel('track', 'ViewContent', pixelCart(1))
 }
