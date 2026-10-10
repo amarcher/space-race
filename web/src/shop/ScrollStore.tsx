@@ -3,6 +3,7 @@ import './scroll/scrollcraft.css'
 import './ScrollStore.css'
 import { runScrollStore, type ScrollStoreHandle } from './scroll/scrollStore'
 import { UNIT_PRICE_CENTS } from './constants'
+import { trackCta, trackScrollDepth } from './analytics'
 
 // The scroll-craft store: a race to 1,000 light-years played by scrolling,
 // ending on the order panel. Built with the scroll-craft skill.
@@ -12,6 +13,20 @@ const S = '/shop/scroll'
 const card = (kind: string) => `${S}/printed/${kind}.webp`
 const turn = (plays: object[]) => JSON.stringify(plays)
 const price = (cents: number) => `$${(cents / 100).toFixed(2)}`
+
+const APP_STORE = 'https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058'
+const GOOGLE_PLAY = 'https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace'
+
+// The hero's free-play link goes straight to this phone's store, one page
+// fewer for someone arriving from an ad. Everything else gets the /get chooser.
+// Inside the native Android ships the visitor already has the app.
+const UA = navigator.userAgent
+const IN_APP = /SpaceRaceAmazon|SpaceRaceAndroid/.test(UA)
+const FREE_PLAY = /iPhone|iPad|iPod/.test(UA)
+  ? { id: 'ios', href: APP_STORE }
+  : /Android/.test(UA) && !/Silk/.test(UA)
+  ? { id: 'android', href: GOOGLE_PLAY }
+  : { id: 'get', href: '/get' }
 
 function Card({ kind, alt = '', lazy = false }: { kind: string; alt?: string; lazy?: boolean }) {
   return <img className="card" src={card(kind)} alt={alt} width="600" height="840" loading={lazy ? 'lazy' : undefined} />
@@ -48,6 +63,7 @@ export function ScrollStore({
   useLayoutEffect(() => {
     if (store.current) return
     store.current = runScrollStore(root.current!)
+    trackScrollDepth(root.current!)
     // A Meta Shops cart arrives ready to buy: land on the order panel.
     if (metaCart !== null) {
       const land = () => store.current!.jumpToOrder()
@@ -106,7 +122,14 @@ export function ScrollStore({
             <div className="hero-copy" data-sc-cue="0 0.62 0 0.25">
               <h1 className="sc-display">A race to 1,000 light-years, dealt on your kitchen table.</h1>
               <p>Space Race is a card game of hazards, narrow escapes and family rivalry. 2–4 players, 15–30 minutes.</p>
-              <a className="go" href="#get-the-game" data-jump="order">Buy the deck</a>
+              <div className="hero-cta">
+                <a className="go" href="#get-the-game" data-jump="order" onClick={() => trackCta('hero_buy')}>Buy the deck</a>
+                {!IN_APP && (
+                  <a className="play" href={FREE_PLAY.href} onClick={() => trackCta(`hero_play_${FREE_PLAY.id}`)}>
+                    Play it free first
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -307,10 +330,10 @@ export function ScrollStore({
                 {(soldOut || preorder) && (
                   <p className="order__play">
                     <span>{soldOut ? 'Play free now:' : 'Play free while you wait:'}</span>
-                    <a href="https://apps.apple.com/us/app/space-race-1000-light-years/id6788064058">iPhone</a>
-                    <a href="https://play.google.com/store/apps/details?id=tech.spaceexplorer.spacerace">Android</a>
-                    <a href="https://www.amazon.com/dp/B0GXHBHD78">Fire tablet</a>
-                    <a href="/">Web</a>
+                    <a href={APP_STORE} onClick={() => trackCta('order_play_ios')}>iPhone</a>
+                    <a href={GOOGLE_PLAY} onClick={() => trackCta('order_play_android')}>Android</a>
+                    <a href="https://www.amazon.com/dp/B0GXHBHD78" onClick={() => trackCta('order_play_amazon')}>Fire tablet</a>
+                    <a href="/" onClick={() => trackCta('order_play_web')}>Web</a>
                   </p>
                 )}
               </div>
@@ -341,7 +364,7 @@ export function ScrollStore({
             <img src="/ui/ship-marker.png" alt="" />
           </div>
         </div>
-        <a className="finish" href="#get-the-game" data-jump="order" aria-label={`Buy the deck, ${price(UNIT_PRICE_CENTS)}`}>
+        <a className="finish" href="#get-the-game" data-jump="order" onClick={() => trackCta('bar_buy')} aria-label={`Buy the deck, ${price(UNIT_PRICE_CENTS)}`}>
           <b>Buy the deck</b>
           <span>{price(UNIT_PRICE_CENTS)}</span>
         </a>
