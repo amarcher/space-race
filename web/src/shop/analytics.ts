@@ -93,11 +93,12 @@ export function trackPurchase(sessionId: string) {
 export function trackCta(id: string) {
   send('select_content', { content_type: 'shop_cta', content_id: id })
   // A tap that leads to the game itself. The hero link to /get is reported
-  // from that page, once a store is chosen. Sent as Meta's standard Lead event:
-  // a campaign can optimise for a standard event before one has ever arrived,
-  // which a custom event does not allow.
+  // from that page, once a store is chosen. Sent as Meta's standard StartTrial
+  // event: a campaign can optimise for a standard event before one has ever
+  // arrived, which a custom event does not allow, and Lead is refused outside
+  // the Leads objective with its instant forms.
   const store = /_play_(ios|android|amazon|web)$/.exec(id)?.[1]
-  if (store) pixel('track', 'Lead', { content_name: 'play_free', content_category: store })
+  if (store) pixel('track', 'StartTrial', { content_name: 'play_free', content_category: store })
 }
 
 // GA4 only reports a scroll at 90% of the page, which here is the order panel,
