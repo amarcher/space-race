@@ -447,12 +447,13 @@
           transport_type: 'beacon',
         });
       });
-      /* The same tap for Meta, for the links that lead to the game itself. */
+      /* The same tap for Meta, for the links that lead to the game itself, as
+         its standard Lead event so a campaign can optimise for it from day one. */
       document.addEventListener('click', function (e) {
         var link = e.target.closest && e.target.closest('a[data-platform]');
         var store = link && link.getAttribute('data-platform');
         if (!store || store === 'shop' || typeof window.fbq !== 'function') return;
-        window.fbq('trackCustom', 'PlayFree', { store: store });
+        window.fbq('track', 'Lead', { content_name: 'play_free', content_category: store });
       });
     </script>
   </body>
