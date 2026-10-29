@@ -5,8 +5,11 @@
   z-index: 70;
   display: grid;
   place-items: center;
-  /* keep the sheet inside the notch-safe region (0 on desktop) */
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  /* keep the sheet inside the notch-safe region (0 on desktop). The side
+     gutters carry the sheet's 4vw margins too: on the iPhone Duo's outer screen
+     the camera and status bar take a strip down the RIGHT edge (an asymmetric
+     inset), and a sheet sized in vw would run under it. */
+  padding: var(--safe-top) max(4vw, var(--safe-right)) var(--safe-bottom) max(4vw, var(--safe-left));
   background: rgba(2, 6, 20, 0.6);
   backdrop-filter: blur(3px);
   animation: settingsIn 0.16s ease-out;
@@ -18,7 +21,7 @@
 
 .settings__sheet {
   position: relative;
-  width: min(420px, 92vw);
+  width: min(420px, 100%); /* of the padded column, never the viewport */
   /* svh, not vh: on mobile Safari `vh` is the TOOLBAR-COLLAPSED viewport, so a
      sheet sized in vh hangs behind the browser chrome while the toolbar is up.
      svh is the small (toolbar-visible) viewport — the sheet always fits, and

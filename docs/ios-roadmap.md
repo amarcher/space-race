@@ -183,6 +183,37 @@ and winning a game with zero network. *(Blocked only on the 👤 HUMAN steps.)*
 
 ---
 
+## iPhone Duo ✅ (done 2026-10-29, ported from Crossword Clash)
+
+Apple's foldable (on sale 2026-10-23): closed, a short wide phone whose camera
+and status bar sit in a strip down the **right** edge (an asymmetric safe-area
+inset); open, an iPad-shaped inner screen with regular/regular size classes.
+Research and sources: `crossword-clash/docs/big-screens-research.md`.
+
+- [x] **Build with Xcode 27.1 or later.** The SDK decides how the app looks:
+      an archive from Xcode 26 runs letterboxed at phone size on the inner
+      screen and left of the camera strip on the outer one; one from the iOS
+      27.1 SDK fills both with no code change. `scripts/ios-release.sh` now
+      refuses an older Xcode (`min_xcode`). Apple requires Duo screenshots from
+      April 2027 for builds made with 27.1.
+- [x] **Overlays are sized by their column, never the viewport.** The settings
+      sheet, restart confirm, scoreboard card, slingshot scene and takeover
+      caption were `min(Npx, 92vw)`-style widths centred in a container padded
+      by the safe insets; a `vw` width ignores the right-edge strip and runs
+      under the clock (Crossword Clash's menu wordmark did exactly that). They
+      are `min(Npx, 100%)` now, with the former vw margins moved into the
+      container's side gutters as `max(Nvw, var(--safe-*))`.
+- [x] **Orientation**: nothing to change. The outer screen honours the
+      portrait-only iPhone list; the inner screen ignores orientation lists
+      and hands the app regular/regular size classes, where the iPad layouts
+      (all four orientations) already apply.
+- [ ] **Unverified on a Duo simulator** (needs the Xcode 27.1 runtime, macOS
+      only): the lapped hand fan (`.hand .card` is `clamp(68px, 18.5vw, 104px)`
+      — seven cards may brush the strip on the outer screen), and the inner
+      screen's half-open poses. Check both before the next TestFlight build.
+
+---
+
 ## Parallel content track (does not block Phases 1–4)
 
 The card set must stay **swappable** — art and names will get another pass.

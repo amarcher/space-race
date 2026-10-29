@@ -370,7 +370,7 @@
   z-index: 31;
   top: calc(var(--bar-h) + 6px);
   right: max(12px, var(--safe-right));
-  width: min(340px, calc(100vw - 24px));
+  width: min(340px, calc(100% - 24px - var(--safe-left) - var(--safe-right)));
   max-height: 60vh;
   overflow-y: auto;
   overscroll-behavior: contain;
