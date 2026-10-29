@@ -14,6 +14,15 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
+## 1.4.2 · build 22 — iPhone Duo
+
+**Status:** TestFlight only, cut 2026-10-29 from Xcode 27.1 (the first build
+that fills the iPhone Duo's screens; builds up to 21 came from Xcode 26 and run
+letterboxed there). Not submitted to any store yet — more changes may ride
+along, and the What's New copy is written when it is. So far: the settings
+sheet, restart confirm, scoreboard, slingshot and takeover caption stay clear
+of the Duo's camera strip (PR #254).
+
 ## 1.4.1 · build 21 — Polish on the space table
 
 **Status:** cut 2026-09-25. Amazon has 1.4.0 (build 17) live since its
