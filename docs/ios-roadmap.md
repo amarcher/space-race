@@ -203,6 +203,16 @@ Research and sources: `crossword-clash/docs/big-screens-research.md`.
       under the clock (Crossword Clash's menu wordmark did exactly that). They
       are `min(Npx, 100%)` now, with the former vw margins moved into the
       container's side gutters as `max(Nvw, var(--safe-*))`.
+- [x] **The iOS 27 SDK requires the UIScene life cycle.** Build 22, the first
+      from Xcode 27.1, was killed on launch on a real iPhone: an app built with
+      that SDK without a scene manifest is refused ("UIScene life cycle is
+      required"). Fixed in build 23 the way Capacitor 8.5 lays it out:
+      `SceneDelegate.swift` (the `CAPBridgeViewController` window plus
+      `SceneDelegateProxy` forwarding), `configurationForConnecting` in
+      `AppDelegate.swift`, `UIApplicationSceneManifest` in `Info.plist`, and
+      Capacitor pinned to 8.5.2 (`@capacitor/*` in package.json; `cap sync`
+      writes the matching `CapApp-SPM/Package.swift`). The Xcode guard alone
+      was not enough; this is the other half of building with 27.1.
 - [x] **Orientation**: nothing to change. The outer screen honours the
       portrait-only iPhone list; the inner screen ignores orientation lists
       and hands the app regular/regular size classes, where the iPad layouts
