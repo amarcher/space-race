@@ -83,7 +83,9 @@
   align-items: center;
   gap: 4px;
   text-align: center;
-  max-width: 92vw;
+  /* 4vw margins each side, or the safe inset where it is larger — the iPhone
+     Duo's outer screen reserves a strip down the right edge for the camera */
+  max-width: calc(100% - 2 * max(4vw, var(--safe-left), var(--safe-right)));
   pointer-events: none;
   animation: slingCaptionIn 700ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
   animation-delay: 5.2s; /* fade in near the clip's "break clear" climax */

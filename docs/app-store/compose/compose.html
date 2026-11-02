@@ -98,7 +98,20 @@
     width: 190px; height: 56px; border-radius: 999px;
     background: #050510;
   }
-  .ipad .island { display: none; }
+  .ipad .island, .duoOuter .island, .duoInner .island { display: none; }
+  .ipad .device__btn, .duoInner .device__btn { display: none; }
+  /* the Duo's outer display: camera + status strip down the right edge, drawn
+     over the capture's safe-area column (the app lays out left of it) */
+  .strip { display: none; }
+  .duoOuter .strip {
+    display: block; position: absolute; top: var(--bezel); bottom: var(--bezel);
+    right: var(--bezel); width: var(--strip-w);
+    border-radius: 0 calc(var(--dev-radius) - var(--bezel)) calc(var(--dev-radius) - var(--bezel)) 0;
+    color: #f5ecd9; font-family: 'Inter'; font-weight: 600;
+  }
+  .duoOuter .strip__cam { position: absolute; top: 9%; left: 50%; transform: translateX(-50%); width: 54%; aspect-ratio: 1; border-radius: 50%; background: #050508; box-shadow: inset 0 0 0 2px #1a1a22; }
+  .duoOuter .strip__time { position: absolute; top: 23%; left: 0; right: 0; text-align: center; font-size: calc(var(--strip-w) * 0.3); letter-spacing: -0.02em; }
+  .duoOuter .strip__wifi { position: absolute; top: 31%; left: 50%; transform: translateX(-50%); width: 62%; }
 
   /* soft glow pedestal under the device */
   .device-wrap::after {
@@ -131,13 +144,19 @@
   const GEOM = {
     iphone: { w: 1284, h: 2778, shotW: 940, h1: 104, sub: 46, badge: 30, radius: 74, bezel: 22, capTop: 150, gap: 96 },
     ipad:   { w: 2064, h: 2752, shotW: 1360, h1: 118, sub: 50, badge: 32, radius: 64, bezel: 26, capTop: 130, gap: 86 },
+    // iPhone Duo (one ASC set, APP_IPHONE_DUO, takes both displays): the outer
+    // display is a short wide phone whose camera and status strip run down the
+    // right edge (drawn below over the capture's inset column); the inner is
+    // iPad-shaped. Captures come from ../screenshots/capture.mjs.
+    duoOuter: { w: 1398, h: 2034, shotW: 900, h1: 92, sub: 42, badge: 28, radius: 64, bezel: 20, capTop: 110, gap: 64, strip: 79 * 3 * (900 / 1398) },
+    duoInner: { w: 2007, h: 2853, shotW: 1300, h1: 118, sub: 50, badge: 32, radius: 64, bezel: 26, capTop: 130, gap: 86 },
   }[SIZE]
 
   const SLIDES = {
     // MARQUEE — slide 1. The App Store link unfurl thumbnails the FIRST
     // screenshot, so this one carries the full app title as the brand card.
     marquee: {
-      shot: { iphone: '../screenshots/iphone-6.9-06-ace-hero.png' },
+      shot: { iphone: '../screenshots/iphone-6.9-06-ace-hero.png', duoOuter: '../screenshots/duo-outer-06-ace-hero.png', duoInner: '../screenshots/duo-inner-06-ace-hero.png' },
       h1: 'Space Race:<br><em>1000 Light&#8209;Years</em>',
       sub: 'A cosmic card duel across the galaxy',
       marquee: true,
@@ -148,7 +167,7 @@
       sub: 'Dodge at the last second — and surge ahead',
     },
     race: {
-      shot: { iphone: '../screenshots/iphone-6.9-07-space-race.png', ipad: '../screenshots/ipad-13-03-space-race.png' },
+      shot: { iphone: '../screenshots/iphone-6.9-07-space-race.png', ipad: '../screenshots/ipad-13-03-space-race.png', duoOuter: '../screenshots/duo-outer-07-space-race.png', duoInner: '../screenshots/duo-inner-03-space-race.png' },
       h1: 'Race to <em>1,000</em> light-years',
       sub: 'Across deep space, with the real printed cards',
     },
@@ -164,7 +183,7 @@
       sub: 'Two cards, two moves, every turn',
     },
     blocked: {
-      shot: { iphone: '../screenshots/iphone-6.9-10-blocked.png' },
+      shot: { iphone: '../screenshots/iphone-6.9-10-blocked.png', duoOuter: '../screenshots/duo-outer-10-blocked.png' },
       h1: 'Stuck in a <em>Black Hole?</em>',
       sub: 'Your way out lights up in your hand',
     },
@@ -188,6 +207,7 @@
   root.style.setProperty('--badge-size', GEOM.badge + 'px')
   root.style.setProperty('--dev-radius', GEOM.radius + 'px')
   root.style.setProperty('--bezel', GEOM.bezel + 'px')
+  root.style.setProperty('--strip-w', (GEOM.strip || 0) + 'px')
 
   // deterministic pseudo-random starfield (seeded so renders are reproducible)
   let seed = 42
@@ -222,6 +242,8 @@
       <div class="device ${SIZE}">
         <img src="${shot}" />
         <span class="island"></span>
+        <span class="strip"><span class="strip__cam"></span><span class="strip__time">9:41</span>
+          <svg class="strip__wifi" viewBox="0 0 48 40" fill="none" stroke="#f5ecd9" stroke-width="4" stroke-linecap="round"><path d="M4 14a30 30 0 0 1 40 0"/><path d="M11 22a20 20 0 0 1 26 0"/><path d="M18 30a10 10 0 0 1 12 0"/></svg></span>
         <span class="device__btn device__btn--action"></span>
         <span class="device__btn device__btn--vol1"></span>
         <span class="device__btn device__btn--vol2"></span>

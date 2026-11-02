@@ -21,6 +21,19 @@
 # compiles for device arch. Only the final signed upload needs the paid account.
 set -euo pipefail
 
+# The build SDK decides how the app looks on the iPhone Duo (on sale 2026-10-23):
+# an archive from Xcode 26 or earlier runs letterboxed at phone size on the
+# inner screen and sits left of the camera strip on the outer one; one from the
+# iOS 27.1 SDK (Xcode 27.1) fills both, with no code change. Learned on Crossword
+# Clash (its builds up to 21 came from 26.6); refuse to ship one like them.
+command -v xcodebuild >/dev/null || { echo "ios-release: xcodebuild not found; this script needs macOS with Xcode." >&2; exit 1; }
+min_xcode=27.1
+xcode=$(xcodebuild -version | sed -n 's/^Xcode \([0-9][0-9.]*\).*/\1/p')
+if [[ -z "$xcode" ]] || [[ "$(printf '%s\n' "$min_xcode" "$xcode" | sort -V | head -1)" != "$min_xcode" ]]; then
+  echo "ios-release: Xcode ${xcode:-?} is active; ${min_xcode} or later is needed (full screen on iPhone Duo). Install it, or point xcode-select at it." >&2
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"        # web/
 PROJECT="$ROOT/ios/App/App.xcodeproj"
 SCHEME="App"
@@ -32,8 +45,21 @@ UPLOAD=0
 [[ "${1:-}" == "--signed" ]] && SIGNED=1
 [[ "${1:-}" == "--upload" ]] && { SIGNED=1; UPLOAD=1; }
 
-echo "==> Building web bundle (vite)"
 cd "$ROOT"
+
+# `cap sync` writes ios/App/CapApp-SPM/Package.swift from the Capacitor CLI that
+# is INSTALLED, not the one package.json pins, and SceneDelegate.swift needs the
+# SceneDelegateProxy that only Capacitor 8.5+ ships. A checkout whose
+# node_modules predate the 8.5.2 pin builds an 8.4.1 package and fails with
+# "cannot find 'SceneDelegateProxy' in scope" (seen 2026-11-01). Refuse early.
+want=$(node -p "require('./package.json').dependencies['@capacitor/ios']" | tr -d '^~')
+have=$(node -p "require('./node_modules/@capacitor/ios/package.json').version" 2>/dev/null || echo none)
+if [[ "$have" != "$want" ]]; then
+  echo "ios-release: node_modules has @capacitor/ios $have but package.json pins $want; run 'npm ci' in web/ first." >&2
+  exit 1
+fi
+
+echo "==> Building web bundle (vite)"
 npm run build
 
 echo "==> Syncing Capacitor iOS project"

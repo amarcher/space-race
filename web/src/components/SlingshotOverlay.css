@@ -7,6 +7,9 @@
   align-items: center;
   justify-content: center;
   gap: 24px;
+  /* the scene's 10vw margins, or the safe inset where it is larger (the iPhone
+     Duo's outer screen reserves a strip down the right edge for the camera) */
+  padding: 0 max(10vw, var(--safe-right)) 0 max(10vw, var(--safe-left));
   background: radial-gradient(circle at 50% 45%, rgba(20, 8, 40, 0.72), rgba(3, 3, 14, 0.88));
   backdrop-filter: blur(4px);
   animation: sling-bg 2.8s ease forwards;
@@ -22,7 +25,7 @@
 
 .sling__scene {
   position: relative;
-  width: min(360px, 80vw);
+  width: min(360px, 100%); /* of the padded column, never the viewport */
   height: min(420px, 52vh);
 }
 .sling__scene .card { position: absolute; left: 50%; top: 50%; width: clamp(150px, 22vh, 210px); }

@@ -470,7 +470,10 @@
   z-index: 80; /* over settings/scoreboard — it interrupts */
   display: grid;
   place-items: center;
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  /* side gutters = the card's 6vw margins OR the safe inset, whichever is
+     larger: the iPhone Duo's outer screen puts the camera + status bar in a
+     strip down the right edge, and a card sized in vw would run under it */
+  padding: var(--safe-top) max(6vw, var(--safe-right)) var(--safe-bottom) max(6vw, var(--safe-left));
   background: rgba(3, 3, 14, 0.72);
   backdrop-filter: blur(8px);
   /* plain fade — toastin's translate(-50%) is for toasts anchored at left:50%
@@ -482,7 +485,7 @@
   to { opacity: 1; }
 }
 .confirm__card {
-  width: min(360px, 88vw);
+  width: min(360px, 100%); /* of the padded column, never the viewport */
   padding: 24px 22px 20px;
   border-radius: 20px;
   background: linear-gradient(160deg, #16163a, #0b0b22);
@@ -529,8 +532,10 @@
   z-index: 60;
   display: grid;
   place-items: center;
-  /* centre the card within the safe region (matters in notched landscape) */
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  /* centre the card within the safe region (matters in notched landscape, and
+     on the iPhone Duo's outer screen, whose camera strip is a right-side inset);
+     the gutters carry the card's 4vw margins so its width can be the column's */
+  padding: var(--safe-top) max(4vw, var(--safe-right)) var(--safe-bottom) max(4vw, var(--safe-left));
   background: rgba(3, 3, 14, 0.72);
   backdrop-filter: blur(8px);
   /* plain fade + centre grow — same treatment as the restart confirm (toastin's
@@ -539,7 +544,7 @@
 }
 .scoreboard__card {
   position: relative;
-  width: min(560px, 92vw);
+  width: min(560px, 100%); /* of the padded column, never the viewport */
   padding: 28px;
   border-radius: 20px;
   background: linear-gradient(160deg, #16163a, #0b0b22);

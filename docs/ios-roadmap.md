@@ -183,6 +183,84 @@ and winning a game with zero network. *(Blocked only on the 👤 HUMAN steps.)*
 
 ---
 
+## iPhone Duo ✅ (done 2026-10-29, ported from Crossword Clash)
+
+Apple's foldable (on sale 2026-10-23): closed, a short wide phone whose camera
+and status bar sit in a strip down the **right** edge (an asymmetric safe-area
+inset); open, an iPad-shaped inner screen with regular/regular size classes.
+Research and sources: `crossword-clash/docs/big-screens-research.md`.
+
+- [x] **Build with Xcode 27.1 or later.** The SDK decides how the app looks:
+      an archive from Xcode 26 runs letterboxed at phone size on the inner
+      screen and left of the camera strip on the outer one; one from the iOS
+      27.1 SDK fills both with no code change. `scripts/ios-release.sh` now
+      refuses an older Xcode (`min_xcode`). Apple requires Duo screenshots from
+      April 2027 for builds made with 27.1.
+- [x] **Overlays are sized by their column, never the viewport.** The settings
+      sheet, restart confirm, scoreboard card, slingshot scene and takeover
+      caption were `min(Npx, 92vw)`-style widths centred in a container padded
+      by the safe insets; a `vw` width ignores the right-edge strip and runs
+      under the clock (Crossword Clash's menu wordmark did exactly that). They
+      are `min(Npx, 100%)` now, with the former vw margins moved into the
+      container's side gutters as `max(Nvw, var(--safe-*))`.
+- [x] **The iOS 27 SDK requires the UIScene life cycle.** Build 22, the first
+      from Xcode 27.1, was killed on launch on a real iPhone: an app built with
+      that SDK without a scene manifest is refused ("UIScene life cycle is
+      required"). Fixed in build 23 the way Capacitor 8.5 lays it out:
+      `SceneDelegate.swift` (the `CAPBridgeViewController` window plus
+      `SceneDelegateProxy` forwarding), `configurationForConnecting` in
+      `AppDelegate.swift`, `UIApplicationSceneManifest` in `Info.plist`, and
+      Capacitor pinned to 8.5.2 (`@capacitor/*` in package.json; `cap sync`
+      writes the matching `CapApp-SPM/Package.swift`). The Xcode guard alone
+      was not enough; this is the other half of building with 27.1.
+- [x] **Orientation**: nothing to change. The outer screen honours the
+      portrait-only iPhone list; the inner screen ignores orientation lists
+      and hands the app regular/regular size classes, where the iPad layouts
+      (all four orientations) already apply.
+- [x] **Checked on the iPhone Duo simulator (iOS 27.2 runtime, outer
+      display, 2026-11-01).** The space table's hand is a physics fan centred
+      on `innerWidth`, and it DID run under the strip: the WebView reports the
+      side insets as 0 at first paint and the Duo's strip lands later, with no
+      event. `useSpaceSizes` now carries `safeLeft`/`safeRight` read from the
+      table's resolved padding (a custom property holding `env()` does not
+      resolve to pixels in every engine) and re-reads on a `ResizeObserver` of
+      `.sp-table`, whose content box changes when the padding does; the fan
+      centres in the safe box. Build 24 shows the fan clear of the strip.
+- [x] **Roomy and short screens.** Portrait card caps scale up by
+      `min(vw/520, vh/780)` capped at 1.35 (Duo inner 669x951 → 1.22, iPads →
+      1.35; phones stay 1) and the status, pile and rival cards trim by
+      `min(1, vh/800)` on short screens (Duo outer 466x678, SE-class phones) so
+      the two-row rival strip still fits above the hand.
+- [x] **Both race tracks share one lane.** The rival strip is two rows (status
+      card, safeties, hand pile; then the track), so its track spans the table
+      like yours: same left edge, same length, the same distance at the same
+      x. In landscape the rival's track starts at your column.
+- [x] **Duo screenshots in the store set.** `docs/app-store/screenshots/
+      capture.mjs` captures the `?stage=race|blocked` board (a committed,
+      inert dev seam in Table.tsx; `&insets=t,r,b,l` fakes the strip) at the
+      Duo's sizes through the DevTools protocol with real waits (the fan
+      settles on real frames, so headless `--virtual-time-budget` cannot be
+      used); `compose/compose.html` has `duoOuter` (1398x2034, strip drawn)
+      and `duoInner` (2007x2853) geometries. App Store Connect takes both
+      sizes in one `APP_IPHONE_DUO` set, which earns the "optimized for iPhone
+      Duo" badge on the product page.
+- [ ] **Still unverified**: the inner (unfolded) display and the half-open
+      poses on the simulator. Xcode 27's DeviceHub replaces Simulator.app and
+      holds the pose controls in its own UI; `simctl` has none, and driving
+      the menu needs Accessibility access for `osascript`. The simulator
+      exposes both displays (`simctl io <udid> screenshot --display=1` outer,
+      `--display=3` inner), so once a pose is set the inner display can be
+      captured the same way. The inner layout was checked in a browser at
+      669x951 and 951x669 (the space table sizes itself from the viewport
+      alone), not on the device.
+- [ ] **Posture (tabletop, book) is not used.** Safari keeps the Device
+      Posture and Viewport Segments APIs behind flags on the Duo, so fold state
+      would need a native bridge to `ReservedRegion`. The flat layout is the
+      one that ships; the hand-below, board-above arrangement already suits a
+      half-open tabletop pose by accident of layout.
+
+---
+
 ## Parallel content track (does not block Phases 1–4)
 
 The card set must stay **swappable** — art and names will get another pass.

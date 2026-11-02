@@ -22,7 +22,7 @@
 }
 
 .race__total {
-  min-width: 4.4ch;
+  min-width: 5.2ch; /* "1,000" fits, so the lane never shifts as a track fills */
   font: 700 17px/1 var(--font-display);
   font-variant-numeric: tabular-nums;
   color: #fff;

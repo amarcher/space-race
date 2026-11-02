@@ -26,15 +26,29 @@ content (slingshot cinematic, portrait 💫 safeties, compact iPad layout).
 | `iphone-6.9-06-ace-hero.png` | iPhone 17 Pro Max | 1320×2868 | Golden Ace Pilot hero frame (dodge-clip opening) — the MARQUEE slide art, echoes the app icon |
 | `ipad-13-03-space-race.png` | 1032×1376 @2x | 2064×2752 | 1.4 space table mid-race |
 | `ipad-13-02-rules.png` | iPad Pro 13" (M5) | 2064×2752 | How-to-Play on iPad |
+| `duo-outer-07-space-race.png` | iPhone Duo outer, 466×678 @3x | 1398×2034 | 1.4.2 mid-race (`?stage=race&insets=0,79,0,0`), strip column left empty for the compositor to draw |
+| `duo-outer-10-blocked.png` | iPhone Duo outer | 1398×2034 | Stuck in a Black Hole (`?stage=blocked`) |
+| `duo-outer-06-ace-hero.png` | centre crop of the 6.9" hero | 1320×1921 | Marquee art at the outer display's aspect |
+| `duo-inner-03-space-race.png` | iPhone Duo inner, 669×951 @3x | 2007×2853 | 1.4.2 mid-race, roomy-screen card sizes |
+| `duo-inner-06-ace-hero.png` | centre crop of the 6.9" hero | 1320×1876 | Marquee art at the inner display's aspect |
 
 ## How the staged shots were made
 
-The board-race + slingshot shots come from a THROWAWAY local build (reverted,
-never committed): `buildInitialGame()` short-circuited to a hand-seeded
-mid-race `GameState` (distance piles, hazard on the AI, coupSafeties for the
-💫 badge), plus a `useEffect` that `setTakeover`s the ace-pilot slingshot
-cinematic 12s after mount. Recreate the same way when new content shots are
-needed.
+**Since 1.4.2 (2026-11-01) the stage is committed:** `?stage=race|blocked` on
+the game URL (Table.tsx `buildStageGame`, inert without the param, like the
+other `?win=` / `?momentum=` dev seams) seeds the mid-race board the shots
+show, and `&insets=top,right,bottom,left` fakes a device's safe-area insets
+(the Duo's outer strip is `0,79,0,0`). A staged frame carries no store banner.
+Capture it at an exact device size with `capture.mjs` next to this file:
+
+    node docs/app-store/screenshots/capture.mjs out.png 466 678 3 "http://localhost:5173/?stage=race&insets=0,79,0,0"
+
+It drives headless Chrome over the DevTools protocol and waits real seconds,
+because the hand is a physics fan that settles on real animation frames
+(headless `--virtual-time-budget` leaves it mid-deal). The 1.4.0 shots came
+from a throwaway harness that did the same by hand; the slingshot shot still
+needs a `setTakeover` of the ace-pilot cinematic ~12s after mount, which the
+stage does not do.
 
 ## App preview video
 
