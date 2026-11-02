@@ -404,6 +404,34 @@
 .sp-deck__pips .pips { padding: 4px 6px; gap: 4px; }
 .sp-deck__pips .pip { width: 10px; height: 14px; }
 /* moves left: a gold number on the hand's top edge */
+/* "nothing to play": a spoken cue above the hand, centred, while the pile glows */
+.sp-stuck {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  translate: -50% 0;
+  bottom: calc(var(--hand-w) * 1.4 * 0.86 + 10px + var(--safe-bottom));
+  max-width: calc(100% - 2 * max(16px, var(--safe-left), var(--safe-right)) - 56px);
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 9px 16px;
+  border-radius: 14px;
+  background: rgba(21, 17, 11, 0.88);
+  border: 1px solid rgba(255, 214, 120, 0.6);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  pointer-events: none;
+  animation: spStuckIn 320ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+.sp-stuck__word { font: 800 15px/1.1 var(--font-display); color: var(--sp-gold); }
+.sp-stuck__how { font: 600 13px/1.25 inherit; color: var(--sp-ink); }
+@keyframes spStuckIn {
+  0% { opacity: 0; translate: -50% 8px; }
+  100% { opacity: 1; translate: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) { .sp-stuck { animation: none; } }
+
 .sp-moves {
   position: fixed;
   z-index: 60;
