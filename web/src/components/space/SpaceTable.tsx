@@ -579,6 +579,16 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
         )}
       </main>
 
+      {/* Nothing playable: say so, and point at the discard pile. The dimmed hand
+          and the pile's glow alone read as "something is wrong", not as "discard
+          one" (owner, 2026-11-01, stuck under two hazards in Draw Two). */}
+      {play.mustDiscard && !play.animating && !over && (
+        <div className="sp-stuck" role="status">
+          <span className="sp-stuck__word">Nothing to play</span>
+          <span className="sp-stuck__how">Drag a card to the discard pile</span>
+        </div>
+      )}
+
       {/* Draw Two, Play Two: moves left, as a number sitting on your hand */}
       {game.rules.drawTwo && play.yourTurn && (
         <span className="sp-moves" role="img" aria-label={`${game.actionsLeft ?? 1} moves left`} key={game.actionsLeft}>

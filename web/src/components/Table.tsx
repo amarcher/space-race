@@ -238,7 +238,7 @@ function buildTractorDemoGame(): GameState {
 const DEV_PARAMS =
   typeof window !== 'undefined' && /[?&](win|tractor|catchup|selfheal|momentum|stage)=/.test(window.location.search)
 
-// ?stage=race|blocked → a hand-seeded mid-race board, the one the App Store
+// ?stage=race|blocked|stuck → a hand-seeded mid-race board, the one the App Store
 // screenshots show (docs/app-store/screenshots/README.md): you at 525 ly with an
 // Ace Pilot revealed, the rival at 575 ly and stuck in a Black Hole. `blocked`
 // swaps the hole onto you with Ignition in hand. Deterministic, so the same
@@ -281,6 +281,10 @@ function buildStageGame(stage: string): GameState {
   if (stage === 'blocked') {
     me.battle.stop.push(card('st-me-bh', 'black-hole'))
     me.hand[2] = card('st-me-h2', 'ignition')
+  } else if (stage === 'stuck') {
+    // blocked with nothing that helps: the "nothing to play" cue
+    me.battle.stop.push(card('st-me-bh', 'black-hole'))
+    me.hand = [100, 75, 50, 25, 200, 100].map((v, i) => card(`st-me-h${i}`, warp(v)))
   } else {
     opp.battle.stop.push(card('st-op-bh', 'black-hole'))
   }
