@@ -93,6 +93,8 @@ function resolveOffer(): Platform | null {
   }
 
   try {
+    // a staged frame for screenshots (?stage=…, Table.tsx) carries no store banner
+    if (new URLSearchParams(window.location.search).has('stage')) return null
     if (localStorage.getItem(DISMISS_KEY)) return null
   } catch {
     /* private mode etc. — just show it */

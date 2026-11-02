@@ -238,7 +238,59 @@ function buildTractorDemoGame(): GameState {
 const DEV_PARAMS =
   typeof window !== 'undefined' && /[?&](win|tractor|catchup|selfheal|momentum|stage)=/.test(window.location.search)
 
+// ?stage=race|blocked → a hand-seeded mid-race board, the one the App Store
+// screenshots show (docs/app-store/screenshots/README.md): you at 525 ly with an
+// Ace Pilot revealed, the rival at 575 ly and stuck in a Black Hole. `blocked`
+// swaps the hole onto you with Ignition in hand. Deterministic, so the same
+// frame comes back at any viewport (iPhone Duo outer/inner, iPad); inert when
+// the param is absent.
+const STAGE_PARAM = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('stage')
+  : null
+function buildStageGame(stage: string): GameState {
+  // ?insets=top,right,bottom,left (px) fakes a device's safe-area insets, so a
+  // headless capture lays out like the iPhone Duo's outer display (its status
+  // strip is a right inset) or a notched phone.
+  const insets = new URLSearchParams(window.location.search).get('insets')
+  if (insets) {
+    const [t, r, b, l] = insets.split(',').map((n) => `${Number(n) || 0}px`)
+    const root = document.documentElement.style
+    root.setProperty('--safe-area-inset-top', t)
+    root.setProperty('--safe-area-inset-right', r)
+    root.setProperty('--safe-area-inset-bottom', b)
+    root.setProperty('--safe-area-inset-left', l)
+  }
+  const s = createGame({ seed: 7 })
+  const [me, opp] = s.players
+  const card = (uid: string, kind: string): CardInstance => ({ uid, kind })
+  const warp = (v: number) => `warp-${v}`
+  const hops = (vs: number[]) => vs.map((v) => ({ v, kind: warp(v) }))
+  me.started = true
+  opp.started = true
+  me.battle.stop = [card('st-me-ign', 'ignition')]
+  opp.battle.stop = [card('st-op-ign', 'ignition')]
+  me.distancePile = [100, 75, 200, 50].map((v, i) => card(`st-me-d${i}`, warp(v)))
+  me.safeties = ['ace-pilot']
+  me.trail = [...hops([100, 75]), { v: 100, kind: 'ace-pilot', bonus: true }, ...hops([200, 50])]
+  me.distance = 525
+  opp.distancePile = [100, 100, 200, 75, 100].map((v, i) => card(`st-op-d${i}`, warp(v)))
+  opp.safeties = ['antimatter-fuel-cell']
+  opp.trail = hops([100, 100, 200, 75, 100])
+  opp.distance = 575
+  me.hand = [warp(100), warp(75), 'black-hole', warp(50), 'fuel-cell', warp(25)].map((k, i) => card(`st-me-h${i}`, k))
+  if (stage === 'blocked') {
+    me.battle.stop.push(card('st-me-bh', 'black-hole'))
+    me.hand[2] = card('st-me-h2', 'ignition')
+  } else {
+    opp.battle.stop.push(card('st-op-bh', 'black-hole'))
+  }
+  s.turn = 0
+  s.phase = 'play'
+  return s
+}
+
 function buildInitialGame(): GameState {
+  if (STAGE_PARAM) return buildStageGame(STAGE_PARAM)
   if (MOMENTUM_PREVIEW_PARAM != null)
     return seedMomentumPreview(Number(MOMENTUM_PREVIEW_PARAM) || MOMENTUM_CAP)
   if (CATCHUP_DEMO) return buildCatchUpDemoGame()

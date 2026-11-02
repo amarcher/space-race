@@ -14,16 +14,33 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
-## 1.4.2 · build 23 — iPhone Duo
+## 1.4.2 · build 24 — Made for iPhone Duo
 
-**Status:** TestFlight only, cut 2026-10-29 from Xcode 27.1 (the first build
-that fills the iPhone Duo's screens; builds up to 21 came from Xcode 26 and run
-letterboxed there). Not submitted to any store yet — more changes may ride
-along, and the What's New copy is written when it is. So far: the settings
-sheet, restart confirm, scoreboard, slingshot and takeover caption stay clear
-of the Duo's camera strip (PR #254). **Build 22 crashed on launch**: an app
-built with the iOS 27 SDK must use the UIScene life cycle, and the shell had
-none; build 23 adds the SceneDelegate on Capacitor 8.5.2. Never ship 22.
+**Status:** cut 2026-11-01 from Xcode 27.2. Uploaded to TestFlight; the App
+Store Connect version is prepared with iPhone Duo screenshots (the set that
+earns the "optimized for iPhone Duo" product-page badge) and waits for the
+owner to try build 24 on a phone before it goes to review. Builds 22 and 23
+were TestFlight-only: 22 crashed on launch (an app built with the iOS 27 SDK
+must use the UIScene life cycle; 23 added the SceneDelegate on Capacitor
+8.5.2). Never ship 22.
+
+What's New (store copy):
+
+> Made for iPhone Duo. The table fills both of the Duo's screens: on the outer
+> display your hand fans clear of the camera strip, and on the inner display
+> and iPad the cards grow to fit the room. Both race tracks now run the full
+> width on one shared scale, so you can see who's ahead at a glance. Plus the
+> under-the-hood changes the new iOS needs.
+
+Under the hood: UIScene life cycle (build 23); overlays sized by their column
+(PR #254); the hand fan centres in the safe box and re-reads the insets when
+they arrive after first paint (the Duo reports its strip late); status, pile
+and rival cards scale up on roomy portrait screens (Duo inner, iPads) and
+trim on short ones (Duo outer, SE-class phones); the rival strip is two rows
+so its track spans the table like yours; `ios-release.sh` refuses a
+node_modules whose Capacitor does not match the pin (the 8.4.1 → 8.5.2
+mismatch builds without SceneDelegateProxy). Android stays in lockstep at
+versionCode 24 but is not being shipped with this cut.
 
 ## 1.4.1 · build 21 — Polish on the space table
 

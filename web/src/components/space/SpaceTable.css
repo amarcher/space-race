@@ -125,11 +125,16 @@
 }
 
 /* ── the rival: one strip ──────────────────────────────────────────────── */
-.sp-rival { display: flex; align-items: center; gap: 12px; padding: 4px 6px; }
+/* Two rows: the status card, safeties and hand pile, then the track on a row
+   of its own. The track spans the table, so it shares ONE lane with yours:
+   same left edge, same length, the same distance at the same x, and the race
+   reads at a glance (the lane used to sit between the status card and the
+   hand pile, a shorter, offset scale). */
+.sp-rival { display: grid; gap: 6px; padding: 4px 0; }
+.sp-rival__row { display: flex; align-items: center; gap: 12px; }
 .sp-rival__status { flex: none; width: var(--rival-w); aspect-ratio: 5 / 7; }
 .sp-rival__status .sp-card { box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5); }
-.sp-rival__mid { flex: 1; min-width: 0; display: grid; gap: 6px; }
-.sp-rival__safeties { display: flex; gap: 5px; min-height: calc(var(--rival-w) * 0.5 * 1.4); }
+.sp-rival__safeties { flex: 1; min-width: 0; display: flex; gap: 5px; min-height: calc(var(--rival-w) * 0.5 * 1.4); }
 .sp-rival__safeties .sp-card { width: calc(var(--rival-w) * 0.5); box-shadow: 0 0 0 1px rgba(255, 214, 120, 0.8); }
 .sp-rival__next { width: calc(var(--rival-w) * 0.5); }
 .sp-rival__hand { position: relative; flex: none; width: calc(var(--rival-w) * 0.9); aspect-ratio: 5 / 6; }
@@ -152,6 +157,10 @@
 
 /* ── your area ─────────────────────────────────────────────────────────── */
 .sp-track { margin-bottom: 12px; }
+/* In landscape the rival strip spans both grid columns while your area sits in
+   the right one (after the piles column and its 28px gap): start the rival's
+   track at that column so the two lanes still coincide. */
+.sp--land .sp-rival__track { margin-left: calc(var(--pile-w) + 28px); }
 .sp-you .sp-track .race { height: 40px; --rail-h: 22px; --ship: 44px; }
 .sp-you__row { display: flex; align-items: flex-end; gap: 16px; min-width: 0; }
 

@@ -23,3 +23,10 @@ done
 for slide in race rules; do
   render "$slide" ipad 2064x2752
 done
+# iPhone Duo: one ASC set holds both displays (outer 1398x2034, inner 2007x2853)
+for slide in marquee race blocked; do
+  render "$slide" duoOuter 1398x2034
+done
+for slide in race marquee; do
+  render "$slide" duoInner 2007x2853
+done

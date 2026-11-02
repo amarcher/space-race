@@ -38,14 +38,35 @@ function readSizes() {
   const vh = window.innerHeight
   const land = vw / vh > 1.15
   const clamp = (lo: number, v: number, hi: number) => Math.round(Math.max(lo, Math.min(v, hi)))
+  // The portrait caps are tuned for a phone. A roomy portrait screen (the iPhone
+  // Duo's inner display at 669x951, an iPad) hits them with most of the screen
+  // left empty, so the caps grow by how far the viewport exceeds a tall phone,
+  // both ways, and only as far as the height lets the stack keep fitting. A
+  // phone and the Duo's outer display (466x678) stay at 1.
+  const roomy = land ? 1 : Math.max(1, Math.min(vw / 520, vh / 780, 1.35))
+  // A short portrait screen (the Duo's outer display is 466x678, an SE-class
+  // phone 375x667) cannot stack both rows plus the piles at phone sizes: trim
+  // the status, pile and rival cards by the height, leaving the hand full size
+  // to tap. A tall phone (≥ 800) stays at 1.
+  const short = land ? 1 : Math.min(1, vh / 800)
+  // Side safe-area insets, read from the table's resolved padding (it pads by
+  // them): a custom property holding env() does not resolve to pixels in every
+  // engine, and on the iPhone Duo's outer display the strip's inset only lands
+  // after first paint. 0 until the table exists.
+  const table = document.querySelector('.sp-table')
+  const pad = table ? getComputedStyle(table) : null
+  const safeLeft = (pad && parseFloat(pad.paddingLeft)) || 0
+  const safeRight = (pad && parseFloat(pad.paddingRight)) || 0
   return {
     vw,
     vh,
     land,
-    handW: land ? clamp(96, vh * 0.2, 210) : clamp(78, vw * 0.26, 132),
-    statusW: land ? clamp(96, vh * 0.21, 210) : clamp(84, vw * 0.3, 150),
-    pileW: land ? clamp(90, vh * 0.17, 170) : clamp(74, vw * 0.21, 120),
-    rivalW: land ? clamp(48, vh * 0.075, 80) : clamp(38, vw * 0.105, 62),
+    safeLeft,
+    safeRight,
+    handW: land ? clamp(96, vh * 0.2, 210) : clamp(78, vw * 0.26, 132 * roomy),
+    statusW: land ? clamp(96, vh * 0.21, 210) : clamp(84, vw * 0.3 * short, 150 * roomy),
+    pileW: land ? clamp(90, vh * 0.17, 170) : clamp(74, vw * 0.21 * short, 120 * roomy),
+    rivalW: land ? clamp(48, vh * 0.075, 80) : clamp(38, vw * 0.105 * short, 62 * roomy),
   }
 }
 export type SpaceSizes = ReturnType<typeof readSizes>
@@ -54,7 +75,17 @@ export function useSpaceSizes(): SpaceSizes {
   useEffect(() => {
     const on = () => set(readSizes())
     window.addEventListener('resize', on)
-    return () => window.removeEventListener('resize', on)
+    // env() insets can change without a resize (the Duo's outer display reports
+    // its camera strip after first paint; a fold or unfold moves it), and they
+    // fire no event of their own. The table pads by them, so its content box
+    // changes: watch that.
+    const table = document.querySelector('.sp-table')
+    const ro = table && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(on) : null
+    if (table && ro) ro.observe(table)
+    return () => {
+      window.removeEventListener('resize', on)
+      ro?.disconnect()
+    }
   }, [])
   return s
 }
@@ -217,31 +248,33 @@ function RivalStrip({ p, handRef, impact, active }: { p: PlayerState; handRef: R
       data-drop="opp"
       aria-label={`${p.name}: ${p.distance} light-years`}
     >
-      <div className="sp-rival__status" data-slot="status">
-        {s.card && <img className="sp-card" src={printedFace(s.card)} alt={CARD_DEFS[s.card].title} draggable={false} />}
-      </div>
-      {s.limited && (
-        <div className="sp-rival__limit" data-slot="limit" aria-label={`Speed limited to ${SPEED_LIMIT_VALUE}`}>
-          <img className="sp-card" src={printedFace('tractor-beam')} alt="Tractor Beam" draggable={false} />
-          <span>≤{SPEED_LIMIT_VALUE}</span>
+      {/* row one: what the rival flies under, its safeties, its hand */}
+      <div className="sp-rival__row">
+        <div className="sp-rival__status" data-slot="status">
+          {s.card && <img className="sp-card" src={printedFace(s.card)} alt={CARD_DEFS[s.card].title} draggable={false} />}
         </div>
-      )}
-      <div className="sp-rival__mid">
-        <div data-slot="track">
-          <RaceTrack distance={p.distance} trail={p.trail} pile={p.distancePile} state={trackState(s.tone)} isOpponent />
-        </div>
+        {s.limited && (
+          <div className="sp-rival__limit" data-slot="limit" aria-label={`Speed limited to ${SPEED_LIMIT_VALUE}`}>
+            <img className="sp-card" src={printedFace('tractor-beam')} alt="Tractor Beam" draggable={false} />
+            <span>≤{SPEED_LIMIT_VALUE}</span>
+          </div>
+        )}
         <div className="sp-rival__safeties">
           {p.safeties.map((k) => (
             <img key={k} className="sp-card" src={printedFace(k)} alt={CARD_DEFS[k].title} draggable={false} />
           ))}
           <span data-slot="next" className="sp-rival__next" />
         </div>
+        <div className="sp-rival__hand" ref={handRef} aria-label={`${p.hand.length} cards in hand`}>
+          {p.hand.slice(0, 3).map((c, i) => (
+            <img key={c.uid} className="sp-card" src={CARD_BACK} alt="" style={{ '--i': i } as React.CSSProperties} draggable={false} />
+          ))}
+          <span className="sp-rival__count">{p.hand.length}</span>
+        </div>
       </div>
-      <div className="sp-rival__hand" ref={handRef} aria-label={`${p.hand.length} cards in hand`}>
-        {p.hand.slice(0, 3).map((c, i) => (
-          <img key={c.uid} className="sp-card" src={CARD_BACK} alt="" style={{ '--i': i } as React.CSSProperties} draggable={false} />
-        ))}
-        <span className="sp-rival__count">{p.hand.length}</span>
+      {/* row two: the track, full width, so it shares one lane with yours below */}
+      <div className="sp-rival__track" data-slot="track">
+        <RaceTrack distance={p.distance} trail={p.trail} pile={p.distancePile} state={trackState(s.tone)} isOpponent />
       </div>
     </section>
   )
@@ -286,11 +319,15 @@ export function SpaceTable({ game, play, shaking }: { game: GameState; play: Spa
     (n: number) => {
       const W = sz.handW
       const H = W * 1.4
-      const cx = sz.vw / 2
       const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom')) || 0
+      // The fan centres in the safe box, not the screen: the iPhone Duo's outer
+      // display keeps its camera and status strip down the right edge, and a
+      // landscape phone has its notch on one side. No side inset: unchanged.
+      const boxW = sz.vw - sz.safeLeft - sz.safeRight
+      const cx = sz.safeLeft + boxW / 2
       const cy = sz.vh - H * 0.46 - safeBottom
       const R = W * 5.5
-      const room = Math.min(sz.vw - 24, sz.land ? W * 7.2 : sz.vw) - W - 20
+      const room = Math.min(boxW - 24, sz.land ? W * 7.2 : boxW) - W - 20
       const gap = Math.min(W * 0.8, room / Math.max(1, n - 1))
       const step = Math.asin(Math.min(1, gap / R))
       return Array.from({ length: n }, (_, i) => {

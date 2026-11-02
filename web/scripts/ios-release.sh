@@ -45,8 +45,21 @@ UPLOAD=0
 [[ "${1:-}" == "--signed" ]] && SIGNED=1
 [[ "${1:-}" == "--upload" ]] && { SIGNED=1; UPLOAD=1; }
 
-echo "==> Building web bundle (vite)"
 cd "$ROOT"
+
+# `cap sync` writes ios/App/CapApp-SPM/Package.swift from the Capacitor CLI that
+# is INSTALLED, not the one package.json pins, and SceneDelegate.swift needs the
+# SceneDelegateProxy that only Capacitor 8.5+ ships. A checkout whose
+# node_modules predate the 8.5.2 pin builds an 8.4.1 package and fails with
+# "cannot find 'SceneDelegateProxy' in scope" (seen 2026-11-01). Refuse early.
+want=$(node -p "require('./package.json').dependencies['@capacitor/ios']" | tr -d '^~')
+have=$(node -p "require('./node_modules/@capacitor/ios/package.json').version" 2>/dev/null || echo none)
+if [[ "$have" != "$want" ]]; then
+  echo "ios-release: node_modules has @capacitor/ios $have but package.json pins $want; run 'npm ci' in web/ first." >&2
+  exit 1
+fi
+
+echo "==> Building web bundle (vite)"
 npm run build
 
 echo "==> Syncing Capacitor iOS project"
