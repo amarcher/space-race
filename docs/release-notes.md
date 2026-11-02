@@ -14,12 +14,17 @@ strings should say so too. Two files to change, both in `web/`:
 
 ---
 
-## 1.4.2 · build 24 — Made for iPhone Duo
+## 1.4.2 · build 25 — Made for iPhone Duo
 
-**Status:** cut 2026-11-01 from Xcode 27.2. Uploaded to TestFlight; the App
-Store Connect version is prepared with iPhone Duo screenshots (the set that
-earns the "optimized for iPhone Duo" product-page badge) and waits for the
-owner to try build 24 on a phone before it goes to review. Builds 22 and 23
+**Status:** build 25 cut 2026-11-02 from Xcode 27.2 for TestFlight, on top of
+build 24 (2026-11-01). The App Store Connect version is prepared with iPhone
+Duo screenshots (the set that earns the "optimized for iPhone Duo"
+product-page badge) and waits for the owner to try the build on a phone
+before it goes to review. Build 25 adds what the owner found playing 24 on a
+phone: the card takeover now dissolves in (the board blurs and dims while the
+clip surfaces) instead of cutting to a dark sheet, and when nothing in your
+hand can be played a cue above the hand says "Nothing to play, drag a card
+to the discard pile". Builds 22 and 23
 were TestFlight-only: 22 crashed on launch (an app built with the iOS 27 SDK
 must use the UIScene life cycle; 23 added the SceneDelegate on Capacitor
 8.5.2). Never ship 22.
@@ -29,8 +34,10 @@ What's New (store copy):
 > Made for iPhone Duo. The table fills both of the Duo's screens: on the outer
 > display your hand fans clear of the camera strip, and on the inner display
 > and iPad the cards grow to fit the room. Both race tracks now run the full
-> width on one shared scale, so you can see who's ahead at a glance. Plus the
-> under-the-hood changes the new iOS needs.
+> width on one shared scale, so you can see who's ahead at a glance. Card
+> cinematics now dissolve in from the table instead of cutting to black, and
+> the game tells you when your only move is a discard. Plus the under-the-hood
+> changes the new iOS needs.
 
 Under the hood: UIScene life cycle (build 23); overlays sized by their column
 (PR #254); the hand fan centres in the safe box and re-reads the insets when

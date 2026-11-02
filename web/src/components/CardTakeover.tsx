@@ -192,6 +192,8 @@ export function CardTakeover({
       className={`takeover takeover--${variant} ${leaving ? 'takeover--leaving' : ''} ${seamlessIn ? 'takeover--instant' : ''}`}
       aria-hidden
     >
+      {/* the clip surfaces through the blurred, dimmed board (CSS) */}
+      <div className="takeover__surface">
       <video
         ref={setVideo}
         className="takeover__video"
@@ -228,6 +230,7 @@ export function CardTakeover({
           draggable={false}
         />
       )}
+      </div>
       <span className="takeover__tint" />
       {caption && <div className="takeover__caption">{caption}</div>}
     </div>,
