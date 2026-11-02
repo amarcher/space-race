@@ -8,7 +8,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        configureAudioSession()
+        AppDelegate.configureAudioSession()
         return true
     }
 
@@ -26,17 +26,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        // Re-assert on every activation: the NativeAudio plugin resets the session
-        // to plain .playback when it loads (after launch), and any configure() call
-        // from JS would switch it to .ambient, which the silent switch mutes.
-        configureAudioSession()
-    }
-
     /// Game SFX must play with the ring/silent switch ON (native-game behaviour,
     /// the owner's call 2026-07-20) and mix under the player's own music.
     /// `.playback` ignores the switch; `.mixWithOthers` keeps their audio running.
-    private func configureAudioSession() {
+    /// Called at launch and, from SceneDelegate.sceneDidBecomeActive, on every
+    /// activation (with scenes, applicationDidBecomeActive is never called).
+    static func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
