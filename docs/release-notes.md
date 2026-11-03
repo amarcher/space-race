@@ -16,11 +16,19 @@ strings should say so too. Two files to change, both in `web/`:
 
 ## 1.4.2 · build 25 — Made for iPhone Duo
 
-**Status:** build 25 cut 2026-11-02 from Xcode 27.2 for TestFlight, on top of
-build 24 (2026-11-01). The App Store Connect version is prepared with iPhone
+**Status:** submitted 2026-11-02. App Store 1.4.2 / build 25 is
+WAITING_FOR_REVIEW (review submission 9bcc003b, sent 2026-11-02 21:15 ET
+after the owner played build 25 on a phone: "it felt great"). Amazon
+Appstore 1.4.2 / versionCode 25 submitted the same evening through
+`amazon-submit.sh` (edit `…01c5eec5b1e34f97803ede2058a2eec2`). Google Play
+1.4.2 / versionCode 25: signed AAB built and parked at
+`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab`, waiting on the
+human file pick in Play Console. Build 25 was cut 2026-11-02 from Xcode 27.2,
+on top of build 24 (2026-11-01). The App Store Connect version carries iPhone
 Duo screenshots (the set that earns the "optimized for iPhone Duo"
-product-page badge) and waits for the owner to try the build on a phone
-before it goes to review. Build 25 adds what the owner found playing 24 on a
+product-page badge). Apple's revised age-rating questionnaire now asks a
+`socialMedia` question that blocks review submission until answered; it is
+answered "no" on the app record. Build 25 adds what the owner found playing 24 on a
 phone: the card takeover now dissolves in (the board blurs and dims while the
 clip surfaces) instead of cutting to a dark sheet, and when nothing in your
 hand can be played a cue above the hand says "Nothing to play, drag a card
@@ -39,6 +47,12 @@ What's New (store copy):
 > the game tells you when your only move is a discard. Plus the under-the-hood
 > changes the new iOS needs.
 
+### What's New — Google Play and Amazon (paste-ready, 300 chars; Play caps at 500)
+
+```
+Both race tracks now run the full width on one shared scale, so you can see who's ahead at a glance. Card cinematics dissolve in from the table instead of cutting to black, and the game tells you when your only move is a discard. On tablets and unfolded foldables the cards grow to fit the room.
+```
+
 Under the hood: UIScene life cycle (build 23); overlays sized by their column
 (PR #254); the hand fan centres in the safe box and re-reads the insets when
 they arrive after first paint (the Duo reports its strip late); status, pile
@@ -46,8 +60,19 @@ and rival cards scale up on roomy portrait screens (Duo inner, iPads) and
 trim on short ones (Duo outer, SE-class phones); the rival strip is two rows
 so its track spans the table like yours; `ios-release.sh` refuses a
 node_modules whose Capacitor does not match the pin (the 8.4.1 → 8.5.2
-mismatch builds without SceneDelegateProxy). Android stays in lockstep at
-versionCode 24 but is not being shipped with this cut.
+mismatch builds without SceneDelegateProxy). Android ships the same cut as
+versionCode 25 to Google Play and the Amazon Appstore.
+
+### Submission checklist
+
+- [x] iOS: build 25 attached to the 1.4.2 record, What's New pasted, review
+      submission created and submitted via the ASC API (2026-11-02).
+- [x] Amazon: `npm run amazon:release` → `./scripts/amazon-submit.sh`
+      (2026-11-02, APK 99 MB).
+- [ ] Play: AAB built (`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab`,
+      99 MB, upload key verified) → drag it into Play Console → Production →
+      Create new release, paste the Google Play What's New above, send for
+      review.
 
 ## 1.4.1 · build 21 — Polish on the space table
 
