@@ -29,8 +29,8 @@ also spares us Amazon's separate Fire TV asset set.
 | **Binary** | `web/android/app/build/outputs/apk/release/app-release.apk` |
 | **Build command** | `npm run amazon:release` (= `./scripts/android-release.sh --amazon`) |
 | **Package name** | `tech.spaceexplorer.spacerace` (same as Play/iOS) |
-| **Version** | `versionName 1.4.1` / `versionCode 21` |
-| **Approx. size** | ~84 MB |
+| **Version** | `versionName 1.4.2` / `versionCode 25` |
+| **Approx. size** | ~99 MB |
 | **Allow Amazon to apply DRM?** | **No** |
 
 **On DRM** (the console defaults this to *Yes*): our binary does not integrate
