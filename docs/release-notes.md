@@ -21,9 +21,8 @@ WAITING_FOR_REVIEW (review submission 9bcc003b, sent 2026-11-02 21:15 ET
 after the owner played build 25 on a phone: "it felt great"). Amazon
 Appstore 1.4.2 / versionCode 25 submitted the same evening through
 `amazon-submit.sh` (edit `…01c5eec5b1e34f97803ede2058a2eec2`). Google Play
-1.4.2 / versionCode 25: signed AAB built and parked at
-`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab`, waiting on the
-human file pick in Play Console. Build 25 was cut 2026-11-02 from Xcode 27.2,
+1.4.2 / versionCode 25 sent for review the same evening (the owner uploaded
+`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab` in Play Console). Build 25 was cut 2026-11-02 from Xcode 27.2,
 on top of build 24 (2026-11-01). The App Store Connect version carries iPhone
 Duo screenshots (the set that earns the "optimized for iPhone Duo"
 product-page badge). Apple's revised age-rating questionnaire now asks a
@@ -69,10 +68,9 @@ versionCode 25 to Google Play and the Amazon Appstore.
       submission created and submitted via the ASC API (2026-11-02).
 - [x] Amazon: `npm run amazon:release` → `./scripts/amazon-submit.sh`
       (2026-11-02, APK 99 MB).
-- [ ] Play: AAB built (`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab`,
-      99 MB, upload key verified) → drag it into Play Console → Production →
-      Create new release, paste the Google Play What's New above, send for
-      review.
+- [x] Play: AAB (`~/SpaceRace-releases/play/space-race-1.4.2-vc25-play.aab`,
+      99 MB, upload key verified) uploaded by the owner in Play Console and
+      sent for review (2026-11-02).
 
 ## 1.4.1 · build 21 — Polish on the space table
 
